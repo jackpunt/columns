@@ -21,6 +21,7 @@
             ],
             "tsConfig": "tsconfig.app.json",
             "assets": [
+              "src/assets",
               {
                 "glob": "**/*",
                 "input": "public"
@@ -36,7 +37,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "3500kB",
                   "maximumError": "1MB"
                 },
                 {
@@ -62,6 +63,7 @@
               "buildTarget": "columns:build:production"
             },
             "development": {
+              "port": 4210,
               "buildTarget": "columns:build:development"
             }
           },
@@ -79,6 +81,7 @@
             ],
             "tsConfig": "tsconfig.spec.json",
             "assets": [
+              "src/assets",
               {
                 "glob": "**/*",
                 "input": "public"
