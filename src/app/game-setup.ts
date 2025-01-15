@@ -1,5 +1,5 @@
-import { stime } from '@thegraid/common-lib';
-import { GameSetup as GameSetupLib, H, MapCont, Scenario as Scenario0, Table, TP, type HexAspect } from '@thegraid/hexlib';
+import { stime, type Constructor } from '@thegraid/common-lib';
+import { GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex } from '@thegraid/hexlib';
 import { GamePlay } from './game-play';
 import { CardHex, ColCard } from './col-card';
 import { OrthoHex as Hex1, OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
@@ -59,11 +59,19 @@ export class GameSetup extends GameSetupLib {
     hexCont?.cacheID && hexCont.updateCache()  // when toggleText: hexInspector
     hexCont?.stage?.update();
   }
-  override makeHexMap() {
-    const hexMap = new HexMap2(TP.hexRad, true, Hex2);
-    const cNames = MapCont.cNames.concat() as string[]; // for example
-    hexMap.addToMapCont(Hex2, cNames);       // addToMapCont(hexC, cNames)
-    hexMap.makeAllDistricts();               // determines size for this.bgRect
+
+  override makeHexMap(
+    hexMC: Constructor<HexMap<Hex>> = HexMap2,
+    hexC: Constructor<Hex> = Hex2, // (radius, addToMapCont, hexC, Aname)
+    cNames = MapCont.cNames.concat() as string[], // the default layers
+  ) {
+    const np = this.getNPlayers();
+    // nr includes top&bottom black cells; (8 player could be 7 rows...)
+    const nr = [0, 0, 4, 4, 5, 5, 6, 6, 6][np] + 2;
+    const nc = [2, 2, 3, 4, 4, 5, 5, 6, 6][np];
+    TP.nHexes = nr;
+    TP.mHexes = nc;
+    const hexMap = super.makeHexMap(hexMC, hexC, cNames); // makeAllHexes(nh=TP.nHexes, mh=TP.mHexes)
     return hexMap;
   }
 

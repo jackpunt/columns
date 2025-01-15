@@ -200,7 +200,7 @@ export class CardPanel extends NamedContainer {
    */
   constructor(public table: Table, public high: number, public wide: number, row = 0, col = 0) {
     super(`CardPanel`)
-    const { dxdc, dydr } = table.hexMap.xywh
+    const { dxdc, dydr } = table.hexMap.xywh()
     const w = dxdc * wide, h = dydr * high;
     const disp = this.disp = new RectShape({ w, h }, C.grey224, '');
     this.addChild(disp)
@@ -216,7 +216,7 @@ export class CardPanel extends NamedContainer {
 
   /** fill hexAry with row of CardHex above panel */
   fillAryWithCardHex(table: Table, panel: Container, hexAry: IHex2[], row = 0, ncols = 4) {
-    const { w } = table.hexMap.xywh; // hex WH
+    const { w } = table.hexMap.xywh(); // hex WH
     const { width } = (new CardShape()).getBounds(); // PathCard.onScreenRadius
     const gap = .1 + (width / w) - 1;
     const hexes = table.hexesOnPanel(panel, row, ncols, CardHex, { gap });

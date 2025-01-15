@@ -18,12 +18,15 @@ export class ColTable extends Table {
   override hexUnderObj(dragObj: DisplayObject, legalOnly?: boolean) {
     return super.hexUnderObj(dragObj, legalOnly) as OrthoHex2 | undefined;
   }
-
-  // bgRect tall enough for 3 X 3.5 player panels
-  override bgXYWH(x0?: number, y0?: number, w0?: number, h0 = 1, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
-    const { dxdc, dydr } = this.hexMap.xywh;
-    const { height } = this.hexMap.mapCont.hexCont.getBounds(), h = height / dydr;
-    const h1 = (Math.max(h, 3 * 3.5 + .5) - h);
+  mph_g = 2.2; // min panel height + gap
+  get nrows() {
+    const { dydr } = this.hexMap.xywh();
+    return this.hexMap.mapCont.hexCont.getBounds().height / dydr; // number of rows
+  }
+  // bgRect tall enough for (3 X mph + gap) player panels
+  override bgXYWH(x0?: number, y0?: number, w0?: number, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
+    const nr = this.nrows
+    const h1 = Math.max(nr, 3 * this.mph_g) - nr; // extra height beyond nr + h0
     return super.bgXYWH(x0, y0, w0, h0 + h1, dw, dh)
   }
 
@@ -34,7 +37,28 @@ export class ColTable extends Table {
   override makePerPlayer(): void {
     super.makePerPlayer();
   }
+  get super_panelHeight() { return this.nrows / 3 - .2; }
+  override get panelHeight() { return Math.max(this.super_panelHeight, this.mph_g - .2) }
 
+  // getPanelLocs adapted for makeRect()
+  override getPanelLocs() {
+    const { nh: nr, mh: nc } = this.hexMap.getSize();
+    const rC = (nr - 1) / 2;
+    const cC = (nc - 1) / 2;
+    const coff = (nc / 2) + (this.panelWidth / 2) + .2;
+    const ph = this.panelHeight + .2;
+    // Left of map (dir: +1), Right of map (dir: -1)
+    const cL = cC - coff, cR = cC + coff;
+    const locs: [row: number, col: number, dir: 1 | -1][] = [
+        [rC - ph, cL, +1], [rC, cL, +1], [rC + ph, cL, +1],
+        [rC - ph, cR, -1], [rC, cR, -1], [rC + ph, cR, -1]
+    ];
+    return locs;
+  }
+
+  // override layoutTurnlog(rowy = 0, colx = -14): void {
+  //   super.layoutTurnlog(rowy, colx)
+  // }
   override toggleText(vis = !this.isVisible): void {
     this.newHexes.forEach(hex => hex.showText(vis))
     super.toggleText(vis);
@@ -102,9 +126,6 @@ export class ColTable extends Table {
     return rv;
   }
   orig_doneClick!: (evt?: any) => void;
-  override get panelHeight() {
-    return Math.max(super.panelHeight, 3.5)
-  }
 
   override panelLocsForNp(np: number): number[] {
     return [[], [0], [0, 2], [0, 3, 2], [0, 3, 5, 2], [0, 3, 4, 5, 2], [0, 3, 4, 5, 2, 1]][np];
