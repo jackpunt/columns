@@ -27,11 +27,6 @@ export class TP extends TPLib {
   /** ColorScheme names allowed in choice selector */
   static schemeNames = ['Red_Blue']
 
-  /** Order [number of rings] of metaHexes */
-  static override mHexes = 1   // number hexes on side of Meta-Hex
-  /** Order [number of Hexs on side] of District [# rings of Hexes in each metaHex] */
-  static override nHexes = 7    // number of Hexes on side of District
-
   // timeout: see also 'autoEvent'
   static stepDwell:  number = 150
 

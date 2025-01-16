@@ -83,7 +83,7 @@ export class ColTable extends Table {
   override layoutTable2() {
     this.initialVis = false;
     super.layoutTable2();
-    ColCard.makeAllCards()
+    // ColCard.makeAllCards(); // makeAllTiles(); deal tile-cards to the hexMap?
 
     ColCard.makeAllCards(); // populate PathCard.cardByName
 

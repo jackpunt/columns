@@ -1,9 +1,9 @@
-import { stime, type Constructor } from '@thegraid/common-lib';
+import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex } from '@thegraid/hexlib';
-import { GamePlay } from './game-play';
 import { CardHex, ColCard } from './col-card';
-import { OrthoHex as Hex1, OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { ColTable } from './col-table';
+import { GamePlay } from './game-play';
+import { OrthoHex as Hex1, OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { Player } from './player';
 import { TileExporter } from './tile-exporter';
 
@@ -66,12 +66,15 @@ export class GameSetup extends GameSetupLib {
     cNames = MapCont.cNames.concat() as string[], // the default layers
   ) {
     const np = this.getNPlayers();
-    // nr includes top&bottom black cells; (8 player could be 7 rows...)
-    const nr = [0, 0, 4, 4, 5, 5, 6, 6, 6][np] + 2;
+    // nr includes top & bottom black cells; (8 player could be 7 rows...)
+    const nr = [1, 1, 4, 4, 5, 5, 6, 6, 6][np] + 2;
     const nc = [2, 2, 3, 4, 4, 5, 5, 6, 6][np];
+    // set color of 'hex' for each row:
+    const dc = Array<string>(nr); dc.fill(C.grey224, 0, -1); dc[0] = dc[nr-1] = C.grey64;
+    HexMap.distColor.splice(0, HexMap.distColor.length, ...dc);
     TP.nHexes = nr;
     TP.mHexes = nc;
-    const hexMap = super.makeHexMap(hexMC, hexC, cNames); // makeAllHexes(nh=TP.nHexes, mh=TP.mHexes)
+    const hexMap = super.makeHexMap(hexMC, hexC, cNames); // hexMap.makeAllHexes(nh=TP.nHexes, mh=TP.mHexes)
     return hexMap;
   }
 

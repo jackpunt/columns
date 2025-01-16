@@ -1,18 +1,56 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
-import { type Paintable } from "@thegraid/easeljs-lib";
-import { Hex1 as Hex1Lib, Hex2Mixin, HexMap, type Hex, type HexDir, type LINKS, TP as TPLib, type DCR, type TopoC, TopoOR4C, type DirDCR, type TopoXYWH } from "@thegraid/hexlib";
+import { RectShape, type Paintable } from "@thegraid/easeljs-lib";
+import { H, Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, TopoC, TP, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
-import { TP } from "./table-params";
-import type { DisplayObject } from "@thegraid/easeljs-module";
+
+
+type Or4DCR = Record<Or4Dir, DCR>
+export class TopoOR4C extends TopoC<Or4DCR> {
+  constructor(public wr = 1.75, public hr = 2.5, public gap = .1) {
+    super()
+  }
+  override _linkDirs = H.or4Dirs;
+  topoDCR(rc: RC) {
+    return { N: { dr: -1, dc: 0 }, E: { dr: 0, dc: 1 }, S: { dr: 1, dc: 0 }, W: { dr: 0, dc: -1 } };
+  }
+    /** a TopoMetric for graphical layout */
+  override  xywh(rad = 1, row = 0, col = 0): TopoXYWH {
+    const w = rad * this.wr, h = rad * this.hr;
+    const dxdc = w + rad * this.gap, dydr = h + rad * this.gap;
+    return { x: col * dxdc, y: row * dydr, w, h, dxdc, dydr }
+  }
+}
 
 // Hex1 has get/set tile/meep -> _tile/_meep
-// Hex2Mixin.Hex2Impl has get/set -> setUnit(unit, isMeep)
+// Hex1 has get/set -> setUnit(unit, isMeep) & unitCollision(unit1, unit2)
 export class OrthoHex extends Hex1Lib {
-  static topo = new TopoOR4C();
+  static topo = new TopoOR4C(); // used by xywh() and HexMap
 
-  get card() { return super.meep as ColCard | undefined }
-  set card(card) { super.meep = card; }
+  _meep2: Tile | undefined;
+  get meep2() { return this._meep; }
+  set meep2(meep: Tile | undefined) { this.setUnit(meep, true) }
+
+  /** like occupied:
+   *  @return [this.meep, this.meep2] | undefined
+   */
+  get meeps(): [Tile | undefined, Tile | undefined] | undefined { return (this.meep2 || this.meep) ? [this.meep, this.meep2] : undefined; }
+  // user cannot drop meep on the cell/card; code will check hex.meeps()
+  // and put them on correct cell/slot [so we are not re-doing unitCollision()]
+
+  override setUnit(unit?: Tile, isMeep?: boolean | undefined): void {
+    super.setUnit(unit, isMeep)
+    if (!unit) return;
+    const dxy = unit.radius / 4; // super.setUnit places unit a center of hex, offset it:
+    if (unit === this.meep) {
+      unit.x -= dxy; unit.y += dxy;
+    } else if (unit === this.meep2) {
+      unit.x += dxy; unit.y -= dxy;
+    }
+  }
+
+  get card() { return super.tile as ColCard | undefined }
+  set card(card) { super.tile = card; }
 }
 
 class OrthoHex2Lib extends Hex2Mixin(OrthoHex) {};
@@ -24,6 +62,17 @@ export class OrthoHex2 extends OrthoHex2Lib {
   // overide to inject OrthoHex.topo
   override xywh(radius = this.radius, topo: TopoC<DirDCR> = OrthoHex.topo, row = this.row, col = this.col) {
     return super.xywh(radius, topo, row, col);
+  }
+
+  override makeHexShape(colorn = C.grey224): Paintable {
+    const { w, h } = this.xywh(this.radius), x = -w / 2, y = -h / 2;
+    return new RectShape({ x, y, w: w, h: h, r: w * .1 }, colorn, '')
+  }
+
+  // leave distText visible
+  override showText(vis = !this.rcText.visible) {
+    this.rcText.visible = vis;
+    this.reCache();
   }
 }
 
@@ -45,23 +94,25 @@ export class HexMap2 extends HexMap<OrthoHex2> {
 
   override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir> = OrthoHex.topo;
 
-  override xyFromMap(target: DisplayObject, row?: number, col?: number): TopoXYWH {
-    return super.xyFromMap(target, row, col)
-  }
+  // override to makeRect
   override makeAllHexes(nh = TP.nHexes, mh = TP.mHexes, rc0: RC) {
-    const tp = TP, tpl = TPLib;
     // nh: rows, mh: cols
     return this.makeRect(nh, mh, false, false); // ignore return value hexary: Hex[]
   }
-  override link(hex: OrthoHex2, rc?: RC, map?: OrthoHex2[][], nt = this.topo, lf?: ((hex: OrthoHex2) => LINKS<OrthoHex2>)): void {
-    super.link(hex, rc, map, nt, lf)
+  // working with GameSetup to color the 'HexShape' with a district per row:
+  override paintDistrict(hex2Ary: IHex2[], district = 0, cColor?: string) {
+    hex2Ary.forEach((hex, n) => {
+      let dcolor = HexMap.distColor[hex.district ?? 0]
+      hex.setHexColor(dcolor);
+      hex.distText.color = C.pickTextColor(dcolor);
+      hex.distText.visible = true;
+      return;
+    });
   }
-
-  /**
-   * expect nt: Topo to be Record<Or4Dir,DCR> or Record<Or8Dir,DCR>
-   */
-  override nextRowCol(rc: RC, dir: HexDir, nt = this.topo): RC {
-    return super.nextRowCol(rc, dir, nt)
+  // inject district from row (also sets color)
+  override addHex(row: number, col: number, district?: number, hexC?: Constructor<OrthoHex2>): OrthoHex2 {
+    district = (row == 0) ? 0 : (TP.nHexes - row - 1); // compute district from row
+    return super.addHex(row, col, district, hexC)
   }
 }
 export type Or8Dir = Exclude<HexDir, 'EN' | 'WN' | 'ES' | 'WS'>; // 8 compass dirs
