@@ -1,5 +1,5 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex } from '@thegraid/hexlib';
+import { GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardHex, ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { GamePlay } from './game-play';
@@ -9,7 +9,7 @@ import { TileExporter } from './tile-exporter';
 
 // type Params = {[key: string]: any;}; // until hexlib supplies
 export interface Scenario extends Scenario0 {
-
+  nPlayers?: number;
 };
 
 type PublicInterface<T> = { [K in keyof T]: T[K] };
@@ -88,6 +88,12 @@ export class GameSetup extends GameSetupLib {
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
     return new Player(ndx, gamePlay);
+  }
+
+  override resetState(stateInfo: Scenario & HexAspect): void {
+    const n = stateInfo.nPlayers;
+    this.qParams = { ...this.qParams, n};  // qParams from ng is readonly
+    super.resetState(stateInfo);
   }
 
   override startScenario(scenario: Scenario0) {

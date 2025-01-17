@@ -2,7 +2,6 @@ import { stime } from "@thegraid/common-lib";
 import { ScenarioParser as SPLib, SetupElt as SetupEltLib, type Tile, type TileSource } from "@thegraid/hexlib";
 import { type GamePlay, } from "./game-play";
 import { ColCard } from "./col-card";
-import { PathTile } from "./path-tile";
 import { Player } from "./player";
 
 
@@ -47,18 +46,12 @@ export class ScenarioParser extends SPLib {
       table.logText(`turn = ${turn}`, `parseScenario`);
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
-    this.setUnitsFromSource(tiles, PathTile,
-      (name) => PathTile.allPathTiles.find(t => t.Aname == name),
-      (player) => player.addTile,
-    )
+
     this.setUnitsFromSource(cards, ColCard,
       (name) => ColCard.cardByName.get(name),
       (player) => player.addCard,
     )
-    this.setUnitsFromSource(rules ? [rules] : undefined, ColCard,
-      (name) => ColCard.cardByName.get(name),
-      (player) => table.cardPanel.addCard,
-    )
+
     if (gameState) {
       this.gamePlay.gameState.parseState(gameState);
     }

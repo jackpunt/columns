@@ -2,9 +2,9 @@ import { C, type XY } from "@thegraid/common-lib";
 import { ParamGUI, type DragInfo, type NamedObject, type ParamItem } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, TP, type DragContext, type IHex2 } from "@thegraid/hexlib";
+import { CardPanel, ColCard, type CardBack } from "./col-card";
 import type { GamePlay } from "./game-play";
 import type { Scenario } from "./game-setup";
-import { CardPanel, ColCard, type CardBack } from "./col-card";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
 
 export class ColTable extends Table {
@@ -158,9 +158,12 @@ export class ColTable extends Table {
     gui.name = (gui as NamedObject).Aname = 'ParamGUI';
     const gameSetup = this.gamePlay.gameSetup;
     gui.makeParamSpec('hexRad', [30, 45, 60, 90,], { fontColor: 'red' }); TP.hexRad;
-    gui.makeParamSpec('nHexes', [2, 3, 4, 5, 6, 7, 8, 9,], { fontColor: 'red' }); TP.nHexes;
-    gui.spec("hexRad").onChange = (item: ParamItem) => { gameSetup.restart({ hexRad: item.value }) }
-    gui.spec("nHexes").onChange = (item: ParamItem) => { gameSetup.restart({ nh: item.value }) }
+    gui.spec('hexRad').onChange = (item: ParamItem) => { gameSetup.restart({ hexRad: item.value }) }
+    gui.makeParamSpec('numPlayers', [2, 3, 4, 5, 6, 7, 8, 9,], { fontColor: 'red', name: 'nPlayers' }); TP.numPlayers;
+    gui.spec('numPlayers').onChange = (item: ParamItem) => {
+      gui.setValue(item);
+      gameSetup.restart({});
+    }
 
     parent.addChild(gui)
     gui.x = x; gui.y = y
