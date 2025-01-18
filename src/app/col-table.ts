@@ -2,7 +2,7 @@ import { C, type XY } from "@thegraid/common-lib";
 import { ParamGUI, type DragInfo, type NamedObject, type ParamItem } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, TP, type DragContext, type IHex2 } from "@thegraid/hexlib";
-import { CardPanel, ColCard, type CardBack } from "./col-card";
+import { CardPanel, ColCard } from "./col-card";
 import type { GamePlay } from "./game-play";
 import type { Scenario } from "./game-setup";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
@@ -23,8 +23,8 @@ export class ColTable extends Table {
     const { dydr } = this.hexMap.xywh();
     return this.hexMap.mapCont.hexCont.getBounds().height / dydr; // number of rows
   }
-  // bgRect tall enough for (3 X mph + gap) player panels
-  override bgXYWH(x0?: number, y0?: number, w0?: number, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
+  // bgRect tall enough for (3 X mph + gap) PlayerPanels
+  override bgXYWH(x0?: number, y0?: number, w0 = 5, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
     const nr = this.nrows
     const h1 = Math.max(nr, 3 * this.mph_g) - nr; // extra height beyond nr + h0
     return super.bgXYWH(x0, y0, w0, h0 + h1, dw, dh)
@@ -84,20 +84,40 @@ export class ColTable extends Table {
     this.initialVis = false;
     super.layoutTable2();
     // ColCard.makeAllCards(); // makeAllTiles(); deal tile-cards to the hexMap?
-
-    ColCard.makeAllCards(); // populate PathCard.cardByName
+    const np = this.gamePlay.gameSetup.nPlayers
+    ColCard.makeAllCards(TP.mHexes, TP.nHexes, np, ); // populate ColCard.cardByName
+    this.placeCardsOnMap();
 
     this.addDoneButton();
     this.addCardPanel();
     return;
   }
 
+  /** demo for bringup visualization */
+  placeCardsOnMap() {
+    const allCards = ColCard.allCards
+    const black = allCards.filter(card => card.faction == 0);
+    const other = allCards.filter(card => card.faction != 0);
+    const plain = other.filter(card => !card.Aname.includes('&'))
+    const duals = other.filter(card => card.Aname.includes('&'));
+    const nc = TP.mHexes, nr = TP.nHexes;
+    this.hexMap.forEachHex(hex => {
+      const row = hex.row, col = hex.col, dual = true;
+      const card = (row == 0 || row == nr -1) ? black.shift() : dual? duals.shift() : plain.shift();
+      // card?.moveTo(hex);  // fails for unknown reasons.
+      hex.card = card;
+      return;
+    })
+    this.gamePlay.gameSetup.update()
+    return;
+  }
+
   cardSource!: TileSource<ColCard>
   cardDiscard!: TileSource<ColCard>
 
-  cardBack!: CardBack;
   cardPanel!: CardPanel;
   get cardRack() { return this.cardPanel.cardRack }
+  override get panelWidth() { return 2 }
   addCardPanel() {
     const np = 6, pindex = np; // in slot 1 (left-center)
     const [row, col, dir] = this.panelLoc(pindex, np);

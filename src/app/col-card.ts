@@ -1,12 +1,11 @@
-import { C, permute, S, stime } from "@thegraid/common-lib";
-import { CenterText, NamedContainer, RectShape, type DragInfo, type NamedObject, type Paintable } from "@thegraid/easeljs-lib";
-import { Container, DisplayObject, Graphics, MouseEvent } from "@thegraid/easeljs-module";
-import { H, Tile, TileSource, type DragContext, type HexDir, type IHex2 } from "@thegraid/hexlib";
+import { C, permute, stime } from "@thegraid/common-lib";
+import { NamedContainer, RectShape, type DragInfo, type Paintable } from "@thegraid/easeljs-lib";
+import { Container, DisplayObject, Graphics } from "@thegraid/easeljs-module";
+import { H, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
+import { type ColTable as Table } from "./col-table";
 import { type GamePlay } from "./game-play";
-import type { GameState } from "./game-state";
-import { OrthoHex2 as Hex2, type OrthoHex as Hex1, type HexMap2 } from "./ortho-hex";
-import { type ColTable, type ColTable as Table } from "./col-table";
+import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
@@ -21,9 +20,15 @@ export class ColCard extends Tile {
   override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
   override get isMeep() { return true; }
   declare gamePlay: GamePlay;
-
+  static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
+  constructor(Aname: string, readonly faction = 0) {
+    super(Aname);
+    const color = ColCard.factionColors[faction]
+    this.paint(color)
+    ColCard.cardByName.set(Aname, this);
+  }
   // invoked by constructor.super()
-  override makeShape(): RectShape {
+  override makeShape(): Paintable {
     return new CardShape('lavender', '', this.radius);
   }
 
@@ -48,56 +53,6 @@ export class ColCard extends Tile {
     super.showTargetMark(hex, ctx)
   }
 
-  override dropFunc(targetHex: IHex2, ctx: DragContext): void {
-    const toHex = targetHex as Hex2, card = toHex.card;
-    if (card && card !== this) card.moveCard(toHex, ctx);
-    super.dropFunc(targetHex, ctx);
-    // maybe set gameState.cardDone
-    const gameState = ctx.gameState as GameState, fromHex = this.fromHex as Hex2;
-    const plyr = (gameState.curPlayer as Player)
-    const selfDrop = (fromHex == toHex);
-    if (selfDrop) return;
-    {
-      setTimeout(() => {
-        gameState.cardDone = this; // triggers setNextPlayer; which confuses markLegal()
-      }, 0);
-    }
-  }
-
-  override moveTo(hex: Hex1 | undefined): void {
-    super.moveTo(hex)
-  }
-
-  /** hex contains card, which needs to be moved: */
-  moveCard(hex: Hex2, ctx: DragContext) {
-    // if hex is 'discards' --> let unitCollision stack them
-    // if hex in player.cardRack[]: card.sendHome()
-    // if hex is table.cardRack[0]: shift all cards up
-    if (hex.Aname == 'discards') return;
-    const plyr = ctx.gameState?.curPlayer as Player | undefined;
-    if (plyr?.cardRack.includes(hex)) {
-      const alt = plyr.cardRack.findIndex(hex => !hex.card)
-      if (alt < 0) {
-        this.sendHome(); // move player card to discards
-      } else {
-        this.moveTo(plyr.cardRack[alt]); // swap into empty slot
-      }
-    } else {
-      const hexAry = plyr?.gamePlay.table.cardRack ?? [];
-      const len = hexAry.length, ndx0 = hexAry.indexOf(hex);
-      if (ndx0 !== 0) debugger; // not allowed to drop on other slots...
-
-      const move1 = (card: ColCard, ndx: number) => {
-        if (ndx == len) { card.sendHome(); return }
-        const hex1 = hexAry[ndx], card1 = hex1.card;
-        if (card1) move1(card1, ndx + 1);
-        hex1.card = card;
-        card.moveTo(hex1)
-      }
-      move1(this, ndx0 + 1);
-    }
-  }
-
   /** how many of which Claz to construct & print: for TileExporter */
   static countClaz(n = 2) {
     return [].map(x => [n, ColCard, 750]) as CountClaz
@@ -111,8 +66,32 @@ export class ColCard extends Tile {
   }
 
 
-  static makeAllCards() {
-    ColCard.cardByName.clear();
+  // Sets of cards:
+  // 1. ColTiles: tableau cards (nr: nHexes X nc: mHexes, some with 2 offices?) + black rows
+  // shuffle and deal with gameSetup.placeCardsOnMap()
+  // makePlayerBits: as buttons on playerPanel: (ankh: cardSelector ?)
+  // three states: in-hand, committed bid, already played [reset to in-hand at player.newTurn()]
+  // showCardSelector, revealCards?
+  // impose a 'player turn' for GUI to reveal cards & select each player's bid
+  // 'V' => forEachPlayer( showCardSelector(showing = !showing))
+  // 2. for each Player - [1..nc] ColSelect cards
+  // 3. for each Player - [1..nc-1 max 4] BidCoin cards
+
+  static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, nPlayers = 4, ) {
+    ColCard.cardByName.clear(); // not needed?
+    // narrative: military, bankers, merchant, aristocrat
+    const nCards = nc * nr, nDual = Math.round(nCards * .25), nFacs = 4;
+    for (let n = 0, row = 0; row < nr; row++) {
+      for (let col = 0; col < nc; col++, n++) {
+        const faction = (row == 0 || (row == nr - 1)) ? 0 : 1 + (n % nFacs);
+        const card = new ColCard(`${n}-${faction}`, faction);
+        const dual = true
+        if (faction > 0 && dual) {
+          const df1 = faction, df2 = 1 + (Math.floor(n / nFacs) % nFacs );
+          const dual = new DualCard(`${n}:${df1}&${df2}`, df1, df2);
+        }
+      }
+    }
     this.initialSort(ColCard.allCards, ColCard.source)
   }
 
@@ -127,49 +106,37 @@ export class ColCard extends Tile {
     ;(src as any as NamedContainer).Aname = `${src.hex.Aname}Source`;
     return src;
   }
-}
-
-/** special PathCard with no rule, never gets picked/placed,
- * just sits on PathCard.source.hex; acts as a button
- */
-export class CardBack extends ColCard {
-  static bColor = 'lightgreen'
-  static oText = 'click\nto\ndraw';
-  static nText = '\n';
+  // 4 states: avail, clicked, commited, used.
   /** dim card when clicked */
   dim(dim = true) {
     // this.dText.text = dim ? CardBack.nText : CardBack.oText;
     this.stage?.update()
   }
-
-  constructor(Aname: string, public table: Table) {
-    super(Aname)
-    this.baseShape.paint(CardBack.bColor)
+}
+class DualCard extends ColCard {
+  constructor(Aname: string, faction: number, public readonly faction2: number) {
+    super(Aname, faction)
+    this.dualColor();
   }
-  // makeDragable(), but do not let it actually drag:
-  override isDragable(ctx?: DragContext): boolean {
-    return false;
-  }
-  override dropFunc(targetHex: IHex2, ctx: DragContext): void {
-    // do not move or place this card...
-  }
-  clicked(evt?: MouseEvent) {
-    if (this.table.gamePlay.gameState.cardDone) {
-      return;
+  dualColor(): Paintable {
+    // retool a RectShape with 2 X drawRect(); sadly only the last one renders!
+    const rv = this.baseShape as RectShape; // CardShape, with a mask
+    rv.mask = rv;                           // prevent drawing outside of CardShape
+    const { x, y, width, height } = rv.getBounds();
+    const f1 = this.faction, f2 = this.faction2;
+    const c1 = ColCard.factionColors[f1];
+    const c2 = ColCard.factionColors[f2];
+    rv._cgf = (color: string, g = rv.g0) => {
+      const aname = this.Aname, ff1 = f1, ff2 = f2;
+      g.s('black')         // for debug
+      g.f(c1).dr(x            , y, width / 2, height); // mask will clip the round corners!
+      g.f(c2).dr(x + width / 2, y, width / 2, height); // mask will clip the round corners!
+      // g.s('black').ss(2).mt(0,0).lt(x,y)
+      console.log(stime(this, `.cgf(${c1}, ${c2})`), g.instructions)
+      return g
     }
-    const card = ColCard.source.nextUnit();  // card.moveTo(srchex)
-    if (card) {
-      const pt = { x: evt?.localX ?? 0, y: evt?.localY ?? 0 }
-      setTimeout(() => {
-        this.dragNextCard(card, pt)
-      }, 4);
-    }
-    return;
-  }
-
-  dragNextCard(card: ColCard, dxy = { x: 10, y: 10 }) {
-    // this.table.dragger.clickToDrag(card);
-    this.table.dragTarget(card, dxy)
+    this.paint('lightblue'); // the given colorn is ignored by the cgf above
+    return rv
   }
 }
 

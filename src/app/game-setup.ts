@@ -102,14 +102,4 @@ export class GameSetup extends GameSetupLib {
     cmh.splice(0, cmh.length, ...CardHex.allCardHex)
     return gp
   }
-  /** demo for bringup visualization */
-  placeCardsOnMap() {
-    this.hexMap.forEachHex(hex => {
-      const card = ColCard.source.takeUnit();
-      card?.placeTile(hex as Hex1);
-      return;
-    })
-    this.update()
-    return;
-  }
 }

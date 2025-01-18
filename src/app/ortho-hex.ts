@@ -1,13 +1,13 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
 import { RectShape, type Paintable } from "@thegraid/easeljs-lib";
-import { H, Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, TopoC, TP, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
+import { H, Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TP, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
 
 
 type Or4DCR = Record<Or4Dir, DCR>
 export class TopoOR4C extends TopoC<Or4DCR> {
-  constructor(public wr = 1.75, public hr = 2.5, public gap = .1) {
+  constructor(public wr = 2.5, public hr = 1.75, public gap = .1) {
     super()
   }
   override _linkDirs = H.or4Dirs;
@@ -21,6 +21,26 @@ export class TopoOR4C extends TopoC<Or4DCR> {
     return { x: col * dxdc, y: row * dydr, w, h, dxdc, dydr }
   }
 }
+
+class DualLegalMark extends LegalMark {
+
+  // allow to be on left or right side of ColCard (hex)
+  override setOnHex(hex: IHex2, align: 'C' | 'L' | 'R' = 'C') {
+    super.setOnHex(hex);
+    // this.hex2 = hex;
+    // this.doGraphics();
+    const hex2 = hex as OrthoHex2;
+    const card = this.hex2;
+    const parent = hex2.mapCont.markCont;
+    hex2.cont.parent.localToLocal(hex2.x, hex2.y, parent, this);
+    this.hitArea = hex2.hexShape; // legal mark is used for hexUnderObject, so need to cover whole hex.
+    this.mouseEnabled = true;
+    this.visible = false;
+    parent.addChild(this);
+    return this;
+  }
+}
+
 
 // Hex1 has get/set tile/meep -> _tile/_meep
 // Hex1 has get/set -> setUnit(unit, isMeep) & unitCollision(unit1, unit2)

@@ -24,9 +24,9 @@ export class GameState extends GameStateLib {
 
   _cardDone?: ColCard = undefined;
   get cardDone() { return this._cardDone; }
-  set cardDone(v) {
+  set cardDone(v) { // card selected for bid [maybe not committed]
     this._cardDone = v;
-    this.table.cardBack?.dim(!!v)
+    v?.dim(!!v)
     if (this.allDone) this.done();
   }
   /** return true if given tile/card is the current doneTile/doneCard */
