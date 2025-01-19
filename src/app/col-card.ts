@@ -42,7 +42,7 @@ export class ColCard extends Tile {
   }
 
   override markLegal(table: Table, setLegal = (hex: Hex2) => { hex.isLegal = false; }, ctx?: DragContext): void {
-    table.gamePlay.curPlayer.cardRack.forEach(setLegal)
+    // table.gamePlay.curPlayer.cardRack.forEach(setLegal)
   }
 
   override isLegalTarget(toHex: Hex2, ctx: DragContext): boolean {
@@ -92,11 +92,6 @@ export class ColCard extends Tile {
         }
       }
     }
-    this.initialSort(ColCard.allCards, ColCard.source)
-  }
-
-  static initialSort(cards = ColCard.allCards, source = ColCard.source) {
-    permute(cards)
   }
 
   static source: TileSource<ColCard>;
@@ -116,59 +111,26 @@ export class ColCard extends Tile {
 class DualCard extends ColCard {
   constructor(Aname: string, faction: number, public readonly faction2: number) {
     super(Aname, faction)
-    this.removeChild(this.baseShape)
-    this.baseShape = this.makeShape();
-    // this.baseShape.mask = mask;
-    this.addChildAt(this.baseShape, 0);
-    this.reCache()
-    // this.dualColor();
+    this.dualColor();
   }
-  override makeShape(): Paintable {
-    const f1 = this.faction, f2 = this.faction2;
-    const c1 = ColCard.factionColors[f1];
-    const c2 = ColCard.factionColors[f2];
-    if (!!c1) {
-      return new DualCardBase(c1, c2)
-    } else {
-      return new RectShape({x: 10, w: 10, h: 10 }, 'pink');
-    }
-  }
+
+  /** modify baseShape.cgf to paint 2 cells */
   dualColor(): Paintable {
     // retool a RectShape with 2 X drawRect(); sadly only the last one renders!
-    const rv = this.baseShape as RectShape; // CardShape, with a mask
-    rv.mask = rv;                           // prevent drawing outside of CardShape
-    const { x, y, width, height } = rv.getBounds();
+    const rv = this.baseShape as RectShape; // CardShape
     const f1 = this.faction, f2 = this.faction2;
     const c1 = ColCard.factionColors[f1];
     const c2 = ColCard.factionColors[f2];
-    rv._cgf = (color: string, g = rv.g0) => {
-      const aname = this.Aname, ff1 = f1, ff2 = f2;
-      g.s('black')         // for debug
-      g.f(c1).dr(x            , y, width / 2, height); // mask will clip the round corners!
-      g.f(c2).dr(x + width / 2, y, width / 2, height); // mask will clip the round corners!
-      // g.s('black').ss(2).mt(0,0).lt(x,y)
-      console.log(stime(this, `.cgf(${c1}, ${c2})`), g.instructions)
+    const { x, y, width, height } = rv.getBounds();
+    const w2 = width / 2, rr = Math.max(width, height) * .05;
+    rv._cgf = (colorn: string, g = rv.g0) => {
+      g.s('black').ss(2)         // for debug
+      g.f(c1).rc(x, y, w2, height, rr, 0, 0, rr);
+      g.f(c2).rc(0, y, w2, height, 0, rr, rr, 0);
       return g
     }
     this.paint('lightblue'); // the given colorn is ignored by the cgf above
     return rv
-  }
-}
-class DualCardBase extends CardShape {
-  constructor(public c1: string, public c2: string, rad = ColCard.onScreenRadius) {
-    super(c1, C.grey64, rad); // --> cgf=g0.rr(...); setBounds(null, 0, 0, 0)
-    this._cgf = this.dccgf;    // setter invokes paint(this.colorn)
-    this.paint('ignored');
-  }
-
-  dccgf(colorn: string, g = this.g0) {
-    const { x, y, width, height } = this.getBounds(); // from RectShape
-    const w2 = width / 2, rr = Math.max(width, height) * .05;
-    g.s('black').ss(2)         // for debug
-    g.f(this.c1).rc(x, y, w2, height, rr, 0,0, rr); // mask will clip the round corners!
-    g.f(this.c2).rc(0, y, w2, height, 0, rr,rr, 0); // mask will clip the round corners!
-    return g
-
   }
 }
 
