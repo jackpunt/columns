@@ -29,7 +29,7 @@ export class ColCard extends Tile {
   }
   // invoked by constructor.super()
   override makeShape(): Paintable {
-    return new CardShape('lavender', '', this.radius);
+    return new CardShape('lavender', C.black, this.radius);
   }
 
   override reCache(scale?: number): void {
@@ -124,7 +124,7 @@ class DualCard extends ColCard {
     const { x, y, width, height } = rv.getBounds();
     const w2 = width / 2, rr = Math.max(width, height) * .05;
     rv._cgf = (colorn: string, g = rv.g0) => {
-      g.s('black').ss(2)         // for debug
+      g.s('black').ss(1);
       g.f(c1).rc(x, y, w2, height, rr, 0, 0, rr);
       g.f(c2).rc(0, y, w2, height, 0, rr, rr, 0);
       return g

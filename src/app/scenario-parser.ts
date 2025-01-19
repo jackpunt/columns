@@ -47,11 +47,6 @@ export class ScenarioParser extends SPLib {
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
 
-    this.setUnitsFromSource(cards, ColCard,
-      (name) => ColCard.cardByName.get(name),
-      (player) => player.addCard,
-    )
-
     if (gameState) {
       this.gamePlay.gameState.parseState(gameState);
     }
@@ -63,14 +58,7 @@ export class ScenarioParser extends SPLib {
     const namesOf = (ary: (Tile | undefined)[]) => ary.map(tile => tile?.Aname ?? '').filter(n => !!n);
     const table = this.gamePlay.table;
     const gameState = this.gamePlay.gameState.saveState();
-    const tiles = Player.allPlayers.map(p => namesOf(p.tiles)).filter(t => !!t)
-    const cards = Player.allPlayers.map(p => namesOf(p.cards)).filter(c => !!c)
-    const rCards = table.cardRack.map(hex => hex.card);
-    const rules = namesOf(rCards);
     setupElt.gameState = gameState;
-    setupElt.cards = cards;
-    setupElt.tiles = tiles;
-    setupElt.rules = rules;
   }
 
 }

@@ -90,7 +90,6 @@ export class ColTable extends Table {
     this.placeCardsOnMap();
 
     this.addDoneButton();
-    this.addCardPanel();
     return;
   }
 
@@ -124,22 +123,7 @@ export class ColTable extends Table {
   cardSource!: TileSource<ColCard>
   cardDiscard!: TileSource<ColCard>
 
-  cardPanel!: CardPanel;
-  get cardRack() { return this.cardPanel.cardRack }
   override get panelWidth() { return 2 }
-  addCardPanel() {
-    const np = 6, pindex = np; // in slot 1 (left-center)
-    const [row, col, dir] = this.panelLoc(pindex, np);
-    const high = this.panelHeight, wide = this.panelWidth; // aligned with PlayerPanel
-    const cardPanel = this.cardPanel = new CardPanel(this, 1, wide, row - high / 2, col - wide / 2)
-    cardPanel.paint(C.nameToRgbaString(C.grey128, .4))
-    cardPanel.fillAryWithCardHex(this, cardPanel, cardPanel.cardRack, 1, 3)
-    cardPanel.makeDragable(this)
-    // interesting: cardPanel is in the display list, and is mouse sensitive,
-    // but does not get painted:
-    // hexCont is cached; so cardPanel does not get painted until hexCont.reCache
-    // But cardPanel can be clicked and moved to dragCont where it is visible.
-  }
 
   /**
    * last action of curPlayer is to draw their next tile.
