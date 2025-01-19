@@ -85,8 +85,7 @@ export class OrthoHex2 extends OrthoHex2Lib {
   }
 
   override makeHexShape(colorn = C.grey224): Paintable {
-    const { w, h } = this.xywh(this.radius), x = -w / 2, y = -h / 2;
-    return new RectShape({ x, y, w: w, h: h, r: w * .1 }, colorn, '')
+    return new CardShape(colorn);
   }
 
   // leave distText visible

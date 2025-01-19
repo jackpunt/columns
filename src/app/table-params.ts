@@ -34,6 +34,8 @@ export class TP extends TPLib {
   static borderColor: string = 'peru'//TP.bgColor; //'burlywood'
   static override meepleY0 = 0;
 
+  /** ratio of 'dual' 2-in-a-box Cards */
+  static rDuals = .2;
   static initialCoins = 0;
   static afSize = .5;   // * TP.hexRad
   static afWide = 3;    // pixels

@@ -1,11 +1,12 @@
-import { C, type XY } from "@thegraid/common-lib";
+import { C, permute, type XY } from "@thegraid/common-lib";
 import { ParamGUI, type DragInfo, type NamedObject, type ParamItem } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
-import { Hex2, Table, Tile, TileSource, TP, type DragContext, type IHex2 } from "@thegraid/hexlib";
+import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardPanel, ColCard } from "./col-card";
 import type { GamePlay } from "./game-play";
-import type { Scenario } from "./game-setup";
+import type { GameSetup, Scenario } from "./game-setup";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
+import { TP } from "./table-params";
 
 export class ColTable extends Table {
   constructor(stage: Stage) {
@@ -98,13 +99,21 @@ export class ColTable extends Table {
     const allCards = ColCard.allCards
     const black = allCards.filter(card => card.faction == 0);
     const other = allCards.filter(card => card.faction != 0);
-    const plain = other.filter(card => !card.Aname.includes('&'))
+    const plain = other.filter(card => !card.Aname.includes('&'));
     const duals = other.filter(card => card.Aname.includes('&'));
-    const nc = TP.mHexes, nr = TP.nHexes;
+    permute(plain)
+    permute(duals)
+    const nc = TP.mHexes, nr = TP.nHexes, nCards = nc * nr, nd = TP.rDuals;
+    const ndual = Math.round(nCards * nd), nplain = nCards - ndual;
+    const duals0 = duals.slice(0, ndual)
+    const plain0 = plain.slice(0, nplain)
+    const cards = duals0.concat(plain0);
+    permute(cards);
+
     this.hexMap.forEachHex(hex => {
-      const row = hex.row, col = hex.col, dual = true;
-      const card = (row == 0 || row == nr -1) ? black.shift() : dual? duals.shift() : plain.shift();
-      // card?.moveTo(hex);  // fails for unknown reasons.
+      const row = hex.row, col = hex.col;
+      const card = (row == 0 || row == nr - 1) ? black.shift() : cards.shift();
+      // card?.moveTo(hex);  // fails for unknown reasons. also: card.hex = hex;
       hex.card = card;
       return;
     })
@@ -176,13 +185,20 @@ export class ColTable extends Table {
   override makeParamGUI(parent: Container, x = 0, y = 0) {
     const gui = new ParamGUI(TP, { textAlign: 'right' });
     gui.name = (gui as NamedObject).Aname = 'ParamGUI';
-    const gameSetup = this.gamePlay.gameSetup;
+    const gameSetup = this.gamePlay.gameSetup as GameSetup;
     gui.makeParamSpec('hexRad', [30, 45, 60, 90,], { fontColor: 'red' }); TP.hexRad;
-    gui.spec('hexRad').onChange = (item: ParamItem) => { gameSetup.restart({ hexRad: item.value }) }
+    gui.spec('hexRad').onChange = (item: ParamItem) => {
+      gameSetup.restart({ hexRad: item.value })
+    }
     gui.makeParamSpec('numPlayers', [2, 3, 4, 5, 6, 7, 8, 9,], { fontColor: 'red', name: 'nPlayers' }); TP.numPlayers;
     gui.spec('numPlayers').onChange = (item: ParamItem) => {
-      gui.setValue(item);
+      gui.setInheritedValue(item);
       gameSetup.restart({});
+    }
+    gui.makeParamSpec('rDuals', [0, .1, .2, .3], { fontColor: 'red' }); TP.rDuals;
+    gui.spec('rDuals').onChange = (item: ParamItem) => {
+      gui.setValue(item);
+      gameSetup.restart({})
     }
 
     parent.addChild(gui)

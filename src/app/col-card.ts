@@ -116,7 +116,22 @@ export class ColCard extends Tile {
 class DualCard extends ColCard {
   constructor(Aname: string, faction: number, public readonly faction2: number) {
     super(Aname, faction)
-    this.dualColor();
+    this.removeChild(this.baseShape)
+    this.baseShape = this.makeShape();
+    // this.baseShape.mask = mask;
+    this.addChildAt(this.baseShape, 0);
+    this.reCache()
+    // this.dualColor();
+  }
+  override makeShape(): Paintable {
+    const f1 = this.faction, f2 = this.faction2;
+    const c1 = ColCard.factionColors[f1];
+    const c2 = ColCard.factionColors[f2];
+    if (!!c1) {
+      return new DualCardBase(c1, c2)
+    } else {
+      return new RectShape({x: 10, w: 10, h: 10 }, 'pink');
+    }
   }
   dualColor(): Paintable {
     // retool a RectShape with 2 X drawRect(); sadly only the last one renders!
@@ -137,6 +152,23 @@ class DualCard extends ColCard {
     }
     this.paint('lightblue'); // the given colorn is ignored by the cgf above
     return rv
+  }
+}
+class DualCardBase extends CardShape {
+  constructor(public c1: string, public c2: string, rad = ColCard.onScreenRadius) {
+    super(c1, C.grey64, rad); // --> cgf=g0.rr(...); setBounds(null, 0, 0, 0)
+    this._cgf = this.dccgf;    // setter invokes paint(this.colorn)
+    this.paint('ignored');
+  }
+
+  dccgf(colorn: string, g = this.g0) {
+    const { x, y, width, height } = this.getBounds(); // from RectShape
+    const w2 = width / 2, rr = Math.max(width, height) * .05;
+    g.s('black').ss(2)         // for debug
+    g.f(this.c1).rc(x, y, w2, height, rr, 0,0, rr); // mask will clip the round corners!
+    g.f(this.c2).rc(0, y, w2, height, 0, rr,rr, 0); // mask will clip the round corners!
+    return g
+
   }
 }
 
