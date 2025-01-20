@@ -11,8 +11,10 @@ import { TP } from "./table-params";
 export class ColTable extends Table {
   constructor(stage: Stage) {
     super(stage);
+    this.numCol = TP.mHexes;
     this.initialVis = true;
   }
+  numCol!: number;
   declare gamePlay: GamePlay;
   declare hexMap: HexMap2;
   // return type declaration:
@@ -25,7 +27,7 @@ export class ColTable extends Table {
     return this.hexMap.mapCont.hexCont.getBounds().height / dydr; // number of rows
   }
   // bgRect tall enough for (3 X mph + gap) PlayerPanels
-  override bgXYWH(x0?: number, y0?: number, w0 = 5, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
+  override bgXYWH(x0?: number, y0?: number, w0 = this.panelWidth * 2 + 1, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
     const nr = this.nrows
     const h1 = Math.max(nr, 3 * this.mph_g) - nr; // extra height beyond nr + h0
     return super.bgXYWH(x0, y0, w0, h0 + h1, dw, dh)
@@ -123,7 +125,7 @@ export class ColTable extends Table {
   cardSource!: TileSource<ColCard>
   cardDiscard!: TileSource<ColCard>
 
-  override get panelWidth() { return 2 }
+  override get panelWidth() { return Math.max(4, this.numCol) * .5; } // (2.5 / 3.5 * .7) = .5 (* hexRad)
 
   /**
    * last action of curPlayer is to draw their next tile.

@@ -9,7 +9,7 @@ export class TP extends TPLib {
     const tp = TPLib;
     // do not 'override' --> set lib value
     tp.useEwTopo = true;
-    tp.maxPlayers = 8;       // playerPanel for 6,7,8 overlap
+    tp.maxPlayers = 9;       // playerPanel for 6,7,8 overlap
     tp.numPlayers = 2;
     tp.cacheTiles = 2.5;
     PaintableShape.defaultRadius = tp.hexRad;

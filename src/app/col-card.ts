@@ -20,7 +20,9 @@ export class ColCard extends Tile {
   override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
   override get isMeep() { return true; }
   declare gamePlay: GamePlay;
+
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
+
   constructor(Aname: string, readonly faction = 0) {
     super(Aname);
     const color = ColCard.factionColors[faction]
