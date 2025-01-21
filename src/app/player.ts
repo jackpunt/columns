@@ -1,4 +1,4 @@
-import { C, stime, type XYWH } from "@thegraid/common-lib";
+import { C, Random, S, stime, type Constructor, type XYWH } from "@thegraid/common-lib";
 import { UtilButton, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Shape, type Graphics } from "@thegraid/easeljs-module";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type NumCounter } from "@thegraid/hexlib";
@@ -8,7 +8,7 @@ import { GamePlay } from "./game-play";
 import { TP } from "./table-params";
 
 // do not conflict with AF.Colors
-const playerColors = ['gold', 'lightblue', 'violet', 'blue', 'orange', 'teal', 'tan', 'brown', 'goldenrod'] as const;
+const playerColors = ['violet', 'lightblue', 'orange', 'teal', 'lightgreen', 'goldenrod', 'brown', 'tan', 'yellow', ] as const;
 
 export type PlayerColor = typeof playerColors[number];
 export class Player extends PlayerLib {
@@ -74,33 +74,29 @@ export class Player extends PlayerLib {
     // this.setupCounters();
   }
 
-  makeCardButtons(nc = 4) {
-    const opts = { fontSize: 30, visible: true, bgColor: this.color }
-    const but0 = new ColSelButton(0, opts)
+  makeCardButtons(ncol = 4, ncoin = 4) {
+    const opts = { fontSize: 30, visible: true, bgColor: this.color, player: this }
+    const but0 = new CardButton('0', opts)
     const { width, height } = but0.getBounds();
     const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap2;
-    {
-      const x0 = (width / 2) + (wide - (nc * dx - gap2)) / 2;
-      const y0 = height / 2 + gap;
-      for (let col = 0; col < nc; col++) {
-        const colSel = new ColSelButton(col + 1, opts)
-        colSel.x = x0 + dx * col;
-        colSel.y = y0;
-        this.panel.addChild(colSel);
+    const dy = height + gap;
+    const makeButton = (claz: Constructor<CardButton>, num: number, row = 0) => {
+      const x0 = (width / 2) + (wide - (num * dx - gap2)) / 2;
+      const y0 = (height / 2) + gap;
+      for (let ndx = 0; ndx < num; ndx++) {
+        const button = new claz(ndx + 1, opts)
+        button.x = x0 + dx * ndx;
+        button.y = y0 + dy * row;
+        this.panel.addChild(button);
       }
     }
-    {
-      const ncoin = 4;
-      const x0 = (width / 2) + (wide - (ncoin * dx - gap2)) / 2;
-      const y0 = height / 2 + gap;
-      for (let coin = 0; coin < ncoin; coin++) {
-        const coinBid = new CoinBidButton(coin + 1, opts)
-        coinBid.x = x0 + dx * coin;
-        coinBid.y = y0 + height + gap;
-        this.panel.addChild(coinBid);
-      }
-    }
+    makeButton(ColSelButton, ncol, 0);
+    makeButton(CoinBidButton, ncoin, 1);
     return;
+  }
+
+  makeMeeples(xtaCol = Random.random(TP.mHexes)) {
+
   }
 
   setupCounters() {
@@ -122,10 +118,18 @@ export class Player extends PlayerLib {
 }
 
 class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
-  constructor(label: string, opts: UtilButtonOptions & TextInRectOptions) {
+  constructor(label: string, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
     const { bgColor } = opts;
     this.altRectShape(bgColor); // rectShape = CardShape;
+    const { player } = opts;
+    this.player = player;
+    this.mouseEnabled = true;
+    this.on(S.click, this.onClick as any, this, false, player);
+  }
+  player!: Player;
+  onClick(evt: any, player: Player) {
+    console.log(stime(`CardButton.onClick:`), this.Aname)
   }
 
   // ignore label size & borders:
@@ -140,39 +144,49 @@ class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintab
     this.removeChild(this.rectShape);
     this.rectShape = new CardShape(color, undefined, rad, true);
     this.addChildAt(this.rectShape, 0)
+    this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
   }
 }
 class ColSelButton extends CardButton {
 
-  constructor(public colNum = 0, opts: UtilButtonOptions & TextInRectOptions) {
+  constructor(public colNum = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${colNum}`, opts); // rectShape = RectShape(borders); label = disp = Text
+    this.Aname = `ColSel-${colNum}:${this.player.index}`;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
     this.border = 0;
     this.paint();
+  }
+  override onClick(evt: any, plyr: Player) {
+    super.onClick(evt, plyr)
   }
 }
 
 class CoinBidButton extends CardButton {
   static coinFactions = [[], [1, 2, 3, 4], [3, 4], [1, 2], []]; // indices into ColCard.factionColors
 
-  constructor(public coinBid = 0, opts: UtilButtonOptions & TextInRectOptions) {
+  constructor(public coinBid = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${coinBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
+    this.Aname = `CoinBid-${coinBid}:${this.player.index}`;
     const { y, height, width } = this.getBounds()
     this.addFactionColors(coinBid, width * .9, y + height * .33)
     this.label.y = (y + height * .18)
     this.border = 0;
     this.paint();
   }
+  override onClick(evt: any, plyr: Player) {
+    super.onClick(evt, plyr)
+  }
 
+  factions!: number[];
   addFactionColors(coinBid = 0, width = 20, y = 0) {
-    const factions = CoinBidButton.coinFactions[coinBid]
+    const factions = this.factions = CoinBidButton.coinFactions[coinBid];
     const colors = factions.map(n => ColCard.factionColors[n])
     const facShape = new Shape(), n = colors.length, g = facShape.graphics;
     const d2 = width;
     switch (n) {
-      case 0: this.oneRect(g, ['white'], d2); break;
+      case 0: this.oneRect(g, [C.grey128], d2); break;
       case 2: this.twoRect(g, colors, d2); break;
       case 4: this.fourRect(g, colors, d2); break;
     }
@@ -182,20 +196,23 @@ class CoinBidButton extends CardButton {
 
   fourRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {
     const d = d2 / 2;
+    g.ss(1).s(C.black)
     g.f(c[0]).rc(-d, 0, d, d, r, 0, 0, 0)
-    g.f(c[1]).rc(-d, d, d, d, 0, r, 0, 0)
-    g.f(c[2]).rc(0, d, d, d, 0, 0, r, 0)
-    g.f(c[3]).rc(0, 0, d, d, 0, 0, 0, r)
+    g.f(c[2]).rc(+0, 0, d, d, 0, r, 0, 0)
+    g.f(c[3]).rc(+0, d, d, d, 0, 0, r, 0)
+    g.f(c[1]).rc(-d, d, d, d, 0, 0, 0, r)
     return g
   }
   twoRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {
     const d = d2 / 2
+    g.ss(1).s(C.black)
     g.f(c[0]).rc(-d, 0, d2, d, r, r, 0, 0)
     g.f(c[1]).rc(-d, d, d2, d, 0, 0, r, r)
     return g
   }
   oneRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {
     const d = d2 / 2
+    g.ss(1).s(C.black)
     g.f(c[0]).rc(-d, 0, d2, d2, r, r, r, r)
     return g
   }
