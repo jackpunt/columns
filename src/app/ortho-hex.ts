@@ -93,6 +93,14 @@ export class OrthoHex2 extends OrthoHex2Lib {
     this.rcText.visible = vis;
     this.reCache();
   }
+
+  override unitCollision(this_unit: Tile, unit: Tile, isMeep?: boolean): void {
+    // multiple ColMeeple may point to the same hex.
+    // we never use hex.meep; but rather hex.card.meepsOnCard
+    if (isMeep) return
+    debugger; // two ColCards assigned to same hex??
+    return
+  }
 }
 
 export class HexMap2 extends HexMap<OrthoHex2> {

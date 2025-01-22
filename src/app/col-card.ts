@@ -39,9 +39,12 @@ export class ColCard extends Tile {
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
   get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
-  meepleLoc(ndx = 0): XY {
+  meepleLoc(ndx = this.openCells[0]): XY {
     return { x: 0, y: 0 }
   }
+  /** when openCells[0] is undefined: */
+  get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
+
   get cellsInUse() {
     return this.meepsOnCard.map(meep => meep.cellNdx as number).sort((a, b) => a - b)
   }
@@ -54,8 +57,7 @@ export class ColCard extends Tile {
     return rv;
   }
   addMeep(meep: ColMeeple, cellNdx = this.openCells[0]) {
-    if (cellNdx === undefined) debugger;
-    const locXY = this.meepleLoc(cellNdx)
+    const locXY = (cellNdx !== undefined) ? this.meepleLoc(cellNdx) : this.bumpLoc;
     this.meepCont.addChild(meep);
     meep.set({...locXY, card: this, cellNdx}); // YIKES! no type checking.
   }
@@ -155,8 +157,10 @@ class DualCard extends ColCard {
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {
-      return { x: this.radius * (ndx - .5), y: 0 }
+    const width = this.getBounds().width;
+    return { x: width * (ndx - .5) / 2, y: 0 }
   }
+  override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
 
   /** modify baseShape.cgf to paint 2 cells */
   dualColor(): Paintable {
@@ -190,8 +194,9 @@ class BlackCard extends ColCard {
     const m2 = this.maxCells / 2, row = Math.floor(ndx / m2), col = ndx % m2;
     const dxdc = (width - 20) / m2, dydr = (height - 10) / 2;
     return { x: dxdc * (col - (m2 - 1) / 2), y: dydr * (row - .5) }
-}
+  }
 
+  override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 }
 
 /** CardShape'd "Hex" for placement of PathCard */
@@ -206,75 +211,4 @@ export class CardHex extends Hex2 {
   override makeHexShape(colorn = C.grey224): Paintable {
     return new CardShape(colorn);
   }
-}
-
-
-/** auxiliary Panel to position a cardRack on the Table (or PlayerPanel). */
-export class CardPanel extends NamedContainer {
-  /**
-   *
-   * @param table
-   * @param high rows high
-   * @param wide columns wide
-   * @param row place panel at [row, col]
-   * @param col
-   */
-  constructor(public table: Table, public high: number, public wide: number, row = 0, col = 0) {
-    super(`CardPanel`)
-    const { dxdc, dydr } = table.hexMap.xywh()
-    const w = dxdc * wide, h = dydr * high;
-    const disp = this.disp = new RectShape({ w, h }, C.grey224, '');
-    this.addChild(disp)
-    table.hexMap.mapCont.hexCont.addChild(this);
-    this.table.setToRowCol(this, row, col);
-  }
-
-  disp!: RectShape;
-
-  paint(colorn: string, force?: boolean): Graphics {
-    return this.disp.paint(colorn, force)
-  }
-
-  /** fill hexAry with row of CardHex above panel */
-  fillAryWithCardHex(table: Table, panel: Container, hexAry: IHex2[], row = 0, ncols = 4) {
-    const { w } = table.hexMap.xywh(); // hex WH
-    const { width } = (new CardShape()).getBounds(); // PathCard.onScreenRadius
-    const gap = .1 + (width / w) - 1;
-    const hexes = table.hexesOnPanel(panel, row, ncols, CardHex, { gap });
-    hexes.forEach((hex, n) => { hex.Aname = `C${n}`})
-    hexAry.splice(0, hexAry.length, ...hexes);
-  }
-
-  isCardHex(hex: Hex2): hex is CardHex {
-    return (hex instanceof CardHex)
-  }
-
-  readonly cardRack: CardHex[] = [];
-  makeDragable(table: Table) {
-    table.dragger.makeDragable(this, this, undefined, this.dropFunc);
-  }
-  /**
-   * cardRack hexes are not children of this CardPanel.
-   * Move them to realign when panel is dragged & dropped
-   */
-  dropFunc(dobj: DisplayObject, ctx?: DragInfo) {
-    if (!ctx) return
-    const orig = this.table.scaleCont.localToLocal(ctx.objx, ctx.objy, dobj.parent)
-    const dx = dobj.x - orig.x, dy = dobj.y - orig.y;
-    this.cardRack.forEach(hex => {
-      hex.legalMark.x += dx;
-      hex.legalMark.y += dy;
-      hex.x += dx;
-      hex.y += dy;
-      if (hex.tile) { hex.tile.x += dx; hex.tile.y += dy }
-      if (hex.meep) { hex.meep.x += dx; hex.meep.y += dy }
-      hex.tile?.moveTo(hex); // trigger repaint/update?
-    })
-  }
-
-  addCard(card?: ColCard) {
-    const hex = this.cardRack.find(hex => !hex.tile)
-    card?.placeTile(hex);
-  }
-
 }

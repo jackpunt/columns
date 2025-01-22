@@ -1,12 +1,12 @@
 import { C, F, Random, S, stime, type Constructor, type XYWH } from "@thegraid/common-lib";
 import { UtilButton, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Shape, type Graphics } from "@thegraid/easeljs-module";
-import { Meeple, newPlanner, NumCounterBox, Player as PlayerLib, type HexMap, type NumCounter } from "@thegraid/hexlib";
+import { Meeple, newPlanner, NumCounterBox, Player as PlayerLib, type DragContext, type Hex1, type HexMap, type IHex2, type NumCounter } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import { GamePlay } from "./game-play";
 import { MeepleShape } from "./meeple-shape";
-import type { OrthoHex } from "./ortho-hex";
+import { OrthoHex, OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // do not conflict with AF.Colors
@@ -111,7 +111,7 @@ export class Player extends PlayerLib {
       if (hex.card) hex.card.addMeep(meep);
     }
     for (let col = 0; col < ncols; col++) { makeMeep(col) }
-    makeMeep(xtraCol = 1);
+    makeMeep(xtraCol);
   }
 
   setupCounters() {
@@ -146,6 +146,22 @@ export class ColMeeple extends Meeple {
   card?: ColCard;
   override makeShape(): Paintable {
     return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })
+  }
+
+  override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
+    if (!(toHex instanceof OrthoHex2)) return false;
+    if (toHex?.card) return true;
+    return false;
+  }
+
+  // hex.card.addMeep(this)
+  override dropFunc(targetHex: IHex2, ctx: DragContext): void {
+    if (targetHex instanceof OrthoHex2) {
+      this.hex = targetHex; // record for later use as fromHex
+      targetHex.card?.addMeep(this);
+    } else {
+      super.dropFunc(targetHex, ctx);
+    }
   }
 }
 
