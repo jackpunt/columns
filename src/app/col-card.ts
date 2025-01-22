@@ -1,4 +1,4 @@
-import { C, permute, stime } from "@thegraid/common-lib";
+import { C, type XY } from "@thegraid/common-lib";
 import { NamedContainer, RectShape, type CenterText, type DragInfo, type Paintable } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Graphics } from "@thegraid/easeljs-module";
 import { H, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
@@ -6,7 +6,7 @@ import { CardShape } from "./card-shape";
 import { type ColTable as Table } from "./col-table";
 import { type GamePlay } from "./game-play";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
-import type { Player } from "./player";
+import { ColMeeple, Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
 
@@ -26,6 +26,7 @@ export class ColCard extends Tile {
   constructor(Aname: string, readonly faction = 0) {
     const color = ColCard.factionColors[faction], tColor = C.pickTextColor(color);
     super(Aname);
+    this.addChild(this.meepCont);
     this.nameText.color = tColor;
     this.setNameText(Aname, this.radius * .35);
     this.cardId = this.addTextChild(0, `${faction}`, undefined, false, tColor); // a Text for BlackCards
@@ -33,6 +34,36 @@ export class ColCard extends Tile {
     ColCard.cardByName.set(Aname, this);
   }
   cardId!: CenterText;
+  meepCont = new NamedContainer('meepCont')
+
+  // XY locs for meeples on this card. maxMeeps = meepleLocs.length
+  // basic have 1 in center; DualCards have two offset; BlackCards have ~20
+  get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
+  meepleLoc(ndx = 0): XY {
+    return { x: 0, y: 0 }
+  }
+  get cellsInUse() {
+    return this.meepsOnCard.map(meep => meep.cellNdx as number).sort((a, b) => a - b)
+  }
+  get maxCells() { return 1 }
+  get openCells() {
+    const rv: number[] = [], inUse = this.cellsInUse;
+    for (let i = 0; i< this.maxCells; i++) {
+      if (!inUse.includes(i)) rv.push(i);
+    }
+    return rv;
+  }
+  addMeep(meep: ColMeeple, cellNdx = this.openCells[0]) {
+    if (cellNdx === undefined) debugger;
+    const locXY = this.meepleLoc(cellNdx)
+    this.meepCont.addChild(meep);
+    meep.set({...locXY, card: this, cellNdx}); // YIKES! no type checking.
+  }
+  rmMeep(meep: ColMeeple) {
+    this.meepCont.removeChild(meep)
+    meep.set({ x: 0, y: 0, card: undefined, cellNdx: undefined })
+  }
+
   // invoked by constructor.super()
   override makeShape(): Paintable {
     return new CardShape('lavender', C.black, this.radius);
@@ -91,7 +122,8 @@ export class ColCard extends Tile {
     for (let n = 0, row = 0; row < nr; row++) {
       for (let col = 0; col < nc; col++, n++) {
         const faction = (row == 0 || (row == nr - 1)) ? 0 : 1 + (n % nFacs);
-        const card = new ColCard(`${n}:${faction}`, faction);
+        const aname = `${n}:${faction}`;
+        const card = (faction == 0) ? new BlackCard(aname) : new ColCard(aname, faction);
         if (faction > 0) {
           const df1 = faction, df2 = 1 + (Math.floor(n / nFacs) % nFacs );
           const dual = new DualCard(`${n}:${df1}&${df2}`, df1, df2);
@@ -115,9 +147,15 @@ export class ColCard extends Tile {
   }
 }
 class DualCard extends ColCard {
+ override get maxCells() { return 2 }
+
   constructor(Aname: string, faction: number, public readonly faction2: number) {
     super(Aname, faction)
     this.dualColor();
+  }
+
+  override meepleLoc(ndx = this.openCells[0]): XY {
+      return { x: this.radius * (ndx - .5), y: 0 }
   }
 
   /** modify baseShape.cgf to paint 2 cells */
@@ -138,6 +176,22 @@ class DualCard extends ColCard {
     this.paint('ignored'); // the given colorn is ignored by the cgf above
     return rv
   }
+}
+
+class BlackCard extends ColCard {
+  override get maxCells() { return TP.numPlayers * 2 }
+
+  constructor(Aname: string, faction = 0) {
+    super(Aname, faction)
+  }
+
+  override meepleLoc(ndx = this.openCells[0]): XY {
+    const { width, height } = this.getBounds();  // m2 ~= numPlayers
+    const m2 = this.maxCells / 2, row = Math.floor(ndx / m2), col = ndx % m2;
+    const dxdc = (width - 20) / m2, dydr = (height - 10) / 2;
+    return { x: dxdc * (col - (m2 - 1) / 2), y: dydr * (row - .5) }
+}
+
 }
 
 /** CardShape'd "Hex" for placement of PathCard */

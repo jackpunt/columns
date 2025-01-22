@@ -108,10 +108,10 @@ export class Player extends PlayerLib {
       const meep = new ColMeeple(`Meep-${this.index}:${col}`, this)
       meep.paint(this.color);
       const hex = cmap.getHex({ row: nrows - 1, col });
-      if (!hex.meep) meep.moveTo(hex); // TODO: moveTo(CARD) !
+      if (hex.card) hex.card.addMeep(meep);
     }
     for (let col = 0; col < ncols; col++) { makeMeep(col) }
-    // newMeep(xtraCol);
+    makeMeep(xtraCol = 1);
   }
 
   setupCounters() {
@@ -132,7 +132,7 @@ export class Player extends PlayerLib {
   counter1!: NumCounter;
 }
 
-class ColMeeple extends Meeple {
+export class ColMeeple extends Meeple {
 
   constructor(Aname: string, player?: Player) {
     super(Aname, player)
@@ -140,6 +140,10 @@ class ColMeeple extends Meeple {
     this.nameText.y -= 3;
     // console.log(stime(`ColMeeple: constructor`), this);
   }
+  /** ColCard maintains: indicates which cell of card this meeple occupies; -> locXY */
+  cellNdx?: number;
+  /** ColCard on which this meeple is placed */
+  card?: ColCard;
   override makeShape(): Paintable {
     return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })
   }
