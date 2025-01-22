@@ -48,7 +48,7 @@ export class OrthoHex extends Hex1Lib {
   static topo = new TopoOR4C(); // used by xywh() and HexMap
 
   _meep2: Tile | undefined;
-  get meep2() { return this._meep; }
+  get meep2() { return this._meep2; }
   set meep2(meep: Tile | undefined) { this.setUnit(meep, true) }
 
   /** like occupied:

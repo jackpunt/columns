@@ -1,8 +1,8 @@
-import { C, permute, type XY } from "@thegraid/common-lib";
+import { type XY } from "@thegraid/common-lib";
 import { ParamGUI, type DragInfo, type NamedObject, type ParamItem } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
-import { CardPanel, ColCard } from "./col-card";
+import { ColCard } from "./col-card";
 import type { GamePlay } from "./game-play";
 import type { GameSetup, Scenario } from "./game-setup";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
@@ -86,39 +86,7 @@ export class ColTable extends Table {
   override layoutTable2() {
     this.initialVis = false;
     super.layoutTable2();
-    // ColCard.makeAllCards(); // makeAllTiles(); deal tile-cards to the hexMap?
-    const np = this.gamePlay.gameSetup.nPlayers
-    ColCard.makeAllCards(TP.mHexes, TP.nHexes, np, ); // populate ColCard.cardByName
-    this.placeCardsOnMap();
-
     this.addDoneButton();
-    return;
-  }
-
-  /** demo for bringup visualization */
-  placeCardsOnMap() {
-    const allCards = ColCard.allCards
-    const black = allCards.filter(card => card.faction == 0);
-    const other = allCards.filter(card => card.faction != 0);
-    const plain = other.filter(card => !card.Aname.includes('&'));
-    const duals = other.filter(card => card.Aname.includes('&'));
-    permute(plain)
-    permute(duals)
-    const nc = TP.mHexes, nr = TP.nHexes, nCards = nc * nr, nd = TP.rDuals;
-    const ndual = Math.round(nCards * nd), nplain = nCards - ndual;
-    const duals0 = duals.slice(0, ndual)
-    const plain0 = plain.slice(0, nplain)
-    const cards = duals0.concat(plain0);
-    permute(cards);
-
-    this.hexMap.forEachHex(hex => {
-      const row = hex.row, col = hex.col;
-      const card = (row == 0 || row == nr - 1) ? black.shift() : cards.shift();
-      // card?.moveTo(hex);  // fails for unknown reasons. also: card.hex = hex;
-      hex.card = card;
-      return;
-    })
-    this.gamePlay.gameSetup.update()
     return;
   }
 

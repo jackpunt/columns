@@ -1,5 +1,5 @@
 import { C, permute, stime } from "@thegraid/common-lib";
-import { NamedContainer, RectShape, type DragInfo, type Paintable } from "@thegraid/easeljs-lib";
+import { NamedContainer, RectShape, type CenterText, type DragInfo, type Paintable } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Graphics } from "@thegraid/easeljs-module";
 import { H, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
@@ -18,17 +18,21 @@ export class ColCard extends Tile {
   static nextRadius = ColCard.onScreenRadius; // when super() -> this.makeShape()
   _radius = ColCard.nextRadius;           // when PathCard.constructor eventually runs
   override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
-  override get isMeep() { return true; }
+  override get isMeep() { return false; }
   declare gamePlay: GamePlay;
 
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
 
   constructor(Aname: string, readonly faction = 0) {
+    const color = ColCard.factionColors[faction], tColor = C.pickTextColor(color);
     super(Aname);
-    const color = ColCard.factionColors[faction]
+    this.nameText.color = tColor;
+    this.setNameText(Aname, this.radius * .35);
+    this.cardId = this.addTextChild(0, `${faction}`, undefined, false, tColor); // a Text for BlackCards
     this.paint(color)
     ColCard.cardByName.set(Aname, this);
   }
+  cardId!: CenterText;
   // invoked by constructor.super()
   override makeShape(): Paintable {
     return new CardShape('lavender', C.black, this.radius);
@@ -83,12 +87,12 @@ export class ColCard extends Tile {
     ColCard.cardByName.clear(); // not needed?
     // narrative: military, bankers, merchant, aristocrat
     const nCards = nc * nr, nDual = Math.round(nCards * .25), nFacs = 4;
+    const colTextSize = ColCard.onScreenRadius / 3;
     for (let n = 0, row = 0; row < nr; row++) {
       for (let col = 0; col < nc; col++, n++) {
         const faction = (row == 0 || (row == nr - 1)) ? 0 : 1 + (n % nFacs);
-        const card = new ColCard(`${n}-${faction}`, faction);
-        const dual = true
-        if (faction > 0 && dual) {
+        const card = new ColCard(`${n}:${faction}`, faction);
+        if (faction > 0) {
           const df1 = faction, df2 = 1 + (Math.floor(n / nFacs) % nFacs );
           const dual = new DualCard(`${n}:${df1}&${df2}`, df1, df2);
         }
@@ -131,7 +135,7 @@ class DualCard extends ColCard {
       g.f(c2).rc(0, y, w2, height, 0, rr, rr, 0);
       return g
     }
-    this.paint('lightblue'); // the given colorn is ignored by the cgf above
+    this.paint('ignored'); // the given colorn is ignored by the cgf above
     return rv
   }
 }

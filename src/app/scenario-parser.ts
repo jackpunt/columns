@@ -1,8 +1,9 @@
-import { stime } from "@thegraid/common-lib";
+import { permute, stime } from "@thegraid/common-lib";
 import { ScenarioParser as SPLib, SetupElt as SetupEltLib, type Tile, type TileSource } from "@thegraid/hexlib";
-import { type GamePlay, } from "./game-play";
 import { ColCard } from "./col-card";
+import { type GamePlay, } from "./game-play";
 import { Player } from "./player";
+import { TP } from "./table-params";
 
 
 export interface SetupElt extends SetupEltLib {
@@ -46,11 +47,55 @@ export class ScenarioParser extends SPLib {
       table.logText(`turn = ${turn}`, `parseScenario`);
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
+    {
+      const np = this.gamePlay.gameSetup.nPlayers
+      ColCard.makeAllCards(TP.mHexes, TP.nHexes, np,); // populate ColCard.cardByName
+      this.placeCardsOnMap();
+    }
+    {
+      this.placeMeeplesOnMap();
+    }
 
     if (gameState) {
       this.gamePlay.gameState.parseState(gameState);
     }
     this.gamePlay.hexMap.update();
+  }
+
+  // TODO: parameterize with savedState (vs permute)
+  placeCardsOnMap() {
+    const allCards = ColCard.allCards
+    const black = allCards.filter(card => card.faction == 0);
+    const other = allCards.filter(card => card.faction != 0);
+    const plain = other.filter(card => !card.Aname.includes('&'));
+    const duals = other.filter(card => card.Aname.includes('&'));
+    permute(plain)
+    permute(duals)
+    const nc = TP.mHexes, nr = TP.nHexes, nCards = nc * nr, nd = TP.rDuals;
+    const ndual = Math.round(nCards * nd), nplain = nCards - ndual;
+    const duals0 = duals.slice(0, ndual)
+    const plain0 = plain.slice(0, nplain)
+    const cards = duals0.concat(plain0);
+    permute(cards);
+
+    this.gamePlay.hexMap.forEachHex(hex => {
+      const row = hex.row, col = hex.col;
+      const card = (row == 0 || row == nr - 1) ? black.shift() : cards.shift();
+      if (card && row == nr - 1) {
+        card.cardId.visible = true;
+      }
+      card?.moveTo(hex);
+      return;
+    })
+    this.gamePlay.gameSetup.update()
+    return;
+  }
+
+  placeMeeplesOnMap(ncols = 4, xtraCol?: number) {
+    // TODO: supply row,col for each meeple from savedState
+    this.gamePlay.forEachPlayer(player => {
+      (player as Player).makeMeeples(this.gamePlay.hexMap, xtraCol)
+    })
   }
 
   /** add the elements are are not in SetupEltLib */

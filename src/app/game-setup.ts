@@ -1,13 +1,14 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardHex, ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { GamePlay } from './game-play';
-import { OrthoHex as Hex1, OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
+import { OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { Player } from './player';
+import { ScenarioParser } from './scenario-parser';
 import { TileExporter } from './tile-exporter';
 
-// type Params = {[key: string]: any;}; // until hexlib supplies
+type Params = Record<string, any>; // until hexlib supplies
 export interface Scenario extends Scenario0 {
   nPlayers?: number;
 };
@@ -27,7 +28,10 @@ Math.stime = stime; // can use Math.stime() in js/debugger
 /** initialize & reset & startup the application/game. */
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
-
+  override loadImagesThenStartup(qParams: Params = {}) {
+    AliasLoader.loader.fnames = ['meeple-shape'];
+    super.loadImagesThenStartup(qParams);    // loader.loadImages(() => this.startup(qParams));
+  }
   override startup(qParams?: { [x: string]: any; }): void {
     // TODO: place all ColCards
     ColCard.nextRadius = ColCard.onScreenRadius; // reset for on-screen PathCard
@@ -98,6 +102,10 @@ export class GameSetup extends GameSetupLib {
     const n = stateInfo.nPlayers;
     this.qParams = { ...this.qParams, n};  // qParams from ng is readonly
     super.resetState(stateInfo);
+  }
+
+  override makeScenarioParser(hexMap: HexMap<Hex>, gamePlay: GamePlay): ScenarioParser {
+    return new ScenarioParser(hexMap, gamePlay)
   }
 
   override startScenario(scenario: Scenario0) {

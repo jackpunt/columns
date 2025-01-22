@@ -1,10 +1,12 @@
-import { C, Random, S, stime, type Constructor, type XYWH } from "@thegraid/common-lib";
-import { UtilButton, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
+import { C, F, Random, S, stime, type Constructor, type XYWH } from "@thegraid/common-lib";
+import { UtilButton, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Shape, type Graphics } from "@thegraid/easeljs-module";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type NumCounter } from "@thegraid/hexlib";
+import { Meeple, newPlanner, NumCounterBox, Player as PlayerLib, type HexMap, type NumCounter } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import { GamePlay } from "./game-play";
+import { MeepleShape } from "./meeple-shape";
+import type { OrthoHex } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // do not conflict with AF.Colors
@@ -92,11 +94,23 @@ export class Player extends PlayerLib {
     }
     makeButton(ColSelButton, ncol, 0);
     makeButton(CoinBidButton, ncoin, 1);
+    // this.makeMeeples(ncol)
     return;
   }
 
-  makeMeeples(xtaCol = Random.random(TP.mHexes)) {
-
+  // meeple is Tile with (isMeep==true); use MeepleShape as baseShape?
+  makeMeeples(map: HexMap<OrthoHex>, xtraCol?: number) {
+    Meeple.allMeeples.length = 0;    // reset all Meeples; should be in Tile.clearAllTiles() ?
+    const [nrows, ncols] = map.nRowCol;
+    if (xtraCol == undefined) xtraCol = Random.random(map.nRowCol[1])
+    const cmap = this.gamePlay.table.hexMap;
+    for (let col = 0; col < ncols; col++) {
+      const meep = new ColMeeple(`Meep-${col}`, this)
+      meep.paint(this.color);
+      const hex = cmap.getHex({ row: nrows - 1, col });
+      // if (!hex.meep) meep.moveTo(hex)
+      if (!hex.meep) hex.meep = meep;
+    }
   }
 
   setupCounters() {
@@ -115,6 +129,20 @@ export class Player extends PlayerLib {
     this.panel.addChild(c1);
   }
   counter1!: NumCounter;
+}
+
+class ColMeeple extends Meeple {
+
+  constructor(Aname: string, player?: Player) {
+    super(Aname, player)
+    this.nameText.font = F.fontSpec(this.radius / 6)
+    this.nameText.y -= 3;
+    console.log(stime(`ColMeeple: constructor`), this);
+    this.paint(player?.color, true)
+  }
+  override makeShape(): Paintable {
+    return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })
+  }
 }
 
 class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
