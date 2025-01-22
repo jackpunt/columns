@@ -104,13 +104,14 @@ export class Player extends PlayerLib {
     const [nrows, ncols] = map.nRowCol;
     if (xtraCol == undefined) xtraCol = Random.random(map.nRowCol[1])
     const cmap = this.gamePlay.table.hexMap;
-    for (let col = 0; col < ncols; col++) {
-      const meep = new ColMeeple(`Meep-${col}`, this)
+    const makeMeep = (col: number) => {
+      const meep = new ColMeeple(`Meep-${this.index}:${col}`, this)
       meep.paint(this.color);
       const hex = cmap.getHex({ row: nrows - 1, col });
-      // if (!hex.meep) meep.moveTo(hex)
-      if (!hex.meep) hex.meep = meep;
+      if (!hex.meep) meep.moveTo(hex); // TODO: moveTo(CARD) !
     }
+    for (let col = 0; col < ncols; col++) { makeMeep(col) }
+    // newMeep(xtraCol);
   }
 
   setupCounters() {
@@ -137,8 +138,7 @@ class ColMeeple extends Meeple {
     super(Aname, player)
     this.nameText.font = F.fontSpec(this.radius / 6)
     this.nameText.y -= 3;
-    console.log(stime(`ColMeeple: constructor`), this);
-    this.paint(player?.color, true)
+    // console.log(stime(`ColMeeple: constructor`), this);
   }
   override makeShape(): Paintable {
     return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })

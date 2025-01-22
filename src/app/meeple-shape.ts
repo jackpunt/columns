@@ -1,5 +1,5 @@
 import { stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { NamedContainer, PaintableShape, type Paintable } from "@thegraid/easeljs-lib";
+import { NamedContainer, PaintableShape, RectShape, type Paintable } from "@thegraid/easeljs-lib";
 import { Bitmap, Graphics } from "@thegraid/easeljs-module";
 import { AliasLoader } from "@thegraid/hexlib";
 
@@ -12,8 +12,6 @@ export class MeepleShape extends NamedContainer implements Paintable {
   get g0() {
     return this._g0?.clone() ?? new Graphics(); // clone, so original is not mutated.
   }
-  /** last painted color */
-  colorn = 'black';
   /** last Graphics from cgf */
   cgfGraphics!: Graphics; // set by mscgf
 
@@ -22,49 +20,37 @@ export class MeepleShape extends NamedContainer implements Paintable {
     return { x, y, w, h }
   }
 
-  paint(fillc = this.colorn, force = false) {
+  /** last painted color */
+  get colorn() { return this.colorRect.colorn; }
+  colorRect;
+  // Tile.paint() -> baseShape.paint()
+  paint(fillc = this.colorn, force?: boolean) {
     if (fillc !== this.colorn || force) {
-      this.mscgf(fillc, this.g0)
+      this.cgfGraphics = this.colorRect.paint(fillc, force)
     }
     return this.cgfGraphics;
   }
 
   constructor(color: string, size: XY = { x: PaintableShape.defaultRadius, y: PaintableShape.defaultRadius }) {
-    super('MeepleShape');  // (fillc, g = this.g0) => g
-    const bm = AliasLoader.loader.getBitmap('meeple-shape', {x: 30, y: 50}); // presuming 'meeple' is in the load list.
-    this.bm = bm;
-    const w = bm.image.width, h = bm.image.height;
-    bm.setBounds(0, 0, w, h)
-    this.addChild(bm);
+    super('MeepleShape');
+    const msBitmap = AliasLoader.loader.getBitmap('meeple-shape', size);
+    const w = msBitmap.image.width, h = msBitmap.image.height;
+    msBitmap.setBounds(0, 0, w, h)
+    this.addChild(msBitmap);
+
     const { x, y, width, height } = this.getBounds();
-    this.setBounds(-width / 2, -height / 2, width, height)
-    this.setCacheID();
-    this.viewBitmap(bm)
+    this.colorRect = new RectShape({x, y, w: width, h: height}, color,'')
+    this.colorRect.compositeOperation = "source-atop";
+    this.addChild(this.colorRect);
     return;
   }
 
-  viewBitmap(bm: Bitmap) {
-    const { x, y, width, height } = bm.getBounds()
-    const ip = new BitmapPixels(bm);
-    console.log(stime(this, `.viewPixels:`), ip.getRectangle(64, 64, 100, 100,(n)=>n.toString(16)))
-  }
-
-  bm!: Bitmap;
   setCacheID() {
     if (!this.cacheID) {
       const { x, y, width, height } = this.getBounds()
       this.cache(x, y, width, height, 4)
     }
   }
-  mscgf(fillc: string, g = new Graphics()) {
-    (this.cacheID ? this.updateCache() : this.setCacheID()); // write current graphics to cache
-    const { x, y, width, height} = this.getBounds()
-    g.f(fillc).dr(x, y, width, height);
-    this.updateCache("source-in"); // show fillc where meeple.png has bits
-    this.cgfGraphics = g;
-    return g;
-  }
-
 }
 
 // similar to ImagePixels, but using the createjs BitmapCache.getCacheDataURL
@@ -107,4 +93,11 @@ class BitmapPixels {
     }
     return out;
   }
+
+  viewBitmap(bm: Bitmap) {
+    const { x, y, width, height } = bm.getBounds()
+    const ip = new BitmapPixels(bm);
+    console.log(stime(this, `.viewPixels:`), ip.getRectangle(64, 64, 100, 100, (n) => n.toString(16)))
+  }
+
 }
