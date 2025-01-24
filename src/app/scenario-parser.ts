@@ -1,5 +1,5 @@
 import { permute, stime } from "@thegraid/common-lib";
-import { ScenarioParser as SPLib, SetupElt as SetupEltLib, type Tile, type TileSource } from "@thegraid/hexlib";
+import { Meeple, ScenarioParser as SPLib, SetupElt as SetupEltLib, type Tile, type TileSource } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { type GamePlay, } from "./game-play";
 import { Player } from "./player";
@@ -80,21 +80,20 @@ export class ScenarioParser extends SPLib {
 
     this.gamePlay.hexMap.forEachHex(hex => {
       const row = hex.row, col = hex.col;
-      const card = (row == 0 || row == nr - 1) ? black.shift() : cards.shift();
-      if (card && row == nr - 1) {
-        card.cardId.visible = true;
-      }
-      card?.moveTo(hex);
+      const card = ((row == 0 || row == nr - 1) ? black.shift() : cards.shift()) as ColCard;
+      card.rank = (nr - row) - 1;
+      card.moveTo(hex);
       return;
     })
     this.gamePlay.gameSetup.update()
     return;
   }
 
-  placeMeeplesOnMap(ncols = 4, xtraCol?: number) {
+  placeMeeplesOnMap() {
     // TODO: supply row,col for each meeple from savedState
+    Meeple.allMeeples.length = 0;    // reset all Meeples; should be in Tile.clearAllTiles() ?
     this.gamePlay.forEachPlayer(player => {
-      (player as Player).makeMeeples(this.gamePlay.hexMap, xtraCol)
+      (player as Player).makeMeeples(this.gamePlay.hexMap)
     })
   }
 

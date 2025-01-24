@@ -1,10 +1,11 @@
 import { C, F, Random, S, stime, type Constructor, type XYWH } from "@thegraid/common-lib";
-import { UtilButton, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
+import { UtilButton, type Paintable, type RectShape, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Shape, type Graphics } from "@thegraid/easeljs-module";
 import { Meeple, newPlanner, NumCounterBox, Player as PlayerLib, type DragContext, type Hex1, type HexMap, type IHex2, type NumCounter } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import { GamePlay } from "./game-play";
+import type { GameState } from "./game-state";
 import { MeepleShape } from "./meeple-shape";
 import { OrthoHex, OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
@@ -18,20 +19,19 @@ export class Player extends PlayerLib {
   // set our multi-player colors (concept from Ankh?); we don't use the TP.colorScheme
   static { PlayerLib.colorScheme = playerColors.concat() }
   static override colorScheme: PlayerColor[];
-  override get color(): PlayerColor {
-    return super.color as PlayerColor;
-  }
-  override set color(c:  PlayerColor) {
-    super.color = c;
-  }
+
+  static override allPlayers: Player[];
+
+  override get color(): PlayerColor { return super.color as PlayerColor; }
+  override set color(c: PlayerColor) { super.color = c; }
+
+  override get meeples() { return super.meeples as ColMeeple[]; }
 
   declare gamePlay: GamePlay;
 
   constructor(index: number, gamePlay: GamePlay) {
     super(index, gamePlay);
   }
-
-  static override allPlayers: Player[];
 
   /**
    * Before start each new game.
@@ -73,37 +73,59 @@ export class Player extends PlayerLib {
       this.gamePlay.table.dragger.makeDragable(this.panel)
     }
     this.makeCardButtons(TP.mHexes);  // number of columns
-    // this.setupCounters();
+    this.setupCounters();
   }
 
   makeCardButtons(ncol = 4, ncoin = 4) {
     const opts = { fontSize: 30, visible: true, bgColor: this.color, player: this }
-    const but0 = new CardButton('0', opts)
-    const { width, height } = but0.getBounds();
+    const { width, height } = new ColSelButton(0, opts).getBounds(); // temp Button to getBounds()
     const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap2;
     const dy = height + gap;
     const makeButton = (claz: Constructor<CardButton>, num: number, row = 0) => {
       const x0 = (width / 2) + (wide - (num * dx - gap2)) / 2;
       const y0 = (height / 2) + gap;
+      const rv: CardButton[] = [];
       for (let ndx = 0; ndx < num; ndx++) {
         const button = new claz(ndx + 1, opts)
         button.x = x0 + dx * ndx;
         button.y = y0 + dy * row;
         this.panel.addChild(button);
+        rv.push(button)
       }
+      return rv;
     }
-    makeButton(ColSelButton, ncol, 0);
-    makeButton(CoinBidButton, ncoin, 1);
-    // this.makeMeeples(ncol)
+    this.colSelButtons = makeButton(ColSelButton, ncol, 0) as ColSelButton[];
+    this.coinBidButtons = makeButton(CoinBidButton, ncoin, 1) as CoinBidButton[];
     return;
+  }
+  colSelButtons!: ColSelButton[];
+  coinBidButtons!: CoinBidButton[];
+  /** at start of round */
+  clearButtons() {
+    this.colSelButtons.forEach(b => b.setState())
+    this.coinBidButtons.forEach(b => (b.setState(), b.bidOnCol = undefined))
+  }
+  isDoneSelecting() {
+    return (
+      this.colSelButtons.find(cb => cb.state === true) &&
+      this.coinBidButtons.find(cb => cb.state === true))
+  }
+  commitCards() {
+    const csb = this.colSelButtons.find(b => b.state === true);
+    const cbb = this.coinBidButtons.find(b => b.state === true);
+    if (csb) { csb.setState(false); };
+    if (cbb) { cbb.setState(false); cbb.bidOnCol = csb!?.colNum - 1 };
+  }
+
+  xtraCol(ncols = 4) {
+    return Random.random(ncols)
   }
 
   // meeple is Tile with (isMeep==true); use MeepleShape as baseShape?
-  makeMeeples(map: HexMap<OrthoHex>, xtraCol?: number) {
-    Meeple.allMeeples.length = 0;    // reset all Meeples; should be in Tile.clearAllTiles() ?
+  makeMeeples(map: HexMap<OrthoHex>) {
     const [nrows, ncols] = map.nRowCol;
-    if (xtraCol == undefined) xtraCol = Random.random(map.nRowCol[1])
-    const cmap = this.gamePlay.table.hexMap;
+    const xtraCol = this.xtraCol(ncols);
+    const cmap = map// this.gamePlay.table.hexMap;
     const makeMeep = (col: number) => {
       const meep = new ColMeeple(`Meep-${this.index}:${col}`, this)
       meep.paint(this.color);
@@ -114,25 +136,47 @@ export class Player extends PlayerLib {
     makeMeep(xtraCol);
   }
 
+  scoreCounter!: NumCounter;
+  override get score() { return this.scoreCounter?.getValue(); }
+  override set score(v: number) { this.scoreCounter?.updateValue(v); }
+
   setupCounters() {
     // display coin counter:
     const { high, wide, gap } = this.panel.metrics;
-    const fs = TP.hexRad * .7;
-    const ic = this.coins;
-    const cc = this.coinCounter = new NumCounterBox('coins', ic, undefined, fs);
+    const fs = TP.hexRad * .5;
+    const ic = this.score;
+    const cc = this.scoreCounter = new NumCounterBox('score', ic, undefined, fs);
     cc.x = wide - 2 * gap; cc.y = high - (cc.high / 2 + 2 * gap);
     cc.boxAlign('right');
     this.panel.addChild(cc);
 
-    const c1 = this.counter1 = new NumCounterBox('net', 0, 'violet', fs)
-    c1.x = 2 * gap; c1.y = high - (cc.high / 2 + 2 * gap);
-    c1.boxAlign('left');
-    this.panel.addChild(c1);
+    // template for making add'tl counters:
+    // const c1 = this.counter1 = new NumCounterBox('net', 0, 'violet', fs)
+    // c1.x = 2 * gap; c1.y = high - (cc.high / 2 + 2 * gap);
+    // c1.boxAlign('left');
+    // this.panel.addChild(c1);
   }
-  counter1!: NumCounter;
+  // counter1!: NumCounter;
+
+  currentBid(col: number) {
+    return this.colSelButtons[col].state !== true ? undefined :
+      (this.coinBidButtons.find(but => but.state == true) as CoinBidButton).coinBid;
+  }
+
+  /** choose and return one of the indicated meeples */
+  meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void) {
+    // TODO: GUI: set dropFunc -> colMeep(meep)
+    const meep = meeps[0];
+    setTimeout(() => {
+      colMeep(meep)
+    })
+    return;
+  }
 }
 
 export class ColMeeple extends Meeple {
+
+  declare player: Player;
 
   constructor(Aname: string, player?: Player) {
     super(Aname, player)
@@ -143,9 +187,17 @@ export class ColMeeple extends Meeple {
   /** ColCard maintains: indicates which cell of card this meeple occupies; -> locXY */
   cellNdx?: number;
   /** ColCard on which this meeple is placed */
-  card?: ColCard;
+  card!: ColCard;
+  /** faction of cell (of card) meeple is in/on. */
+  faction!: number;
   override makeShape(): Paintable {
     return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })
+  }
+
+  override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
+    const col = (ctx.gameState as GameState).gamePlay.colToMove;
+    const colc = this.card.hex.col;
+    return (colc == col) ? undefined : `can only move from ${col}, not ${colc}`;
   }
 
   override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
@@ -157,15 +209,17 @@ export class ColMeeple extends Meeple {
   // hex.card.addMeep(this)
   override dropFunc(targetHex: IHex2, ctx: DragContext): void {
     if (targetHex instanceof OrthoHex2) {
+      const xy = this.parent.localToLocal(this.x, this.y, targetHex.card!.meepCont);
       this.hex = targetHex; // record for later use as fromHex
-      targetHex.card?.addMeep(this);
+      targetHex.card?.addMeep(this, undefined, xy);
     } else {
       super.dropFunc(targetHex, ctx);
     }
   }
 }
 
-class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
+export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
+  static radius = .7 // * ColCard.onScreenRadius
   constructor(label: string, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
     const { bgColor } = opts;
@@ -174,11 +228,62 @@ class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintab
     this.player = player;
     this.mouseEnabled = true;
     this.on(S.click, this.onClick as any, this, false, player);
+
+    // make dimmer & highlight:
+    const dColor = 'rgba(100,100,100,.5)', rad = CardButton.radius, vert = true;
+    this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
+    this.addChildAt(this.highlight = new CardShape(C.black, undefined, rad * 1.04, vert), 0); // under baseShape
+    this.highlight.setRectRad({ s: 4 })
+    this.setState();
   }
   player!: Player;
-  onClick(evt: any, player: Player) {
-    console.log(stime(`CardButton.onClick:`), this.Aname)
+
+  select() {
+    // radio button
+    if (this.state === true) {
+      this.setState(); // toggle from selected to not selected
+    } else if (this.state === undefined) {
+      // clear the previously selected button
+      this.plyrButtons.find(cb => cb.state === true)?.setState(undefined, false);
+      this.setState(true);
+      setTimeout(() => {
+        this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
+      }, 0);
+    }
   }
+  onClick(evt: any, player: Player) {
+    this.select()
+    console.log(stime(`CardButton.onClick:`), this.Aname, this.state)
+  }
+  abstract get plyrButtons(): CardButton[]
+
+  /** undef: clear; true: highlight; false: dim */
+  state?: boolean;
+  dimmer!: RectShape;
+  highlight!: RectShape;
+
+  /**
+   *
+   * @param state [undefined] undef: clear; true: highlight; false: dim
+   * @param update [true] stage.update after changes
+   */
+  setState(state?: boolean, update = true) {
+    if (state === undefined) {
+      this.dimmer.visible = false;
+      this.highlight.visible = false;
+    } else if (state === true) {
+      this.dimmer.visible = false;
+      this.highlight.visible = true;
+    } else if (state === false) {
+      this.dimmer.visible = true;
+      this.highlight.visible = false;
+    } else {
+      debugger;
+    }
+    this.state = state;
+    if (update) this.stage?.update()
+  }
+
 
   // ignore label size & borders:
   override calcBounds(): XYWH {
@@ -188,15 +293,16 @@ class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintab
   }
 
   altRectShape(color = C.WHITE) {
-    const scale = .7, rad = scale * ColCard.onScreenRadius;
     this.removeChild(this.rectShape);
-    this.rectShape = new CardShape(color, undefined, rad, true);
+    this.rectShape = new CardShape(color, undefined, CardButton.radius, true);
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
   }
 }
 class ColSelButton extends CardButton {
+
+  override get plyrButtons(): CardButton[] { return this.player.colSelButtons }
 
   constructor(public colNum = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${colNum}`, opts); // rectShape = RectShape(borders); label = disp = Text
@@ -214,6 +320,8 @@ class ColSelButton extends CardButton {
 class CoinBidButton extends CardButton {
   static coinFactions = [[], [1, 2, 3, 4], [3, 4], [1, 2], []]; // indices into ColCard.factionColors
 
+  override get plyrButtons(): CardButton[] { return this.player.coinBidButtons }
+
   constructor(public coinBid = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${coinBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
     this.Aname = `CoinBid-${coinBid}:${this.player.index}`;
@@ -226,7 +334,7 @@ class CoinBidButton extends CardButton {
   override onClick(evt: any, plyr: Player) {
     super.onClick(evt, plyr)
   }
-
+  bidOnCol?: number;
   factions!: number[];
   addFactionColors(coinBid = 0, width = 20, y = 0) {
     const factions = this.factions = CoinBidButton.coinFactions[coinBid];

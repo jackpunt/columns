@@ -1,7 +1,6 @@
 import { C, type XY } from "@thegraid/common-lib";
-import { NamedContainer, RectShape, type CenterText, type DragInfo, type Paintable } from "@thegraid/easeljs-lib";
-import { Container, DisplayObject, Graphics } from "@thegraid/easeljs-module";
-import { H, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
+import { NamedContainer, RectShape, type Paintable } from "@thegraid/easeljs-lib";
+import { H, Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { type ColTable as Table } from "./col-table";
 import { type GamePlay } from "./game-play";
@@ -20,6 +19,8 @@ export class ColCard extends Tile {
   override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
   override get isMeep() { return false; }
   declare gamePlay: GamePlay;
+  override get hex(): Hex1 { return super.hex as Hex1 }
+  override set hex(hex: Hex1) { super.hex = hex }
 
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
 
@@ -29,12 +30,12 @@ export class ColCard extends Tile {
     this.addChild(this.meepCont);
     this.nameText.color = tColor;
     this.setNameText(Aname, this.radius * .35);
-    this.cardId = this.addTextChild(0, `${faction}`, undefined, false, tColor); // a Text for BlackCards
     this.paint(color)
     ColCard.cardByName.set(Aname, this);
   }
-  cardId!: CenterText;
+
   meepCont = new NamedContainer('meepCont')
+  rank = 0; // until placed on hex.row of map
 
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
@@ -56,11 +57,13 @@ export class ColCard extends Tile {
     }
     return rv;
   }
-  addMeep(meep: ColMeeple, cellNdx = this.openCells[0]) {
-    const locXY = (cellNdx !== undefined) ? this.meepleLoc(cellNdx) : this.bumpLoc;
+  addMeep(meep: ColMeeple, cellNdx = this.openCells[0], xy?: XY) {
+    const inUse = (cellNdx !== undefined) ? this.cellsInUse.includes(cellNdx) : true;
+    const locXY = inUse ? this.bumpLoc : this.meepleLoc(cellNdx);
     this.meepCont.addChild(meep);
-    meep.set({...locXY, card: this, cellNdx}); // YIKES! no type checking.
+    meep.set({...locXY, card: this, cellNdx, faction: this.faction}); // YIKES! no type checking.
   }
+  // not used? just move to another Card...
   rmMeep(meep: ColMeeple) {
     this.meepCont.removeChild(meep)
     meep.set({ x: 0, y: 0, card: undefined, cellNdx: undefined })
@@ -141,21 +144,25 @@ export class ColCard extends Tile {
     ;(src as any as NamedContainer).Aname = `${src.hex.Aname}Source`;
     return src;
   }
-  // 4 states: avail, clicked, commited, used.
-  /** dim card when clicked */
-  dim(dim = true) {
-    // this.dText.text = dim ? CardBack.nText : CardBack.oText;
-    this.stage?.update()
-  }
 }
 class DualCard extends ColCard {
  override get maxCells() { return 2 }
 
-  constructor(Aname: string, faction: number, public readonly faction2: number) {
-    super(Aname, faction)
+  constructor(Aname: string, faction0: number, faction1: number) {
+    super(Aname, faction0);
+    this.factions = [faction0, faction1]
     this.dualColor();
   }
-
+  factions: number[] =[]
+  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY): void {
+    // meep on map.tileCont@(mx,my)
+    // this on map.tileCont@(tx,ty); meepCont on this@(0,0)
+    const pt = xy ?? meep.parent.localToLocal(meep.x, meep.y, this.meepCont)
+    if (cellNdx === undefined) cellNdx = pt.x < 0 ? 0 : 1;
+    super.addMeep(meep, cellNdx)
+    meep.faction = this.factions[cellNdx];
+    return;
+  }
   override meepleLoc(ndx = this.openCells[0]): XY {
     const width = this.getBounds().width;
     return { x: width * (ndx - .5) / 2, y: 0 }
@@ -166,9 +173,7 @@ class DualCard extends ColCard {
   dualColor(): Paintable {
     // retool a RectShape with 2 X drawRect(); sadly only the last one renders!
     const rv = this.baseShape as RectShape; // CardShape
-    const f1 = this.faction, f2 = this.faction2;
-    const c1 = ColCard.factionColors[f1];
-    const c2 = ColCard.factionColors[f2];
+    const [c1, c2] = this.factions.map(f => ColCard.factionColors[f])
     const { x, y, width, height } = rv.getBounds();
     const w2 = width / 2, rr = Math.max(width, height) * .05;
     rv._cgf = (colorn: string, g = rv.g0) => {

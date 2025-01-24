@@ -11,24 +11,23 @@ import { TP } from "./table-params";
 export class ColTable extends Table {
   constructor(stage: Stage) {
     super(stage);
-    this.numCol = TP.mHexes;
     this.initialVis = true;
   }
-  numCol!: number;
   declare gamePlay: GamePlay;
-  declare hexMap: HexMap2;
+  declare hexMap: HexMap2;    // From gamePlay.hexMap
   // return type declaration:
   override hexUnderObj(dragObj: DisplayObject, legalOnly?: boolean) {
     return super.hexUnderObj(dragObj, legalOnly) as OrthoHex2 | undefined;
   }
-  mph_g = 2.2; // min panel height + gap
-  get nrows() {
-    const { dydr } = this.hexMap.xywh();
-    return this.hexMap.mapCont.hexCont.getBounds().height / dydr; // number of rows
-  }
+  /** min panel height + gap */
+  mph_g = 2.7;
+
+  get nRows() { return this.gamePlay.nRows }
+  get nCols() { return this.gamePlay.nCols }
+
   // bgRect tall enough for (3 X mph + gap) PlayerPanels
   override bgXYWH(x0?: number, y0?: number, w0 = this.panelWidth * 2 + 1, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
-    const nr = this.nrows
+    const nr = this.nRows
     const h1 = Math.max(nr, 3 * this.mph_g) - nr; // extra height beyond nr + h0
     return super.bgXYWH(x0, y0, w0, h0 + h1, dw, dh)
   }
@@ -40,7 +39,7 @@ export class ColTable extends Table {
   override makePerPlayer(): void {
     super.makePerPlayer();
   }
-  get super_panelHeight() { return this.nrows / 3 - .2; }
+  get super_panelHeight() { return this.nRows / 3 - .2; }
   override get panelHeight() { return Math.max(this.super_panelHeight, this.mph_g - .2) }
 
   // getPanelLocs adapted for makeRect()
@@ -87,28 +86,18 @@ export class ColTable extends Table {
     this.initialVis = false;
     super.layoutTable2();
     this.addDoneButton();
+    this.doneButton.activate(true);
     return;
   }
 
   cardSource!: TileSource<ColCard>
   cardDiscard!: TileSource<ColCard>
 
-  override get panelWidth() { return Math.max(4, this.numCol) * .5; } // (2.5 / 3.5 * .7) = .5 (* hexRad)
+  override get panelWidth() { return Math.max(4, this.nCols) * .5; } // (2.5 / 3.5 * .7) = .5 (* hexRad)
 
-  /**
-   * last action of curPlayer is to draw their next tile.
-   */
-  override addDoneButton() {
-    const rv = super.addDoneButton(undefined, 0, 0); // table.doneButton('Done')
-    this.orig_doneClick = this.orig_doneClick ?? this.doneClicked; // override
-    this.doneClicked = (evt) => {
-      this.gamePlay.playerDone();
-      this.orig_doneClick(evt);          // this.gamePlay.phaseDone();
-    };
-    this.doneButton.activate(true)
-    return rv;
+  override doneClicked(evt?: any, data?: any): void {
+    super.doneClicked(evt, data); // vis=false; phaseDone(data)
   }
-  orig_doneClick!: (evt?: any) => void;
 
   override panelLocsForNp(np: number): number[] {
     return [[], [0], [0, 2], [0, 3, 2], [0, 3, 5, 2], [0, 3, 4, 5, 2], [0, 3, 4, 5, 2, 1]][np];
