@@ -67,22 +67,23 @@ export class ScenarioParser extends SPLib {
     const allCards = ColCard.allCards
     const black = allCards.filter(card => card.faction == 0);
     const other = allCards.filter(card => card.faction != 0);
-    const plain = other.filter(card => !card.Aname.includes('&'));
-    const duals = other.filter(card => card.Aname.includes('&'));
-    permute(plain)
-    permute(duals)
-    const nc = TP.mHexes, nr = TP.nHexes, nCards = nc * nr, nd = TP.rDuals;
-    const ndual = Math.round(nCards * nd), nplain = nCards - ndual;
-    const duals0 = duals.slice(0, ndual)
-    const plain0 = plain.slice(0, nplain)
-    const cards = duals0.concat(plain0);
+    const pCards = other.filter(card => !card.Aname.includes('&'));
+    const dCards = other.filter(card => card.Aname.includes('&'));
+    permute(pCards)
+    permute(dCards)
+    const gp = this.gamePlay, nr = gp.nRows, nCards = nr * gp.nCols;
+    const nDual = Math.round(nCards * TP.rDuals), nPlain = nCards - nDual;
+    const duals = dCards.slice(0, nDual)
+    const plain = pCards.slice(0, nPlain)
+    const cards = duals.concat(plain);
     permute(cards);
 
+    const row0 = nr - 1;
     this.gamePlay.hexMap.forEachHex(hex => {
-      const row = hex.row, col = hex.col;
-      const card = ((row == 0 || row == nr - 1) ? black.shift() : cards.shift()) as ColCard;
-      card.rank = (nr - row) - 1;
-      card.moveTo(hex);
+      const row = hex.row;
+      const card = ((row == 0 || row == row0) ? black : cards).shift() as ColCard;
+      card.rank = (row0 - row); // rank of row: [Black(row0), nr-2, ... 1, Black(0)]
+      card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
       return;
     })
     this.gamePlay.gameSetup.update()
