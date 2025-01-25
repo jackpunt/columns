@@ -1,10 +1,11 @@
 import { C } from "@thegraid/common-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
 import type { ColCard } from "./col-card";
+import { type CardButton, type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
 import type { GamePlay } from "./game-play";
 import type { OrthoHex2 } from "./ortho-hex";
-import { Player, type CardButton, type ColMeeple } from "./player";
+import { Player } from "./player";
 
 interface Phase extends PhaseLib {
   col?: number, // for ScoreForRank

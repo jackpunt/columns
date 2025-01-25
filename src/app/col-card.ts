@@ -2,10 +2,10 @@ import { C, type XY } from "@thegraid/common-lib";
 import { NamedContainer, RectShape, type Paintable } from "@thegraid/easeljs-lib";
 import { H, Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { type ColTable as Table } from "./col-table";
+import { ColMeeple } from "./col-meeple";
 import { type GamePlay } from "./game-play";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
-import { ColMeeple, Player } from "./player";
+import { Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
 

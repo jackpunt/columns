@@ -1,11 +1,12 @@
 import { stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type HexMap } from "@thegraid/hexlib";
+import type { ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
 import type { OrthoHex } from "./ortho-hex";
-import type { ColMeeple, Player } from "./player";
+import type { Player } from "./player";
 import { TP } from "./table-params";
 
 
