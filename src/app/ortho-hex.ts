@@ -1,5 +1,5 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
-import { RectShape, type Paintable } from "@thegraid/easeljs-lib";
+import { type Paintable } from "@thegraid/easeljs-lib";
 import { H, Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TP, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
@@ -57,17 +57,6 @@ export class OrthoHex extends Hex1Lib {
   get meeps(): [Tile | undefined, Tile | undefined] | undefined { return (this.meep2 || this.meep) ? [this.meep, this.meep2] : undefined; }
   // user cannot drop meep on the cell/card; code will check hex.meeps()
   // and put them on correct cell/slot [so we are not re-doing unitCollision()]
-
-  override setUnit(unit?: Tile, isMeep?: boolean | undefined): void {
-    super.setUnit(unit, isMeep)
-    if (!unit) return;
-    const dxy = unit.radius / 4; // super.setUnit places unit a center of hex, offset it:
-    if (unit === this.meep) {
-      unit.x -= dxy; unit.y += dxy;
-    } else if (unit === this.meep2) {
-      unit.x += dxy; unit.y -= dxy;
-    }
-  }
 
   get card() { return super.tile as ColCard | undefined }
   set card(card) { super.tile = card; }

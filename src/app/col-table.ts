@@ -1,5 +1,5 @@
-import { type XY } from "@thegraid/common-lib";
-import { ParamGUI, type DragInfo, type NamedObject, type ParamItem } from "@thegraid/easeljs-lib";
+import { type XY, type XYWH } from "@thegraid/common-lib";
+import { ParamGUI, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
@@ -11,6 +11,7 @@ import { TP } from "./table-params";
 export class ColTable extends Table {
   constructor(stage: Stage) {
     super(stage);
+    this.dragger.dragCont.scaleX = this.dragger.dragCont.scaleY = 1.6;
     this.initialVis = true;
   }
   declare gamePlay: GamePlay;
@@ -114,9 +115,24 @@ export class ColTable extends Table {
     this.gamePlay.gameState.start();   // gamePlay.phase(startPhase); enable GUI to drive game
   }
 
+  override layoutTurnlog(rowy?: number, colx?: number): void {
+    const row2 = rowy ?? Math.min(-.5, this.nRows - 7.5) + 3.5;
+    const col2 = colx ?? (-1.8 - this.nCols * .5) - 4;
+    super.layoutTurnlog(row2, col2)
+  }
+  override setupUndoButtons(bgr: XYWH, row?: number, col?: number, undoButtons?: boolean, xOffs?: number, bSize?: number, skipRad?: number): void {
+    const row2 = row ?? Math.min(-.5, this.nRows - 7.5);
+    const col2 = col ?? -1.8 - this.nCols * .5;
+    super.setupUndoButtons(bgr, row2, col2, undoButtons, xOffs, bSize, skipRad)
+  }
+  override bindKeysToScale(scaleC: ScaleableContainer, ...views: (XY & { scale: number; isk: string; ssk?: string; })[]): void {
+    const viewA = { x: 500, y: 2, scale: .5, isk: 'a'}
+    const viewZ = { x: 350, y: 2, scale: 0.647, isk: 'z', ssk: 'x' };
+    super.bindKeysToScale(scaleC, viewA, viewZ);
+  }
+
   override markLegalHexes(tile: Tile, ctx: DragContext): number {
-    ctx.gameState = this.gamePlay.gameState; // gameState->gamePlay->table->cardPanel->rules
-    return super.markLegalHexes(tile, ctx);
+    return super.markLegalHexes(tile, ctx);  // return super()+1 to allow everything to drag
   }
 
   // debug copy; do not keep

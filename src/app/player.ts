@@ -195,15 +195,21 @@ export class ColMeeple extends Meeple {
   }
 
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
+    const state = ctx.gameState.state.Aname;
+    if (state !== 'BumpAndCascade' && ! ctx.lastShift)
+      return `Only move during Bump phase, not "${state}"`;
     const col = (ctx.gameState as GameState).gamePlay.colToMove;
     const colc = this.card.hex.col;
-    return (colc == col) ? undefined : `can only move from ${col}, not ${colc}`;
+    return (colc == col || ctx.lastShift) ? undefined : `Only move from column ${col}, not ${colc}`;
   }
 
-  override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
+  override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
     if (!(toHex instanceof OrthoHex2)) return false;
-    if (toHex?.card) return true;
-    return false;
+    if (!(toHex.col === this.hex!.col)) return false; // stay in same column
+    if (ctx.lastShift) return true;
+    // if (toHex === this.fromHex) return true;
+    if (!(ctx.gameState.isPhase('BumpAndCascade'))) return false;
+    return true;
   }
 
   // hex.card.addMeep(this)

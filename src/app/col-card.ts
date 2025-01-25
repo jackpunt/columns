@@ -10,7 +10,8 @@ import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
 
 export class ColCard extends Tile {
-  static get allCards() { return Array.from(this.cardByName.values()) }
+  // static get allCards() { return Array.from(this.cardByName.values()) }
+  static allCards: ColCard[] = [];
   /** recompute if TP.hexRad has been changed */
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
@@ -24,14 +25,15 @@ export class ColCard extends Tile {
 
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
 
-  constructor(Aname: string, readonly faction = 0) {
+  constructor(aname: string, readonly faction = 0) {
+    const Aname = aname.startsWith(':') ? `${ColCard.allCards.length}${aname}` : aname;
     const color = ColCard.factionColors[faction], tColor = C.pickTextColor(color);
     super(Aname);
     this.addChild(this.meepCont);
     this.nameText.color = tColor;
     this.setNameText(Aname, this.radius * .35);
     this.paint(color)
-    ColCard.cardByName.set(Aname, this);
+    ColCard.allCards.push(this);
   }
 
   meepCont = new NamedContainer('meepCont')
@@ -61,7 +63,8 @@ export class ColCard extends Tile {
     const inUse = (cellNdx !== undefined) ? this.cellsInUse.includes(cellNdx) : true;
     const locXY = inUse ? this.bumpLoc : this.meepleLoc(cellNdx);
     this.meepCont.addChild(meep);
-    meep.set({...locXY, card: this, cellNdx, faction: this.faction}); // YIKES! no type checking.
+    meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex;
+    meep.card = this; meep.cellNdx = cellNdx; meep.faction = this.faction;
   }
   // not used? just move to another Card...
   rmMeep(meep: ColMeeple) {
@@ -80,15 +83,12 @@ export class ColCard extends Tile {
 
   // Identify il-legal sources of fromHex:
   override cantBeMovedBy(player: Player, ctx: DragContext): string | boolean | undefined {
-    return 'Cards are not moveable';
+    return undefined;  //'Cards are not moveable'; // moveable, but markLegalHexes() --> 0
   }
 
-  override markLegal(table: Table, setLegal = (hex: Hex2) => { hex.isLegal = false; }, ctx?: DragContext): void {
-    // table.gamePlay.curPlayer.cardRack.forEach(setLegal)
-  }
 
   override isLegalTarget(toHex: Hex2, ctx: DragContext): boolean {
-    return true;
+    return (toHex === ctx.tile?.fromHex) && (ctx.lastShift ?? false);
   }
 
   override showTargetMark(hex: IHex2 | undefined, ctx: DragContext): void {
@@ -99,14 +99,6 @@ export class ColCard extends Tile {
   static countClaz(n = 2) {
     return [].map(x => [n, ColCard, 750]) as CountClaz
   }
-
-  static cardByName: Map<string,ColCard> = new Map();
-  static uniqueId(cardid: string) {
-    let id = cardid, n = 1;
-    while (ColCard.cardByName.has(id)) { id = `${cardid}#${++n}` }
-    return id;
-  }
-
 
   // Sets of cards:
   // 1. ColTiles: tableau cards (nr: nHexes X nc: mHexes, some with 2 offices?) + black rows
@@ -120,18 +112,16 @@ export class ColCard extends Tile {
   // 3. for each Player - [1..nc-1 max 4] BidCoin cards
 
   static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, nPlayers = 4, ) {
-    ColCard.cardByName.clear(); // not needed?
-    // narrative: military, bankers, merchant, aristocrat
-    const nCards = nc * nr, nDual = Math.round(nCards * .25), nFacs = 4;
-    const colTextSize = ColCard.onScreenRadius / 3;
-    for (let n = 0, row = 0; row < nr; row++) {
-      for (let col = 0; col < nc; col++, n++) {
-        const faction = (row == 0 || (row == nr - 1)) ? 0 : 1 + (n % nFacs);
-        const aname = `${n}:${faction}`;
+    ColCard.allCards.length = 0;
+    // narrative: R:military, G:bankers, B:merchant, P:aristocrat
+    const nCards = nc * nr, nFacs = 4;
+    for (let n = -2 * nc; n < nCards; n += nFacs) {
+      for (let fact = 1; fact <= nFacs; fact++) {
+        const faction = n < 0 ? 0 : fact, aname = `:${faction}`;
         const card = (faction == 0) ? new BlackCard(aname) : new ColCard(aname, faction);
         if (faction > 0) {
-          const df1 = faction, df2 = 1 + (Math.floor(n / nFacs) % nFacs );
-          const dual = new DualCard(`${n}:${df1}&${df2}`, df1, df2);
+          const f1 = faction, f2 = 1 + (Math.floor(n / nFacs) % nFacs);
+          const dual = new DualCard(`${n+nCards}:${f1}&${f2}`, f1, f2);
         }
       }
     }
