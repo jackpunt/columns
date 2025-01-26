@@ -21,10 +21,16 @@ export class GamePlay extends GamePlayLib {
 
   declare curPlayer: Player;
   override get allPlayers() { return super.allPlayers as Player[] }
-
+  setCurPlayer(player: Player) {
+    this.curPlayer = player;
+    this.curPlayerNdx = player.index;
+  }
+  override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {
-    if (this.turnNumber > 9) return true; // temporary stand-in until scoring done.
-    return false;
+    const row = 0;
+    // TODO: end if one cell has all players
+    if (this.allPlayers.find(plyr => plyr.score >= 100)) return true;
+    return (!this.hexMap[row].find(hex => hex.card!.meepsOnCard.length < 1))
   }
   winningBidder(col: number) {
     const colPlayers = this.allPlayers.filter(plyr => plyr.colSelButtons[col]?.state == true);
@@ -40,7 +46,12 @@ export class GamePlay extends GamePlayLib {
   }
 
   colToMove = 0;
-  // resolve winning bid for col, select meeple to advance in col
+
+  /**
+   * Determine winingBidder (if any) and select meeple to advance.
+   * @param col column supplied by gameState
+   * @param colMeep callback when winningBidder has selected a meep to advance.
+   */
   resolveWinner(col: number, colMeep: (meep?: ColMeeple) => void) {
     this.colToMove = col;
     const plyr = this.winningBidder(col);
@@ -74,15 +85,28 @@ export class GamePlay extends GamePlayLib {
       if (b.factions.includes(faction)) score++;
     })
     player.score += score;
+    return score;
     //  TODO: include color matches from score counters
   }
 
   /** advance each player's score by the rank of each meeple; TODO: player chooses counter */
-  scoreForRank(rank: number, pNdx: number, cb: () => void) {
-    const plyr = this.allPlayers[pNdx], meeps = plyr.meeples;
-    const nOfRank = meeps.filter(meep => meep.card.rank == rank).length;
-    plyr.score +=  nOfRank * rank;
-    setTimeout(() => cb(), 0)
+  /** for each player their score for each rank */
+  scoreForRank() {
+    return this.allPlayers.map(plyr => {
+      const meeps = plyr.meeples;
+      const rankScores: number[] = [], top = this.nRows - 1;
+      for (let rank = 1; rank < top; rank++) {
+        const nOfRank = meeps.filter(meep => meep.card.rank == rank).length;
+        rankScores.push(nOfRank * rank);
+      }
+      return rankScores;
+    })
+  }
+  advanceCounters(rankScores: number[][]){
+    rankScores.forEach((plyrScores, ndx) => {
+      plyrScores.forEach(score => this.allPlayers[ndx].score += score);
+    })
+    this.gameState.done();
   }
 
   resetPlayerCards() {

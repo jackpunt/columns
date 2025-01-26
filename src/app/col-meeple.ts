@@ -1,7 +1,7 @@
 import { C, F, S, stime, type XYWH } from "@thegraid/common-lib";
 import { UtilButton, type Paintable, type RectShape, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Shape, type Graphics } from "@thegraid/easeljs-module";
-import { Meeple, Player as PlayerLib, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
+import { Meeple, Player as PlayerLib, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import type { GameState } from "./game-state";
@@ -13,6 +13,7 @@ import type { Player } from "./player";
 export class ColMeeple extends Meeple {
 
   declare player: Player;
+  declare baseShape: MeepleShapeLib & { highlight(l?: boolean): void };
 
   constructor(Aname: string, player?: Player) {
     super(Aname, player)
@@ -28,6 +29,10 @@ export class ColMeeple extends Meeple {
   faction!: number;
   override makeShape(): Paintable {
     return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })
+  }
+  highlight(lightup = true) {
+    this.baseShape.highlight(lightup);
+    this.updateCache()
   }
 
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
@@ -94,6 +99,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     }
   }
   onClick(evt: any, player: Player) {
+    if (!this.player.gamePlay.gameState.isPhase('CollectBids')) return;
     this.select()
     console.log(stime(`CardButton.onClick:`), this.Aname, this.state)
   }
@@ -160,10 +166,16 @@ export class ColSelButton extends CardButton {
 }
 
 export class CoinBidButton extends CardButton {
-  static coinFactions = [[], [1, 2, 3, 4], [3, 4], [1, 2], []]; // indices into ColCard.factionColors
+  // indices into ColCard.factionColors
+  static coinFactions = [[], [1, 2, 3, 4], [3, 4], [1, 2], [0]];
 
   override get plyrButtons(): CardButton[] { return this.player.coinBidButtons }
 
+  /**
+   *
+   * @param coinBid value: 1..4
+   * @param opts
+   */
   constructor(public coinBid = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${coinBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
     this.Aname = `CoinBid-${coinBid}:${this.player.index}`;
@@ -184,7 +196,7 @@ export class CoinBidButton extends CardButton {
     const facShape = new Shape(), n = colors.length, g = facShape.graphics;
     const d2 = width;
     switch (n) {
-      case 0: this.oneRect(g, [C.grey128], d2); break;
+      case 1: this.oneRect(g, colors, d2); break;
       case 2: this.twoRect(g, colors, d2); break;
       case 4: this.fourRect(g, colors, d2); break;
     }

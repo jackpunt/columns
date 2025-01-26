@@ -1,8 +1,8 @@
 import { Random, stime, type Constructor } from "@thegraid/common-lib";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type HexMap, type NumCounter } from "@thegraid/hexlib";
+import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter } from "@thegraid/hexlib";
 import { CardButton, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
 import { GamePlay } from "./game-play";
-import { OrthoHex } from "./ortho-hex";
+import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // do not conflict with AF.Colors
@@ -121,14 +121,14 @@ export class Player extends PlayerLib {
     const [nrows, ncols] = map.nRowCol;
     const xtraCol = this.xtraCol(ncols);
     const cmap = map// this.gamePlay.table.hexMap;
-    const makeMeep = (col: number) => {
-      const meep = new ColMeeple(`Meep-${this.index}:${col}`, this)
+    const makeMeep = (col: number, ext='') => {
+      const meep = new ColMeeple(`Meep-${this.index}:${col}${ext}`, this)
       meep.paint(this.color);
       const hex = cmap.getHex({ row: nrows - 1, col });
       if (hex.card) hex.card.addMeep(meep);
     }
     for (let col = 0; col < ncols; col++) { makeMeep(col) }
-    makeMeep(xtraCol);
+    makeMeep(xtraCol, '*');
   }
 
   scoreCounter!: NumCounter;
@@ -161,10 +161,27 @@ export class Player extends PlayerLib {
   /** choose and return one of the indicated meeples */
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void) {
     // TODO: GUI: set dropFunc -> colMeep(meep)
-    const meep = meeps[0];
+    const meep = meeps.sort((a, b) => a.card.rank - b.card.rank)[0];
     setTimeout(() => {
       colMeep(meep)
     })
+    return;
+  }
+
+  /** this player moves meep, and invokes bumpee.bumpMeeple.
+   * invoke cb() when bump cascade if done (no bumpee, or bump to black)
+   *
+   * @param meep the meep that need to find a home
+   * @param dir0 the direction for this bump (undefined for winningBidder)
+   * @param cb callback when bump cascade is done
+   * @returns
+   */
+  bumpMeeple(meep: ColMeeple, dir0?: HexDir, cb?: () => void) {
+    const dir = dir0 ?? 'N';
+    const card = (meep.card.hex.nextHex(dir) as OrthoHex2)?.card;// should NOT bump from black, but...
+    card?.addMeep(meep);
+    card?.stage?.update();
+    // cb?.()
     return;
   }
 }

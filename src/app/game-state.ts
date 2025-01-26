@@ -1,14 +1,15 @@
 import { C } from "@thegraid/common-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
-import type { ColCard } from "./col-card";
 import { type CardButton, type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
 import type { GamePlay } from "./game-play";
-import type { OrthoHex2 } from "./ortho-hex";
 import { Player } from "./player";
 
 interface Phase extends PhaseLib {
   col?: number, // for ScoreForRank
+}
+namespace GS {
+  export const tpr = 3; // turns per round
 }
 export class GameState extends GameStateLib {
   declare gamePlay: GamePlay;
@@ -22,17 +23,23 @@ export class GameState extends GameStateLib {
    // this.gamePlay.curPlayer
   override get curPlayer() { return super.curPlayer as Player }
   override get table() { return super.table as Table }
-  get turnOfRound() { return this.gamePlay.turnNumber % 3}
+  get turnOfRound() { return 1 + this.gamePlay.turnNumber % GS.tpr}
+  get roundNumber() { return 1 + Math.floor(this.gamePlay.turnNumber / GS.tpr) }
 
   override parseState(gameState: any[]): void {
     return;
   }
 
+  autoDone = false; // auto-proceed to ResolveWinner
   _cardDone?: CardButton = undefined;
   get cardDone() { return this._cardDone; }
-  set cardDone(v) { // BidCard or CoinCard selected [not committed]
+  set cardDone(v) { // BidCard or CoinCard selected [not committed]; "maybeDone"
     this._cardDone = v;    // most recent selection, pro'ly not useful
-    if (this.allDone) this.phase('ResolveWinner');
+    if (this.allDone) {
+      this.table.doneButton.paint(C.lightgreen)
+      this.gamePlay.hexMap.update();
+    }
+    if (this.autoDone && this.allDone) this.phase('ResolveWinner');
   }
 
   get allDone() {
@@ -68,8 +75,8 @@ export class GameState extends GameStateLib {
     },
     CollectBids: {
       start: () => {
-        const round = Math.ceil((1 + this.gamePlay.turnNumber) / 3), trn = 1 + this.turnOfRound
-        this.doneButton(`End Turn ${round}:${trn}`, C.GREEN);
+        const round = this.roundNumber, turn = this.turnOfRound
+        this.doneButton(`Make Bids ${round}.${turn}`, C.YELLOW);
       },
       done: (ok = false) => {
         if (!ok && !this.allDone) {
@@ -100,44 +107,52 @@ export class GameState extends GameStateLib {
         this.state.col = col;
         if (!this.winnerMeep) this.winnerMeep = meep; // maybe undefined
         if (!meep) { this.phase('ResolveWinner', col + 1); return }
-        const card = (meep.card.hex.nextHex('N') as OrthoHex2).card as ColCard;// assert: there is a Card
-        card.addMeep(meep);
-        this.table.logText(`${meep} advanced`); meep.unMove
+        this.gamePlay.setCurPlayer(meep.player);
+        this.winnerMeep?.highlight(true);
+        this.table.logText(`advance ${meep}`);
+        const bumpDone = () => { setTimeout(() => this.done(), 0) }
+        this.curPlayer.bumpMeeple(meep, undefined, bumpDone)
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
-        // click(evt, data)--> gamePlay.phaseDone(data)->gameState.done(data)->phase(donePhase(), data)-->start(data)
-        // if (meep.cellNdx === undefined) player.bump(meeps, (col, meep)=>void)
-        // else score(winnerMeep)
       },
       done: () => {
+        this.winnerMeep?.highlight(false);
         this.gamePlay.scoreForColor(this.winnerMeep)
         this.phase('ResolveWinner', (this.state.col ?? 0) + 1)
       }
     },
     EndTurn: {
       start: () => {
+        const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)
+        this.table.logText(`EndTurn ${this.roundNumber}.${this.turnOfRound} scores: ${scores}`, )
         this.gamePlay.allPlayers.forEach(plyr => plyr.commitCards())
         this.gamePlay.setNextPlayer();  // advance turnNumber & turnOfRound
-        const endOfRound = (this.turnOfRound == 0)
+        const endOfRound = (this.turnOfRound == 1)
         this.phase(endOfRound ? 'EndRound' : 'BeginTurn');
       },
     },
     EndRound: {
-      start: (rank = 1, pNdx = 0) => {
-        // scoreForRank(rank, pNdx, (rank, pNds) => void)
-        if (pNdx == this.gamePlay.allPlayers.length) { rank += 1; pNdx = 0 };
-        if (rank > this.gamePlay.nRows - 1) this.done();
-        this.gamePlay.scoreForRank(rank, pNdx, () => this.state.start(rank, pNdx + 1));
-        // there may be GUI for player to choose counter to advance...
+      start: () => {
+        const plyrScores = this.gamePlay.scoreForRank();
+        this.table.logText(`Score for Rank: ${plyrScores.map(ary => `${ary} -- `)}`);
+        this.phase('AdvanceCounters', plyrScores);
+      }
+    },
+    AdvanceCounters: {
+      start: (plyrScores) => {
+        this.gamePlay.advanceCounters(plyrScores)
       },
       done: () => {
+        const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)
+        this.table.logText(`EndRound ${this.roundNumber-1} scores: ${scores}`, )
         this.phase(this.gamePlay.isEndOfGame() ? 'EndGame' : 'BeginRound');
       }
     },
     EndGame: {
       start: () => {
-        if (this.gamePlay.isEndOfGame()) {
-          this.doneButton(`End of Game`, C.RED, () => {this.gamePlay.gameSetup.restart({})})
-        }
+        this.doneButton(`End of Game!\n(click for new game)`, C.RED)
+      },
+      done: () => {
+        this.gamePlay.gameSetup.restart({});
       }
     }
   }

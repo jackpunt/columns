@@ -1,4 +1,4 @@
-import { stime, type XY, type XYWH } from "@thegraid/common-lib";
+import { C, stime, type XY, type XYWH } from "@thegraid/common-lib";
 import { NamedContainer, PaintableShape, RectShape, type Paintable } from "@thegraid/easeljs-lib";
 import { Bitmap, Graphics } from "@thegraid/easeljs-module";
 import { AliasLoader } from "@thegraid/hexlib";
@@ -13,7 +13,7 @@ export class MeepleShape extends NamedContainer implements Paintable {
     return this._g0?.clone() ?? new Graphics(); // clone, so original is not mutated.
   }
   /** last Graphics from cgf */
-  cgfGraphics!: Graphics; // set by mscgf
+  cgfGraphics = this.g0; // not used
 
   calcBounds(): XYWH {
     const { x, y, width: w, height: h } = this.getBounds();
@@ -21,12 +21,12 @@ export class MeepleShape extends NamedContainer implements Paintable {
   }
 
   /** last painted color */
-  get colorn() { return this.colorRect.colorn; }
-  colorRect;
+  get colorn() { return this.meepleImage.colorRect.colorn; }
   // Tile.paint() -> baseShape.paint()
   paint(fillc = this.colorn, force?: boolean) {
     if (fillc !== this.colorn || force) {
-      this.cgfGraphics = this.colorRect.paint(fillc, force)
+      this.meepleImage.paint(fillc)
+      // this.updateCache();
     }
     return this.cgfGraphics;
   }
@@ -34,22 +34,49 @@ export class MeepleShape extends NamedContainer implements Paintable {
   constructor(color: string, size: XY = { x: PaintableShape.defaultRadius, y: PaintableShape.defaultRadius }) {
     super('MeepleShape');
     const msBitmap = AliasLoader.loader.getBitmap('meeple-shape', size);
-    const w = msBitmap.image.width, h = msBitmap.image.height;
-    msBitmap.setBounds(0, 0, w, h)
-    this.addChild(msBitmap);
+    const backside = this.backside = new StencilImage(msBitmap, C.WHITE);
+    backside.scaleX = 1.17; backside.scaleY = 1.10;
+    this.addChild(backside)
+    const meepleImage = this.meepleImage = new StencilImage(msBitmap, color);
+    this.addChild(meepleImage);
+    this.setCacheID()
+    this.highlight(false);
+    return;
+  }
+  backside!: StencilImage;
+  meepleImage: StencilImage;
+  setCacheID(scale = 1) { // required for Paintable!
+    if (!this.cacheID) {
+      const { x, y, width, height } = this.getBounds()
+      this.cache(x, y, width, height, scale)
+    }
+  }
+
+  highlight(lightup = true, update = true) {
+    this.backside.visible = lightup;
+    this.updateCache();
+    if (update) this.stage?.update();
+  }
+}
+
+class StencilImage extends NamedContainer {
+  colorRect!: RectShape
+  constructor(public bitmap: Bitmap, public color: string, scale = 1) {
+    super('stencil')
+
+    const w = bitmap.image.width, h = bitmap.image.height;
+    bitmap.setBounds(0, 0, w, h)
+    this.addChild(bitmap);
 
     const { x, y, width, height } = this.getBounds();
     this.colorRect = new RectShape({x, y, w: width, h: height}, color,'')
     this.colorRect.compositeOperation = "source-atop";
     this.addChild(this.colorRect);
-    return;
+    this.cache(x, y, width, height, scale)
   }
-
-  setCacheID() {
-    if (!this.cacheID) {
-      const { x, y, width, height } = this.getBounds()
-      this.cache(x, y, width, height, 4)
-    }
+  paint(color: string) {
+    this.colorRect.paint(color)
+    this.updateCache();
   }
 }
 
