@@ -1,12 +1,12 @@
 import { Random, stime, type Constructor } from "@thegraid/common-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter } from "@thegraid/hexlib";
-import { CardButton, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
+import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
 import { GamePlay } from "./game-play";
 import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // do not conflict with AF.Colors
-const playerColors = ['violet', 'lightblue', 'orange', 'teal', 'lightgreen', 'goldenrod', 'brown', 'tan', 'yellow', ] as const;
+const playerColors = ['violet', 'lightblue', 'tan', 'teal', 'yellow', 'orange', 'goldenrod', 'brown', 'lightgreen', ] as const;
 
 export type PlayerColor = typeof playerColors[number];
 export class Player extends PlayerLib {
@@ -97,19 +97,38 @@ export class Player extends PlayerLib {
   coinBidButtons!: CoinBidButton[];
   /** at start of round */
   clearButtons() {
-    this.colSelButtons.forEach(b => b.setState())
-    this.coinBidButtons.forEach(b => (b.setState(), b.bidOnCol = undefined))
+    this.colSelButtons.forEach(b => b.setState(CB.clear))
+    this.coinBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
+  /** during CollectBids */
   isDoneSelecting() {
     return (
-      this.colSelButtons.find(cb => cb.state === true) &&
-      this.coinBidButtons.find(cb => cb.state === true))
+      this.colSelButtons.find(cb => cb.state === CB.selected) &&
+      this.coinBidButtons.find(cb => cb.state === CB.selected))
   }
+  /**
+   * inPhase(ResolveWinner): If this Player bid on the indicated col, return the bid
+   * @param col
+   * @returns \{ plyr: this, bid: number }
+   */
+  bidOnCol(col: number) {
+    return this.colSelButtons[col]?.state === CB.selected ? { plyr: this, bid:  this.currentBid()} : undefined
+  }
+  currentBid() {
+    return (this.coinBidButtons.find(but => but.state === CB.selected) as CoinBidButton).coinBid;
+  }
+
+  /** End of turn */
   commitCards() {
-    const csb = this.colSelButtons.find(b => b.state === true);
-    const cbb = this.coinBidButtons.find(b => b.state === true);
-    if (csb) { csb.setState(false); };
-    if (cbb) { cbb.setState(false); cbb.bidOnCol = csb!?.colNum - 1 };
+    const csb = this.colSelButtons.find(b => b.state === CB.selected);
+    const cbb = this.coinBidButtons.find(b => b.state === CB.selected);
+    if (csb) { csb.setState(CB.done); };
+    if (cbb) { cbb.setState(CB.done); cbb.bidOnCol = csb!?.colNum - 1 };
+  }
+
+  cancelBid(col: number, bid: number) {
+    this.colSelButtons[col].setState(CB.cancel);
+    this.coinBidButtons[bid].setState(CB.cancel);
   }
 
   xtraCol(ncols = 4) {
@@ -152,11 +171,6 @@ export class Player extends PlayerLib {
     // this.panel.addChild(c1);
   }
   // counter1!: NumCounter;
-
-  currentBid(col: number) {
-    return this.colSelButtons[col].state !== true ? undefined :
-      (this.coinBidButtons.find(but => but.state == true) as CoinBidButton).coinBid;
-  }
 
   /** choose and return one of the indicated meeples */
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void) {

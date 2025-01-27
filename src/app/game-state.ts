@@ -112,7 +112,7 @@ export class GameState extends GameStateLib {
         this.table.logText(`advance ${meep}`);
         const bumpDone = () => { setTimeout(() => this.done(), 0) }
         this.curPlayer.bumpMeeple(meep, undefined, bumpDone)
-        this.doneButton(`bump & cascade ${col} done`, meep.player.color);
+        this.doneButton(`bump & cascade ${col + 1} done`, meep.player.color);
       },
       done: () => {
         this.winnerMeep?.highlight(false);

@@ -1,7 +1,7 @@
 import { stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type HexMap } from "@thegraid/hexlib";
-import type { ColMeeple } from "./col-meeple";
+import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
@@ -22,8 +22,10 @@ export class GamePlay extends GamePlayLib {
   declare curPlayer: Player;
   override get allPlayers() { return super.allPlayers as Player[] }
   setCurPlayer(player: Player) {
+    this.curPlayer.panel.showPlayer(false);
     this.curPlayer = player;
     this.curPlayerNdx = player.index;
+    this.curPlayer.panel.showPlayer(true);
   }
   override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {
@@ -33,15 +35,16 @@ export class GamePlay extends GamePlayLib {
     return (!this.hexMap[row].find(hex => hex.card!.meepsOnCard.length < 1))
   }
   winningBidder(col: number) {
-    const colPlayers = this.allPlayers.filter(plyr => plyr.colSelButtons[col]?.state == true);
-    const plyrBids = colPlayers.map(plyr => ({ pid: plyr?.index, plyr, bid: plyr.currentBid(col) as number }))
+    const bidsOnCol = this.allPlayers.map(plyr => plyr.bidOnCol(col));
+    const plyrBids = bidsOnCol.filter(pbid => pbid !== undefined);
     plyrBids.sort((a, b) => b.bid - a.bid); // descending order of bid
     do {
       const bid = plyrBids[0]?.bid;
       if (bid === undefined) return undefined;
       const nbids = plyrBids.filter(pb => pb.bid == bid).length
       if (nbids === 1)  return plyrBids[0].plyr;
-      if (nbids > 1) plyrBids.splice(0, nbids); // remove all equal bids
+      const cancels = plyrBids.splice(0, nbids); // remove all equal bids
+      cancels.forEach(pb => pb.plyr.cancelBid(col, bid))
     } while (true)
   }
 

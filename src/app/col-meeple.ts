@@ -1,6 +1,6 @@
 import { C, F, S, stime, type XYWH } from "@thegraid/common-lib";
-import { UtilButton, type Paintable, type RectShape, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
-import { Shape, type Graphics } from "@thegraid/easeljs-module";
+import { CircleShape, UtilButton, type Paintable, type RectShape, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
+import { Graphics, Shape } from "@thegraid/easeljs-module";
 import { Meeple, Player as PlayerLib, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
@@ -46,6 +46,7 @@ export class ColMeeple extends Meeple {
 
   override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
     if (!(toHex instanceof OrthoHex2)) return false;
+    if (ctx.lastShift && ctx.lastCtrl) return true;   // can shift cols with Ctrl
     if (!(toHex.col === this.hex!.col)) return false; // stay in same column
     if (ctx.lastShift) return true;
     // if (toHex === this.fromHex) return true;
@@ -65,6 +66,14 @@ export class ColMeeple extends Meeple {
   }
 }
 
+export namespace CB {
+  export const clear = 'clear';
+  export const selected = 'selected';
+  export const done = 'done';
+  export const cancel = 'cancel';
+}
+export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel;
+
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
   static radius = .7 // * ColCard.onScreenRadius
   constructor(label: string, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
@@ -80,19 +89,21 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     const dColor = 'rgba(100,100,100,.5)', rad = CardButton.radius, vert = true;
     this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
     this.addChildAt(this.highlight = new CardShape(C.black, undefined, rad * 1.04, vert), 0); // under baseShape
+    this.addChild(this.canceled = this.makeCancelShape())
     this.highlight.setRectRad({ s: 4 })
-    this.setState();
+    this.setState(CB.clear);
   }
   player!: Player;
 
+  /** Select this card/button for CollectBids */
   select() {
     // radio button
-    if (this.state === true) {
-      this.setState(); // toggle from selected to not selected
-    } else if (this.state === undefined) {
+    if (this.state === CB.selected) {
+      this.setState(CB.clear); // toggle from selected to not selected
+    } else if (this.state === CB.clear) {
       // clear the previously selected button
-      this.plyrButtons.find(cb => cb.state === true)?.setState(undefined, false);
-      this.setState(true);
+      this.plyrButtons.find(cb => cb.state === CB.selected)?.setState(CB.clear, false);
+      this.setState(CB.selected);
       setTimeout(() => {
         this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
       }, 0);
@@ -106,29 +117,47 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   abstract get plyrButtons(): CardButton[]
 
   /** undef: clear; true: highlight; false: dim */
-  state?: boolean;
+  state?: CardButtonState;
   dimmer!: RectShape;
   highlight!: RectShape;
-
+  canceled!: Shape;
+  makeCancelShape() {
+    const { width, height } = this.getBounds(), ss = width * .07, rad = width * .35 - 2 * ss;
+    const circ = new CircleShape('', rad, C.RED, new Graphics().ss(ss))
+    circ.y = height / 2 - width / 2; // center on diagonal from bottom
+    return circ;
+  }
   /**
    *
-   * @param state [undefined] undef: clear; true: highlight; false: dim
+   * @param state [clear] clear, light, done, cancel (does not change state)
    * @param update [true] stage.update after changes
    */
-  setState(state?: boolean, update = true) {
-    if (state === undefined) {
-      this.dimmer.visible = false;
-      this.highlight.visible = false;
-    } else if (state === true) {
-      this.dimmer.visible = false;
-      this.highlight.visible = true;
-    } else if (state === false) {
-      this.dimmer.visible = true;
-      this.highlight.visible = false;
-    } else {
-      debugger;
-    }
+  setState(state: CardButtonState = CB.clear, update = true) {
+    const pstate = this.state;
     this.state = state;
+    switch (state) {
+      case CB.clear: {
+        this.dimmer.visible = false;
+        this.highlight.visible = false;
+        this.canceled.visible = false;
+        break
+      }
+      case CB.selected: {
+        this.dimmer.visible = false;
+        this.highlight.visible = true;
+        break
+      }
+      case CB.done: {
+        this.dimmer.visible = true;
+        this.highlight.visible = false;
+        break
+      }
+      case CB.cancel: {
+        this.canceled.visible = true;
+        this.state = pstate;
+        break
+      }
+    }
     if (update) this.stage?.update()
   }
 
@@ -140,6 +169,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     return { x, y, w, h };
   }
 
+  /** replace UtilButton's border RectShape with CardShape */
   altRectShape(color = C.WHITE) {
     this.removeChild(this.rectShape);
     this.rectShape = new CardShape(color, undefined, CardButton.radius, true);
@@ -188,7 +218,7 @@ export class CoinBidButton extends CardButton {
   override onClick(evt: any, plyr: Player) {
     super.onClick(evt, plyr)
   }
-  bidOnCol?: number;
+  bidOnCol?: number; // debug or post-hoc analysis
   factions!: number[];
   addFactionColors(coinBid = 0, width = 20, y = 0) {
     const factions = this.factions = CoinBidButton.coinFactions[coinBid];
