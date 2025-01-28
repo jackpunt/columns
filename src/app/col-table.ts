@@ -1,4 +1,4 @@
-import { permute, Random, type XY, type XYWH } from "@thegraid/common-lib";
+import { permute, Random, removeEltFromArray, type XY, type XYWH } from "@thegraid/common-lib";
 import { NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
@@ -169,7 +169,7 @@ export class ColTable extends Table {
   }
 
   layoutScoreTrack() {
-    const scoreTrack = new ScoreTrack(this, this.scaleCont, 16, 20);
+    const scoreTrack = new ScoreTrack(this, this.scaleCont, 12, 20);
     const {x, y, width, height} = this.bgRect.getBounds()
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
     const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
@@ -183,27 +183,36 @@ class ScoreTrack extends NamedContainer {
     super('ScoreTrack')
     parent.addChild(this);
     const rgbvsf = [
-      'rgbv', 'rgvb', 'rbgv', 'rbvg', 'rvbg', 'rvgb',
-      'grbv', 'grvb', 'gbrv', 'gvrb', 'brgv', 'vrgb',
+      'rgbv', 'gbvr', 'bvrg', 'vrgb',
+      'rbvg', 'gvrb', 'brgv', 'vgbr',
+      'rvgb', 'grbv', 'bgvr', 'vbrg',
     ];
     const rgbvsr = rgbvsf.map(str => str.split('').reverse().join(''));
     const rgbvs = rgbvsf.concat(rgbvsr)
-    const dy = dx * TP.numPlayers, tracks: TrackSegment[] = [], rgbvs2 = rgbvs.slice();
+    'rgbv'.split('').forEach(f => {
+      const nf = rgbvs.filter(tr => tr.startsWith(f)).length
+      console.log(`nf(${f}) = ${nf}`)
+    })
+    const dy = dx * TP.numPlayers, track12: TrackSegment[] = []
     const rgbv2f: string[] = []; // rgbv2 already used and excluded.
-    permute(rgbvs)
-    for (let r1 = 0; r1 < rgbvs.length && tracks.length < nElts; r1++) {
-      permute(rgbvs2)
-      const rgbvs1 = rgbvs[r1];
-      const rgbv1 = `${rgbvs1}`
-      const e0 = rgbvs1[0], e1 = rgbvs1[1], e2 = rgbvs1[2], e3 = rgbvs1[3];
-      // const rgbv2 = `${rgbvs2.find(rgbv => !rgbv2f.includes(rgbv) && (rgbv[0] != e3) && (rgbv[1] !== e2) && (rgbv[2] !== e1) && (rgbv[3] !== e0))}`;
+    // make 12 segments (rotationally complete)
+    for (let r1 = 0; r1 < rgbvs.length && track12.length < 12; r1++) {
+      const rgbvs1 = rgbvs[r1], rgbv1 = `${rgbvs1}`
+      if (rgbv2f.includes(rgbvs1)) continue;
       const rgbv2 = `${rgbv1[1]}${rgbv1[0]}${rgbv1[3]}${rgbv1[2]}`;
+      const rgbv0 = `${rgbv2[3]}${rgbv2[2]}${rgbv2[1]}${rgbv2[0]}`; // v2 reversed
+      rgbv2f.push(rgbv0);
+      removeEltFromArray(rgbv0, rgbvs); // so we don't get a equiv reversal
       const tseg = new TrackSegment(rgbv1, rgbv2, dx, dy)
-      tracks.push(tseg);
-      rgbv2f.push(rgbv2)
+      track12.push(tseg);
+    }
+    for (let f = 1; f <= 4; f++) {
+      const s = 4
+      const nf = track12.filter(tr => tr.factions[0][s] === f).length
+      console.log(`nf(f=${f},s=${s}) = ${nf}`)
     }
 
-    permute(tracks)
+    const tracks = permute(track12).slice(0, nElts)
     const {x, y, width, height} = this.table.bgRect.getBounds()
     tracks.forEach((trk, n) => {
       this.addChild(trk)
