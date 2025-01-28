@@ -1,9 +1,10 @@
-import { Random, stime, type Constructor } from "@thegraid/common-lib";
+import { C, Random, stime, type Constructor } from "@thegraid/common-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter } from "@thegraid/hexlib";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
 import { GamePlay } from "./game-play";
 import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
+import { ColCard } from "./col-card";
 
 // do not conflict with AF.Colors
 const playerColors = ['violet', 'lightblue', 'tan', 'teal', 'yellow', 'orange', 'goldenrod', 'brown', 'lightgreen', ] as const;
@@ -159,18 +160,29 @@ export class Player extends PlayerLib {
     const { high, wide, gap } = this.panel.metrics;
     const fs = TP.hexRad * .5;
     const ic = this.score;
-    const cc = this.scoreCounter = new NumCounterBox('score', ic, undefined, fs);
-    cc.x = wide - 2 * gap; cc.y = high - (cc.high / 2 + 2 * gap);
+    const cc = this.scoreCounter = new NumCounterBox('score', ic, C.WHITE, fs);
+    cc.x = wide - 1 * gap; cc.y = high - (cc.high / 2 + 2 * gap);
     cc.boxAlign('right');
     this.panel.addChild(cc);
 
     // template for making add'tl counters:
-    // const c1 = this.counter1 = new NumCounterBox('net', 0, 'violet', fs)
-    // c1.x = 2 * gap; c1.y = high - (cc.high / 2 + 2 * gap);
-    // c1.boxAlign('left');
-    // this.panel.addChild(c1);
+    const c2 = this.counter2 = new NumCounterBox('net', 0, C.BLACK, fs)
+    c2.x = cc.x - (c2.wide + gap); c2.y = high - (cc.high / 2 + 2 * gap);
+    c2.boxAlign('right');
+    this.panel.addChild(c2);
+    c2.color;
+
+    const c1 = this.counter1 = new NumCounterBox('net', 0, C.BLACK, fs)
+    c1.x = c2.x - (c1.wide + gap); c1.y = high - (cc.high / 2 + 2 * gap);
+    c1.boxAlign('right');
+    this.panel.addChild(c1);
+
+    cc.setValue(88, C.BLACK)
+    c1.setValue(44, ColCard.factionColors[4])
+    c2.setValue(54, ColCard.factionColors[1])
   }
-  // counter1!: NumCounter;
+  counter1!: NumCounter;
+  counter2!: NumCounter;
 
   /** choose and return one of the indicated meeples */
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void) {

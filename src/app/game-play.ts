@@ -21,10 +21,9 @@ export class GamePlay extends GamePlayLib {
 
   declare curPlayer: Player;
   override get allPlayers() { return super.allPlayers as Player[] }
-  setCurPlayer(player: Player) {
+  override setCurPlayer(player: Player) {
     this.curPlayer.panel.showPlayer(false);
-    this.curPlayer = player;
-    this.curPlayerNdx = player.index;
+    super.setCurPlayer(player)
     this.curPlayer.panel.showPlayer(true);
   }
   override logNextPlayer(from: string): void {  } // no log

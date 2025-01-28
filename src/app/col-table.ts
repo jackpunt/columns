@@ -1,5 +1,5 @@
-import { type XY, type XYWH } from "@thegraid/common-lib";
-import { ParamGUI, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { permute, Random, type XY, type XYWH } from "@thegraid/common-lib";
+import { NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
@@ -84,10 +84,12 @@ export class ColTable extends Table {
   }
 
   override layoutTable2() {
+    super.layoutTable2;
     this.initialVis = false;
-    super.layoutTable2();
     this.addDoneButton();
     this.doneButton.activate(true);
+    this.layoutScoreTrack();
+    super.layoutTable2(); // update and toggleText
     return;
   }
 
@@ -164,5 +166,91 @@ export class ColTable extends Table {
     gui.x = x; gui.y = y
     gui.makeLines();
     return gui
+  }
+
+  layoutScoreTrack() {
+    const scoreTrack = new ScoreTrack(this, this.scaleCont, 16, 20);
+    const {x, y, width, height} = this.bgRect.getBounds()
+    const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
+    const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
+    scoreTrack.x = bxy.x - tx - tw / 2;
+  }
+}
+
+class ScoreTrack extends NamedContainer {
+  factions: number[] = [];
+  constructor(public table: ColTable, parent: Container, nElts = 6, dx = 40, ) {
+    super('ScoreTrack')
+    parent.addChild(this);
+    const rgbvsf = [
+      'rgbv', 'rgvb', 'rbgv', 'rbvg', 'rvbg', 'rvgb',
+      'grbv', 'grvb', 'gbrv', 'gvrb', 'brgv', 'vrgb',
+    ];
+    const rgbvsr = rgbvsf.map(str => str.split('').reverse().join(''));
+    const rgbvs = rgbvsf.concat(rgbvsr)
+    const dy = dx * TP.numPlayers, tracks: TrackSegment[] = [], rgbvs2 = rgbvs.slice();
+    const rgbv2f: string[] = []; // rgbv2 already used and excluded.
+    permute(rgbvs)
+    for (let r1 = 0; r1 < rgbvs.length && tracks.length < nElts; r1++) {
+      permute(rgbvs2)
+      const rgbvs1 = rgbvs[r1];
+      const rgbv1 = `${rgbvs1}`
+      const e0 = rgbvs1[0], e1 = rgbvs1[1], e2 = rgbvs1[2], e3 = rgbvs1[3];
+      // const rgbv2 = `${rgbvs2.find(rgbv => !rgbv2f.includes(rgbv) && (rgbv[0] != e3) && (rgbv[1] !== e2) && (rgbv[2] !== e1) && (rgbv[3] !== e0))}`;
+      const rgbv2 = `${rgbv1[1]}${rgbv1[0]}${rgbv1[3]}${rgbv1[2]}`;
+      const tseg = new TrackSegment(rgbv1, rgbv2, dx, dy)
+      tracks.push(tseg);
+      rgbv2f.push(rgbv2)
     }
+
+    permute(tracks)
+    const {x, y, width, height} = this.table.bgRect.getBounds()
+    tracks.forEach((trk, n) => {
+      this.addChild(trk)
+      trk.y = y + height + dy
+      trk.x = x + n * trk.getBounds().width; // all tracks the same width
+    })
+  }
+}
+
+const rgbvIndex = { 'B': 0, 'r': 1, 'g': 2, 'b': 3, 'v': 4 } // Black, red, gold, blue, violet
+type RGBVIndex = typeof rgbvIndex;
+type RGBV = keyof RGBVIndex;
+/** a segment of the score track; B-rgbv-vbgr-B (where B is half size) */
+class TrackSegment extends NamedContainer {
+  /**
+   * 9 * 12 = 108; 9 * 11 = 99 (end of game)
+   * @example
+   * Brgbv1-rgbv2B
+   * Bvbgr1-vbgr2B
+   * @param Aname codes the sequence of each rgbv segment.
+   */
+  constructor(rgbv1: string, rgbv2: string, dx = 20, dy = 80) {
+    super(`${rgbv1}+${rgbv2}`)
+    this.setBounds(0, 0, 0, 0);
+    const B = ['B'] as RGBV[];
+    const ary1 = rgbv1.split('') as RGBV[], ary2 = rgbv2.split('') as RGBV[];
+    const factions12 = B.concat(ary1, ary2, B).map(s => rgbvIndex[s]);
+    const factions21 = B.concat(ary2, ary1, B).reverse().map(s => rgbvIndex[s]);;
+    factions12.forEach((f1, n) => {
+      const f2 = factions21[n];
+      this.addSlot(f1, f2, { x: dx, y: dy })
+    })
+    this.factions = [factions12, factions21]
+    const {x, y, width, height} = this.getBounds()
+    this.cache(x, y, width, height);
+  }
+  factions;
+
+  addSlot(f1: number, f2: number, dxy: XY) {
+    const factionColor = (faction: number) => ColCard.factionColors[faction];
+    const dxyy = dxy.y, dxyx = (f1 == 0) ? dxy.x / 2 : dxy.x;
+    const { x: x0, y: y0, width, height } = this.getBounds(); // expect x0 = 0, y0 = height/2
+    const c1 = factionColor(f1), c2 = factionColor(f2);
+    const rect1 = new RectShape({ s: 1, x: x0 + width, w: dxyx, h: dxyy, y: y0 }, c1, );
+    const rect2 = new RectShape({ s: 1, x: x0 + width, w: dxyx, h: dxyy, y: y0 + height - dxyy }, c2, );
+    this.addChild(rect1)
+    this.addChild(rect2)
+    this.setBoundsNull(); // so createjs will compute containers bounds from children.
+  }
 }
