@@ -1,16 +1,36 @@
-import { C, Random, stime, type Constructor } from "@thegraid/common-lib";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter } from "@thegraid/hexlib";
+import { C, Random, S, stime, type Constructor } from "@thegraid/common-lib";
+import { UtilButton } from "@thegraid/easeljs-lib";
+import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
 import { GamePlay } from "./game-play";
 import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
-import { ColCard } from "./col-card";
+
+type PlyrBid = { plyr: Player; bid: number; }
+/** interface from GamePlay/GameState to Player */
+export interface IPlayer {
+  makeMeeple(map: HexMap<OrthoHex>, col: number, rank?: number, ext?: string): ColMeeple;
+  panel: PlayerPanel;
+  score: number;
+  color: string;
+  meeples: ColMeeple[];
+  coinBidButtons: CoinBidButton[]; // { state?: string, factions: number[] }
+  clearButtons(): void; // reset CardButton: setState(CB.clear)
+  selectCol(): void;    // for xtraCol
+  collectBid(): void;
+  isDoneSelecting(): ColSelButton | undefined; // { colNum: number } | undefined
+  bidOnCol(col: number): PlyrBid | undefined;
+  cancelBid(col: number, bid: number): void;
+  meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
+  bumpMeeple(meep: ColMeeple, dir0?: HexDir, cb?: () => void): void;
+  commitCards(): void;
+}
 
 // do not conflict with AF.Colors
 const playerColors = ['violet', 'lightblue', 'tan', 'teal', 'yellow', 'orange', 'goldenrod', 'brown', 'lightgreen', ] as const;
 
 export type PlayerColor = typeof playerColors[number];
-export class Player extends PlayerLib {
+export class Player extends PlayerLib implements IPlayer {
   static initialCoins = 400;
   // set our multi-player colors (concept from Ankh?); we don't use the TP.colorScheme
   static { PlayerLib.colorScheme = playerColors.concat() }
@@ -70,6 +90,7 @@ export class Player extends PlayerLib {
     }
     this.makeCardButtons(TP.mHexes);  // number of columns
     this.setupCounters();
+    this.makeAutoButton();
   }
 
   makeCardButtons(ncol = 4, ncoin = 4) {
@@ -94,6 +115,19 @@ export class Player extends PlayerLib {
     this.coinBidButtons = makeButton(CoinBidButton, ncoin, 1) as CoinBidButton[];
     return;
   }
+  makeAutoButton() {
+    const { high } = this.panel.metrics
+    const autoBut = new UtilButton('A', {visible: true, active: true, border:.1, fontSize: 30})
+    autoBut.x = 0; autoBut.y = high;
+    this.panel.addChild(autoBut)
+    autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
+  }
+
+  /** true: player auto-selects play; false: player uses GUI  */
+  setAutoPlay(v = !this.useRobo) {
+    this.useRobo = v;
+  }
+
   colSelButtons!: ColSelButton[];
   coinBidButtons!: CoinBidButton[];
   /** at start of round */
@@ -101,19 +135,20 @@ export class Player extends PlayerLib {
     this.colSelButtons.forEach(b => b.setState(CB.clear))
     this.coinBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
-  /** during CollectBids */
+  /** during CollectBids (& chooseXtra) */
   isDoneSelecting() {
     return (
-      this.colSelButtons.find(cb => cb.state === CB.selected) &&
-      this.coinBidButtons.find(cb => cb.state === CB.selected))
+      this.coinBidButtons.find(cb => cb.state === CB.selected) &&
+      this.colSelButtons.find(cb => cb.state === CB.selected)
+      )
   }
   /**
    * inPhase(ResolveWinner): If this Player bid on the indicated col, return the bid
-   * @param col
+   * @param col column [1..nCols], index = col - 1
    * @returns \{ plyr: this, bid: number }
    */
   bidOnCol(col: number) {
-    return this.colSelButtons[col]?.state === CB.selected ? { plyr: this, bid:  this.currentBid()} : undefined
+    return this.colSelButtons[col - 1]?.state === CB.selected ? { plyr: this, bid: this.currentBid() } : undefined
   }
   currentBid() {
     return (this.coinBidButtons.find(but => but.state === CB.selected) as CoinBidButton).coinBid;
@@ -128,27 +163,40 @@ export class Player extends PlayerLib {
   }
 
   cancelBid(col: number, bid: number) {
-    this.colSelButtons[col].setState(CB.cancel);
-    this.coinBidButtons[bid].setState(CB.cancel);
+    this.colSelButtons[col - 1].setState(CB.cancel);
+    this.coinBidButtons[bid - 1].setState(CB.cancel);
+  }
+
+  selectCol() {
+    const col = this.xtraCol()
+    this.clearButtons();
+    this.colSelButtons[col - 1].select()
+    this.coinBidButtons[0].select(); // bid 1 to complete selection
+  }
+  collectBid() {
+    // if not useRobo, nothing to do.
   }
 
   xtraCol(ncols = 4) {
-    return Random.random(ncols)
+    return 1 + Random.random(ncols)
   }
 
-  // meeple is Tile with (isMeep==true); use MeepleShape as baseShape?
-  makeMeeples(map: HexMap<OrthoHex>) {
-    const [nrows, ncols] = map.nRowCol;
-    const xtraCol = this.xtraCol(ncols);
-    const cmap = map// this.gamePlay.table.hexMap;
-    const makeMeep = (col: number, ext='') => {
-      const meep = new ColMeeple(`Meep-${this.index}:${col}${ext}`, this)
-      meep.paint(this.color);
-      const hex = cmap.getHex({ row: nrows - 1, col });
-      if (hex.card) hex.card.addMeep(meep);
-    }
-    for (let col = 0; col < ncols; col++) { makeMeep(col) }
-    makeMeep(xtraCol, '*');
+  // ColMeeple is Tile with (isMeep==true); use MeepleShape as baseShape
+  /**
+   *
+   * @param hexMap
+   * @param col column number --> hexMap(row, col-1)
+   * @param row [0] rank --> hexMap(nrows - 1 - row, col-1)
+   * @param ext [''] mark name of xtraCol meeple
+   */
+  makeMeeple(hexMap: HexMap<OrthoHex>, col: number, rank = 0, ext = '') {
+    const [nrows, ncols] = hexMap.nRowCol;
+    const meep = new ColMeeple(`Meep-${this.index}:${col}${ext}`, this)
+    meep.paint(this.color);
+    const row = (nrows - 1 - rank);
+    const hex = hexMap.getHex({ row, col: col - 1 });
+    if (hex.card) hex.card.addMeep(meep);
+    return meep;
   }
 
   scoreCounter!: NumCounter;
@@ -177,20 +225,25 @@ export class Player extends PlayerLib {
     c1.boxAlign('right');
     this.panel.addChild(c1);
 
-    cc.setValue(88, C.BLACK)
-    c1.setValue(44, ColCard.factionColors[4])
-    c2.setValue(54, ColCard.factionColors[1])
+    cc.setValue(0, C.BLACK)
+    c1.setValue(0)
+    c2.setValue(0)
   }
   counter1!: NumCounter;
   counter2!: NumCounter;
+  /** advance a counter, then invoke callback */
+  advanceCounter(score: number, cb: () => void) {
+    // TODO: GUI to click-select the counter to move
+    const ctr = this.counter1.value < this.counter2.value ? this.counter1 : this.counter2;
+    ctr.incValue(score);
+    cb();
+  }
 
   /** choose and return one of the indicated meeples */
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void) {
     // TODO: GUI: set dropFunc -> colMeep(meep)
     const meep = meeps.sort((a, b) => a.card.rank - b.card.rank)[0];
-    setTimeout(() => {
-      colMeep(meep)
-    })
+    colMeep(meep)
     return;
   }
 
@@ -202,12 +255,12 @@ export class Player extends PlayerLib {
    * @param cb callback when bump cascade is done
    * @returns
    */
-  bumpMeeple(meep: ColMeeple, dir0?: HexDir, cb?: () => void) {
+  bumpMeeple(meep: ColMeeple, dir0: HexDir | undefined, cb: () => void) {
     const dir = dir0 ?? 'N';
     const card = (meep.card.hex.nextHex(dir) as OrthoHex2)?.card;// should NOT bump from black, but...
     card?.addMeep(meep);
     card?.stage?.update();
-    // cb?.()
+    // cb();
     return;
   }
 }

@@ -1,7 +1,7 @@
 import { stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type HexMap } from "@thegraid/hexlib";
-import { type ColMeeple } from "./col-meeple";
+import { CB, type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
@@ -51,29 +51,29 @@ export class GamePlay extends GamePlayLib {
 
   /**
    * Determine winingBidder (if any) and select meeple to advance.
-   * @param col column supplied by gameState
+   * @param col column [1..nCols] supplied by gameState
    * @param colMeep callback when winningBidder has selected a meep to advance.
    */
   resolveWinner(col: number, colMeep: (meep?: ColMeeple) => void) {
     this.colToMove = col;
     const plyr = this.winningBidder(col);
-    let meepsInCol: ColMeeple[];
-    if (plyr && (meepsInCol = this.meepsInCol(col, plyr)).length > 0) {
+    const meepsInCol = this.meepsInCol(col, plyr);
+    if (plyr && meepsInCol.length > 0) {
       plyr.meepleToAdvance(meepsInCol, colMeep); // will eventually invoke colMeep()
     } else {
-      setTimeout(() => colMeep(undefined), 0);
+      colMeep(undefined);
     }
   }
 
-  meepsInCol(col: number, player: Player) {
+  meepsInCol(col: number, player?: Player) {
     // cannot advance meep in top row (or in other column)
-    const rv = player.meeples.filter(meep => meep.card.hex.col == col && meep.card.rank < this.nRows)
+    const rv = player?.meeples.filter(meep => meep.card.col == col && meep.card.rank < this.nRows) ?? [];
     return rv;
     // TODO: alternative for Pyramid
   }
 
-  /** score colors for meep.player */
-  scoreForColor(meep?: ColMeeple) {
+  /** EndOfTurn: score for color to meep.player */
+  scoreForColor(meep: ColMeeple | undefined, cb: () => void) {
     if (!meep) return;
     const faction = meep.faction;
     const player = meep.player;
@@ -83,9 +83,10 @@ export class GamePlay extends GamePlayLib {
     })
     // previous bids (state == false), current bid
     player.coinBidButtons.forEach((b, n) => {
-      if (b.state == undefined) return;
+      if (b.state == CB.clear) return;
       if (b.factions.includes(faction)) score++;
     })
+    player.advanceCounter(score, cb)
     player.score += score;
     return score;
     //  TODO: include color matches from score counters
@@ -104,6 +105,7 @@ export class GamePlay extends GamePlayLib {
       return rankScores;
     })
   }
+  /** EndOfRound: score for rank  */
   advanceCounters(rankScores: number[][]){
     rankScores.forEach((plyrScores, ndx) => {
       plyrScores.forEach(score => this.allPlayers[ndx].score += score);

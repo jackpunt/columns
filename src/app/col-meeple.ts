@@ -40,14 +40,14 @@ export class ColMeeple extends Meeple {
     if (state !== 'BumpAndCascade' && ! ctx.lastShift)
       return `Only move during Bump phase, not "${state}"`;
     const col = (ctx.gameState as GameState).gamePlay.colToMove;
-    const colc = this.card.hex.col;
+    const colc = this.card.col;
     return (colc == col || ctx.lastShift) ? undefined : `Only move from column ${col}, not ${colc}`;
   }
 
   override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
     if (!(toHex instanceof OrthoHex2)) return false;
     if (ctx.lastShift && ctx.lastCtrl) return true;   // can shift cols with Ctrl
-    if (!(toHex.col === this.hex!.col)) return false; // stay in same column
+    if (!(toHex.col === this.hex!.col)) return false; // stay in same hex-column
     if (ctx.lastShift) return true;
     // if (toHex === this.fromHex) return true;
     if (!(ctx.gameState.isPhase('BumpAndCascade'))) return false;
@@ -95,7 +95,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
   player!: Player;
 
-  /** Select this card/button for CollectBids */
+  /** Select this card/button for CollectBids: all Players in parallel */
   select() {
     // radio button
     if (this.state === CB.selected) {
@@ -110,7 +110,8 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     }
   }
   onClick(evt: any, player: Player) {
-    if (!this.player.gamePlay.gameState.isPhase('CollectBids')) return;
+    const gs = this.player.gamePlay.gameState;
+    if (!(gs.isPhase('CollectBids') || gs.isPhase('SelectCol'))) return;
     this.select()
     console.log(stime(`CardButton.onClick:`), this.Aname, this.state)
   }
@@ -184,7 +185,7 @@ export class ColSelButton extends CardButton {
 
   constructor(public colNum = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${colNum}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `ColSel-${colNum}:${this.player.index}`;
+    this.Aname = `ColSel-${this.player.index}:${colNum}`;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
     this.border = 0;
@@ -208,7 +209,7 @@ export class CoinBidButton extends CardButton {
    */
   constructor(public coinBid = 0, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     super(`${coinBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `CoinBid-${coinBid}:${this.player.index}`;
+    this.Aname = `CoinBid-${this.player.index}:${coinBid}`;
     const { y, height, width } = this.getBounds()
     this.addFactionColors(coinBid, width * .9, y + height * .33)
     this.label.y = (y + height * .18)

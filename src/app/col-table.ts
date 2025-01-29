@@ -86,8 +86,7 @@ export class ColTable extends Table {
   override layoutTable2() {
     super.layoutTable2;
     this.initialVis = false;
-    this.addDoneButton();
-    this.doneButton.activate(true);
+    this.addDoneButton().activate(true);
     this.layoutScoreTrack();
     super.layoutTable2(); // update and toggleText
     return;
@@ -170,7 +169,7 @@ export class ColTable extends Table {
 
   layoutScoreTrack() {
     // ScoreTrack.findRGBV12(); // search for best permutation of ScoreTrack.rgbv12
-    const scoreTrack = new ScoreTrack(this, this.scaleCont, 12, 20);
+    const scoreTrack = new ScoreTrack(this, this.scaleCont, 6, 30);
     const {x, y, width, height} = this.bgRect.getBounds()
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
     const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
@@ -258,19 +257,23 @@ class ScoreTrack extends NamedContainer {
     }
     return done ? anames : undefined;
   }
-  factions: number[] = [];
+  /** [0] upper-row factions; [1] lower-row factions  */
+  factions: [number[], number[]] = [[0], [0]]; // initial 0 ('B') cell
   constructor(public table: ColTable, parent: Container, nElts = 6, dx = 40, ) {
     super('ScoreTrack')
     parent.addChild(this);
     const dy = dx * TP.numPlayers
 
-    const tracks = ScoreTrack.anames.map(aname => new TrackSegment(aname, dx, dy)); // make 12 Segments
-    permute(tracks).slice(0, nElts);     // select nElts for this table
-    const { x, y, width, height } = this.table.bgRect.getBounds()
-    tracks.forEach((trk, n) => {
-      this.addChild(trk)
-      trk.y = y + height + dy
-      trk.x = x + n * trk.getBounds().width; // all tracks the same width
+    const tracks12 = ScoreTrack.anames.map(aname => new TrackSegment(aname, dx, dy)); // make 12 Segments
+    const trackSegs = permute(tracks12).slice(0, nElts);     // select nElts for this table
+    const { x, y, height } = this.table.bgRect.getBounds();
+    trackSegs.forEach((seg, n) => {
+      const [f0, f1] = seg.factions; // upper and lower factions for cells [1..9]
+      this.factions[0] = this.factions[0].concat(f0);
+      this.factions[1] = this.factions[1].concat(f1);
+      this.addChild(seg);
+      seg.y = y + height + dy;
+      seg.x = x + n * seg.getBounds().width; // all tracks the same width
     })
   }
 }
@@ -299,11 +302,11 @@ class TrackSegment extends NamedContainer {
       const f2 = factions21[n];
       this.addSlot(f1, f2, { x: dx, y: dy })
     })
-    this.factions = [factions12, factions21]
+    this.factions = [factions12.slice(1), factions21.slice(1)]
     const {x, y, width, height} = this.getBounds()
     this.cache(x, y, width, height);
   }
-  factions;
+  factions: [number[], number[]];
 
   addSlot(f1: number, f2: number, dxy: XY) {
     const factionColor = (faction: number) => ColCard.factionColors[faction];

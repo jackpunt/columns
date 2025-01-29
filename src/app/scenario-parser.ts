@@ -82,7 +82,6 @@ export class ScenarioParser extends SPLib {
     this.gamePlay.hexMap.forEachHex(hex => {
       const row = hex.row;
       const card = ((row == 0 || row == row0) ? black : cards).shift() as ColCard;
-      card.rank = (row0 - row); // rank of row: [Black(row0), nr-2, ... 1, Black(0)]
       card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
       return;
     })
@@ -93,8 +92,11 @@ export class ScenarioParser extends SPLib {
   placeMeeplesOnMap() {
     // TODO: supply row,col for each meeple from savedState
     Meeple.allMeeples.length = 0;    // reset all Meeples; should be in Tile.clearAllTiles() ?
+    const hexMap = this.gamePlay.hexMap, [nrows, ncols] = hexMap.nRowCol;
     this.gamePlay.forEachPlayer(player => {
-      (player as Player).makeMeeples(this.gamePlay.hexMap)
+      for (let col = 1; col <= ncols; col++) {
+        (player as Player).makeMeeple(hexMap, col); // rank = 0
+      }
     })
   }
 

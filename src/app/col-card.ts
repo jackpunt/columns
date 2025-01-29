@@ -37,7 +37,9 @@ export class ColCard extends Tile {
   }
 
   meepCont = new NamedContainer('meepCont')
-  rank = 0; // until placed on hex.row of map
+  _rank?: number; // set on first access; ASSERT cards don't move
+  get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row)) }
+  get col() { return this.hex.col + 1 }
 
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20

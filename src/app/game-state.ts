@@ -20,6 +20,8 @@ export class GameState extends GameStateLib {
   }
   get nCols() { return this.gamePlay.nCols }
   declare state: Phase;
+  override startPhase = 'SelectCol';
+
    // this.gamePlay.curPlayer
   override get curPlayer() { return super.curPlayer as Player }
   override get table() { return super.table as Table }
@@ -30,16 +32,17 @@ export class GameState extends GameStateLib {
     return;
   }
 
-  autoDone = false; // auto-proceed to ResolveWinner
+  autoDone = false; // auto-proceed to done() vs wait for click
   _cardDone?: CardButton = undefined;
   get cardDone() { return this._cardDone; }
   set cardDone(v) { // BidCard or CoinCard selected [not committed]; "maybeDone"
     this._cardDone = v;    // most recent selection, pro'ly not useful
     if (this.allDone) {
-      this.table.doneButton.paint(C.lightgreen)
+      this.table.doneButton.paint(C.lightgreen);
       this.gamePlay.hexMap.update();
+      if (this.autoDone) this.done(true); // CollectBids / SelectCol is done
     }
-    if (this.autoDone && this.allDone) this.phase('ResolveWinner');
+
   }
 
   get allDone() {
@@ -54,6 +57,20 @@ export class GameState extends GameStateLib {
 
   /** from Acquire, for reference; using base GameState for now */
   override readonly states: { [index: string]: Phase } = {
+    SelectCol: {
+      start: () => {
+        this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
+        this.gamePlay.allPlayers.forEach(plyr => plyr.selectCol()); // cb --> cardDone
+      },
+      done: () => {
+        this.gamePlay.allPlayers.forEach(plyr => {
+          const xtraCol = plyr.isDoneSelecting()?.colNum as number;
+          plyr.makeMeeple(this.gamePlay.hexMap, xtraCol, undefined, '*');
+          plyr.clearButtons();
+        })
+        this.phase('BeginRound')
+      }
+    },
     // BeginRound: allPlayer activated;
     // see also: table.setNextPlayer(turnNumber) -> GamePlay.startTurn()
     // table.startGame() -> setNextPlayer(0) -> curPlayer.newTurn()
@@ -66,58 +83,58 @@ export class GameState extends GameStateLib {
     BeginTurn: {
       start: () => {
         this.saveGame();
-        this.table.doneButton.activate()
-        this.phase('CollectBids');
-      },
-      done: () => {
         this.phase('CollectBids');
       }
     },
     CollectBids: {
       start: () => {
         const round = this.roundNumber, turn = this.turnOfRound
-        this.doneButton(`Make Bids ${round}.${turn}`, C.YELLOW);
+        this.doneButton(`Make Bids ${round}.${turn}`, C.YELLOW)!.activate()
+        this.gamePlay.allPlayers.forEach(plyr => plyr.collectBid()); // cb --> cardDone
       },
       done: (ok = false) => {
         if (!ok && !this.allDone) {
-          this.panel.areYouSure('This player has not selected.', () => {
-            setTimeout(() => this.done(true), 50);
-          }, () => {
-            setTimeout(() => this.state.start(), 50);
-          });
+          this.panel.areYouSure('This player has not selected.',
+            () => this.state.start(), // or: force-select cards for each.
+            () => this.state.start());
           return;
         }
         if (this.allDone || ok) this.phase('ResolveWinner');
       }
     },
     ResolveWinner: { // resolve winner, select & advance meep
-      start: (col = 0) => {
+      start: (col = 1) => {
         this.winnerMeep = undefined;
-        if (col >= this.nCols) this.phase('EndTurn');
+        if (col > this.nCols) { this.phase('EndTurn'); return }
         const colMeep = (meep?: ColMeeple) => {
-          if (col >= this.nCols) return; // zombie colMeep callback!
-          this.phase('BumpAndCascade', col, meep)
+          setTimeout(() => {
+            if (col > this.nCols) return; // zombie colMeep callback!
+            this.phase('BumpAndCascade', col, meep)
+          }, 0)
         };
         this.gamePlay.resolveWinner(col, colMeep)
       }
     },
     BumpAndCascade: { // winner/bumpee's meep identified and moved: cascade
-      col: 0,
+      col: 1,
       start: (col: number, meep?: ColMeeple) => {
         this.state.col = col;
         if (!this.winnerMeep) this.winnerMeep = meep; // maybe undefined
         if (!meep) { this.phase('ResolveWinner', col + 1); return }
         this.gamePlay.setCurPlayer(meep.player);
         this.winnerMeep?.highlight(true);
-        this.table.logText(`advance ${meep}`);
+        this.table.logText(`Advance ${meep} in col ${col}`);
+        this.doneButton(`bump & cascade ${col} done`, meep.player.color);
         const bumpDone = () => { setTimeout(() => this.done(), 0) }
         this.curPlayer.bumpMeeple(meep, undefined, bumpDone)
-        this.doneButton(`bump & cascade ${col + 1} done`, meep.player.color);
       },
       done: () => {
         this.winnerMeep?.highlight(false);
-        this.gamePlay.scoreForColor(this.winnerMeep)
-        this.phase('ResolveWinner', (this.state.col ?? 0) + 1)
+        const nextCol = () => {
+          setTimeout(() => this.phase('ResolveWinner', (this.state.col ?? 0) + 1), 0)
+        }
+        this.gamePlay.scoreForColor(this.winnerMeep, nextCol)
+
       }
     },
     EndTurn: {
