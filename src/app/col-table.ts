@@ -1,4 +1,4 @@
-import { permute, Random, removeEltFromArray, type XY, type XYWH } from "@thegraid/common-lib";
+import { permute, removeEltFromArray, stime, type XY, type XYWH } from "@thegraid/common-lib";
 import { NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
@@ -169,6 +169,7 @@ export class ColTable extends Table {
   }
 
   layoutScoreTrack() {
+    // ScoreTrack.findRGBV12(); // search for best permutation of ScoreTrack.rgbv12
     const scoreTrack = new ScoreTrack(this, this.scaleCont, 12, 20);
     const {x, y, width, height} = this.bgRect.getBounds()
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
@@ -178,42 +179,94 @@ export class ColTable extends Table {
 }
 
 class ScoreTrack extends NamedContainer {
-  factions: number[] = [];
-  constructor(public table: ColTable, parent: Container, nElts = 6, dx = 40, ) {
-    super('ScoreTrack')
-    parent.addChild(this);
-    const rgbvsf = [
+  // anames derived from monte carlo search:
+  static anames = [
+    'rvgb+vrbg', 'bgvr+gbrv', 'rgbv+grvb', 'gvbr+vgrb',
+    'vrgb+rvbg', 'brvg+rbgv', 'bgrv+gbvr', 'grbv+rgvb',
+    'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
+  ];
+  // initial balanced half-names, search for balanced 2nd half
+  static rgbv12 = [
       'rgbv', 'gbvr', 'bvrg', 'vrgb',
       'rbvg', 'gvrb', 'brgv', 'vgbr',
       'rvgb', 'grbv', 'bgvr', 'vbrg',
     ];
-    const rgbvsr = rgbvsf.map(str => str.split('').reverse().join(''));
-    const rgbvs = rgbvsf.concat(rgbvsr)
-    'rgbv'.split('').forEach(f => {
-      const nf = rgbvs.filter(tr => tr.startsWith(f)).length
-      console.log(`nf(${f}) = ${nf}`)
-    })
-    const dy = dx * TP.numPlayers, track12: TrackSegment[] = []
-    const rgbv2f: string[] = []; // rgbv2 already used and excluded.
+  /** generate 12 anames for 12 TrackSegments */
+  static genTrack12(search = false) {
+    const rgbvsf = ScoreTrack.rgbv12; // 12 initial half-names
+    const rgbvsr = rgbvsf.map(str => str.split('').reverse().join('')); // 12 reversed half-names
+    const rgbvs = rgbvsf.concat(rgbvsr); // 24 half-names ["rgbv"..., "vbgr"...]
+    // verify initial balance of rgbv12:
+    // 'rgbv'.split('').forEach(f => {
+    //   const nf = rgbvs.filter(tr => tr.startsWith(f)).length
+    //   console.log(`nf(${f}) = ${nf}`)
+    // })
+    if (search) permute(rgbvs);
+    /** all 12 anames */
+    const track12: string[] = [];
+    /** rgbv2 already used and excluded. */
+    const rgbv2f: string[] = [];
     // make 12 segments (rotationally complete)
     for (let r1 = 0; r1 < rgbvs.length && track12.length < 12; r1++) {
       const rgbvs1 = rgbvs[r1], rgbv1 = `${rgbvs1}`
-      if (rgbv2f.includes(rgbvs1)) continue;
+      if (rgbv2f.includes(rgbvs1)) {
+        // console.log(`skip: ${rgbvs1}`);
+        continue
+      };
       const rgbv2 = `${rgbv1[1]}${rgbv1[0]}${rgbv1[3]}${rgbv1[2]}`;
       const rgbv0 = `${rgbv2[3]}${rgbv2[2]}${rgbv2[1]}${rgbv2[0]}`; // v2 reversed
       rgbv2f.push(rgbv0);
+      if (rgbvs.includes(rgbv0)) {
+        // console.log(`remove: ${rgbv1} --> ${rgbv0} [${r1}]`)
+      }
       removeEltFromArray(rgbv0, rgbvs); // so we don't get a equiv reversal
-      const tseg = new TrackSegment(rgbv1, rgbv2, dx, dy)
-      track12.push(tseg);
+      const aname = `${rgbv1}+${rgbv2}`;
+      track12.push(aname);
     }
-    for (let f = 1; f <= 4; f++) {
-      const s = 4
-      const nf = track12.filter(tr => tr.factions[0][s] === f).length
-      console.log(`nf(f=${f},s=${s}) = ${nf}`)
-    }
+    if (!search) ScoreTrack.checkDist(track12); // show counts
+    return track12
+  }
+  static findRGBV12() {
+    let anames: string[], n = 0;
+    do {
+      if (n % 100 === 0) console.log(stime(this, `.findRGBV12: n =`), n)
+      n++
+      anames = ScoreTrack.genTrack12(true)
+    } while (!ScoreTrack.checkDist(anames, false, false))
+    console.log(stime(this, `.findRGBV12: anames =`), anames)
+  }
 
-    const tracks = permute(track12).slice(0, nElts)
-    const {x, y, width, height} = this.table.bgRect.getBounds()
+  // return true if anames are uniformly distributed
+  static checkDist(anames: string[], logEach = true, once = true) {
+    let done = true, nsAll: number[][] = [];
+    // count faction f in each column:
+    'rgbv'.split('').forEach((f, fn) => {
+      const ns: number[] = [];
+      for (let s = 0; s < 4; s++) {
+        const nf = anames.filter(tr => tr.substring(s, s + 1) === f).length
+        ns.push(nf)
+        if (nf !== 3) done = false;
+      }
+      nsAll.push(ns);
+    })
+    if (done || once) {
+      console.log(stime(`ScoreTrack.checkDist (done: ${done} || once: ${once})`), anames);
+      'rgbv'.split('').forEach((f, fn) => {
+        const ns = nsAll[fn];
+        console.log(`nf(f=${fn + 1}:${f}) = ${ns}`, done)
+      })
+    }
+    return done ? anames : undefined;
+  }
+  factions: number[] = [];
+  constructor(public table: ColTable, parent: Container, nElts = 6, dx = 40, ) {
+    super('ScoreTrack')
+    parent.addChild(this);
+    const dy = dx * TP.numPlayers
+
+    const tracks = ScoreTrack.anames.map(aname => new TrackSegment(aname, dx, dy)); // make 12 Segments
+    permute(tracks).slice(0, nElts);     // select nElts for this table
+    const { x, y, width, height } = this.table.bgRect.getBounds()
     tracks.forEach((trk, n) => {
       this.addChild(trk)
       trk.y = y + height + dy
@@ -234,8 +287,9 @@ class TrackSegment extends NamedContainer {
    * Bvbgr1-vbgr2B
    * @param Aname codes the sequence of each rgbv segment.
    */
-  constructor(rgbv1: string, rgbv2: string, dx = 20, dy = 80) {
-    super(`${rgbv1}+${rgbv2}`)
+  constructor(Aname: string, dx = 20, dy = 80) {
+    super(Aname)
+    const [rgbv1, rgbv2] = Aname.split('+');
     this.setBounds(0, 0, 0, 0);
     const B = ['B'] as RGBV[];
     const ary1 = rgbv1.split('') as RGBV[], ary2 = rgbv2.split('') as RGBV[];
