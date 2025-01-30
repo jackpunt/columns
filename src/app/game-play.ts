@@ -77,15 +77,10 @@ export class GamePlay extends GamePlayLib {
     if (!meep) return;
     const faction = meep.faction;
     const player = meep.player;
-    let score = 0;
-    player.meeples.forEach(meep => {
-      if (meep.faction == faction) score++;
-    })
-    // previous bids (state == false), current bid
-    player.coinBidButtons.forEach((b, n) => {
-      if (b.state == CB.clear) return;
-      if (b.factions.includes(faction)) score++;
-    })
+    const colScore = player.meeples.filter(meep => (meep.faction == faction)).length;
+    const cardScore = player.coinBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
+    const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
+    const score = colScore + cardScore + trackScore
     player.advanceCounter(score, cb)
     player.score += score;
     return score;

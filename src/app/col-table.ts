@@ -1,11 +1,12 @@
-import { permute, removeEltFromArray, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { C, permute, removeEltFromArray, stime, type XY, type XYWH } from "@thegraid/common-lib";
+import { CircleShape, NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import type { GamePlay } from "./game-play";
 import type { GameSetup, Scenario } from "./game-setup";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
+import type { Player } from "./player";
 import { TP } from "./table-params";
 
 export class ColTable extends Table {
@@ -39,6 +40,9 @@ export class ColTable extends Table {
   }
   override makePerPlayer(): void {
     super.makePerPlayer();
+    this.gamePlay.allPlayers.forEach(plyr => {
+      this.scoreTrack.addMarkers(plyr);
+    })
   }
   get super_panelHeight() { return this.nRows / 3 - .2; }
   override get panelHeight() { return Math.max(this.super_panelHeight, this.mph_g - .2) }
@@ -166,10 +170,10 @@ export class ColTable extends Table {
     gui.makeLines();
     return gui
   }
-
+  scoreTrack!: ScoreTrack;
   layoutScoreTrack() {
     // ScoreTrack.findRGBV12(); // search for best permutation of ScoreTrack.rgbv12
-    const scoreTrack = new ScoreTrack(this, this.scaleCont, 6, 30);
+    const scoreTrack = this.scoreTrack = new ScoreTrack(this, this.scaleCont, 6, 30);
     const {x, y, width, height} = this.bgRect.getBounds()
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
     const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
@@ -177,22 +181,16 @@ export class ColTable extends Table {
   }
 }
 
-class ScoreTrack extends NamedContainer {
-  // anames derived from monte carlo search:
-  static anames = [
-    'rvgb+vrbg', 'bgvr+gbrv', 'rgbv+grvb', 'gvbr+vgrb',
-    'vrgb+rvbg', 'brvg+rbgv', 'bgrv+gbvr', 'grbv+rgvb',
-    'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
-  ];
+class TrackGen {
   // initial balanced half-names, search for balanced 2nd half
   static rgbv12 = [
-      'rgbv', 'gbvr', 'bvrg', 'vrgb',
-      'rbvg', 'gvrb', 'brgv', 'vgbr',
-      'rvgb', 'grbv', 'bgvr', 'vbrg',
-    ];
+    'rgbv', 'gbvr', 'bvrg', 'vrgb',
+    'rbvg', 'gvrb', 'brgv', 'vgbr',
+    'rvgb', 'grbv', 'bgvr', 'vbrg',
+  ];
   /** generate 12 anames for 12 TrackSegments */
   static genTrack12(search = false) {
-    const rgbvsf = ScoreTrack.rgbv12; // 12 initial half-names
+    const rgbvsf = TrackGen.rgbv12; // 12 initial half-names
     const rgbvsr = rgbvsf.map(str => str.split('').reverse().join('')); // 12 reversed half-names
     const rgbvs = rgbvsf.concat(rgbvsr); // 24 half-names ["rgbv"..., "vbgr"...]
     // verify initial balance of rgbv12:
@@ -222,7 +220,7 @@ class ScoreTrack extends NamedContainer {
       const aname = `${rgbv1}+${rgbv2}`;
       track12.push(aname);
     }
-    if (!search) ScoreTrack.checkDist(track12); // show counts
+    if (!search) TrackGen.checkDist(track12); // show counts
     return track12
   }
   static findRGBV12() {
@@ -230,11 +228,10 @@ class ScoreTrack extends NamedContainer {
     do {
       if (n % 100 === 0) console.log(stime(this, `.findRGBV12: n =`), n)
       n++
-      anames = ScoreTrack.genTrack12(true)
-    } while (!ScoreTrack.checkDist(anames, false, false))
+      anames = TrackGen.genTrack12(true)
+    } while (!TrackGen.checkDist(anames, false, false))
     console.log(stime(this, `.findRGBV12: anames =`), anames)
   }
-
   // return true if anames are uniformly distributed
   static checkDist(anames: string[], logEach = true, once = true) {
     let done = true, nsAll: number[][] = [];
@@ -249,7 +246,7 @@ class ScoreTrack extends NamedContainer {
       nsAll.push(ns);
     })
     if (done || once) {
-      console.log(stime(`ScoreTrack.checkDist (done: ${done} || once: ${once})`), anames);
+      console.log(stime(`TrackGen.checkDist (done: ${done} || once: ${once})`), anames);
       'rgbv'.split('').forEach((f, fn) => {
         const ns = nsAll[fn];
         console.log(`nf(f=${fn + 1}:${f}) = ${ns}`, done)
@@ -257,30 +254,90 @@ class ScoreTrack extends NamedContainer {
     }
     return done ? anames : undefined;
   }
+}
+
+type faction =  0 | 1 | 2 | 3 | 4;
+
+class ScoreTrack extends NamedContainer {
+  // anames derived from TrackGen (monte carlo search)
+  static anames = [
+    'rvgb+vrbg', 'bgvr+gbrv', 'rgbv+grvb', 'gvbr+vgrb',
+    'vrgb+rvbg', 'brvg+rbgv', 'bgrv+gbvr', 'grbv+rgvb',
+    'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
+  ];
+
   /** [0] upper-row factions; [1] lower-row factions  */
-  factions: [number[], number[]] = [[0], [0]]; // initial 0 ('B') cell
-  constructor(public table: ColTable, parent: Container, nElts = 6, dx = 40, ) {
-    super('ScoreTrack')
+  factions: [faction[], faction[]] = [[0], [0]]; // initial 0 ('B') cell
+  dx: number;
+  dy: number;
+
+  constructor(public table: ColTable, parent: Container, nElts = 6, public radius = TP.hexRad * .5) {
+    super('ScoreTrack');
     parent.addChild(this);
-    const dy = dx * TP.numPlayers
+    this.addChild(this.segmentCont);
+    this.addChild(this.markerCont);
+    const dx = this.dx = this.radius * 1.2, dy = this.dy = dx * TP.numPlayers
 
     const tracks12 = ScoreTrack.anames.map(aname => new TrackSegment(aname, dx, dy)); // make 12 Segments
     const trackSegs = permute(tracks12).slice(0, nElts);     // select nElts for this table
     const { x, y, height } = this.table.bgRect.getBounds();
+    this.segmentCont.x = this.markerCont.x = x;
+    this.segmentCont.y = this.markerCont.y = y + height;
+    this.segmentCont.addChild(new RectShape({ x: -dx / 2, w: dx, h: dy * 2 }, C.BLACK, ''))
     trackSegs.forEach((seg, n) => {
       const [f0, f1] = seg.factions; // upper and lower factions for cells [1..9]
       this.factions[0] = this.factions[0].concat(f0);
       this.factions[1] = this.factions[1].concat(f1);
-      this.addChild(seg);
-      seg.y = y + height + dy;
-      seg.x = x + n * seg.getBounds().width; // all tracks the same width
+      this.segmentCont.addChild(seg);
+      seg.y = dy;
+      seg.x = n * seg.getBounds().width; // all tracks the same width
     })
+  }
+  segmentCont = new NamedContainer('segmentCont');
+  markerCont = new NamedContainer('markerCont');
+  markers: [MarkerShape, MarkerShape][] = [];
+  addMarkers(plyr: Player) {
+    const markers = [this.makeScoreMarker(plyr), this.makeScoreMarker(plyr)] as [MarkerShape, MarkerShape]
+    this.markers.push(markers);
+    markers.forEach((m, ndx) => {
+      this.markerCont.addChild(m);
+      m.setValue(0, ndx);
+    })
+  }
+  makeScoreMarker(plyr: Player, trk = 0) {
+    return new MarkerShape(plyr, this);
   }
 }
 
-const rgbvIndex = { 'B': 0, 'r': 1, 'g': 2, 'b': 3, 'v': 4 } // Black, red, gold, blue, violet
-type RGBVIndex = typeof rgbvIndex;
-type RGBV = keyof RGBVIndex;
+class MarkerShape extends CircleShape {
+  constructor(public player: Player, public track: ScoreTrack, ) {
+    super(player.color, track.radius / 2, '')
+  }
+  /** 0: upper-track, 1: lower-track */
+  index!: number;
+  value!: number;
+  get faction() {
+    const bothFactions = this.track.factions
+    const tfaction = bothFactions[this.index]
+    return tfaction[this.value];
+  }
+  /**
+   *
+   * @param value
+   * @param index 0: upper-track, 1: lower-track [previous index]
+   */
+  setValue(value: number, index = this.index) {
+    const { dx, dy, radius } = this.track;
+    this.index = index;
+    this.value = value;
+    this.x = value * dx //+ radius / 2;
+    this.y = index * dy + radius / 2 + this.player.index * dx;
+  }
+}
+
+type RGBV = 'B' | 'r' | 'g' | 'b' | 'v';   // Black, red, gold, blue, violet
+const rgbvIndex: Record<RGBV, faction> = { 'B': 0, 'r': 1, 'g': 2, 'b': 3, 'v': 4 }
+
 /** a segment of the score track; B-rgbv-vbgr-B (where B is half size) */
 class TrackSegment extends NamedContainer {
   /**
@@ -289,29 +346,32 @@ class TrackSegment extends NamedContainer {
    * Brgbv1-rgbv2B
    * Bvbgr1-vbgr2B
    * @param Aname codes the sequence of each rgbv segment.
+   *
+   * @param dx [20] width of cell, marker radius * 1.1
+   * @param dy [80] height of cell, marker radius * nPlayers
    */
   constructor(Aname: string, dx = 20, dy = 80) {
     super(Aname)
-    const [rgbv1, rgbv2] = Aname.split('+');
     this.setBounds(0, 0, 0, 0);
     const B = ['B'] as RGBV[];
-    const ary1 = rgbv1.split('') as RGBV[], ary2 = rgbv2.split('') as RGBV[];
-    const factions12 = B.concat(ary1, ary2, B).map(s => rgbvIndex[s]);
-    const factions21 = B.concat(ary2, ary1, B).reverse().map(s => rgbvIndex[s]);;
-    factions12.forEach((f1, n) => {
-      const f2 = factions21[n];
-      this.addSlot(f1, f2, { x: dx, y: dy })
+    const [rgbv0, rgbv1] = Aname.split('+');
+    const ary0 = rgbv0.split('') as RGBV[], ary1 = rgbv1.split('') as RGBV[];
+    const factions01 = B.concat(ary0, ary1, B).map(s => rgbvIndex[s]);
+    const factions10 = B.concat(ary1, ary0, B).reverse().map(s => rgbvIndex[s]);
+    factions01.forEach((f0, n) => {
+      const f1 = factions10[n];
+      this.addSlot(f0, f1, { x: dx, y: dy });
     })
-    this.factions = [factions12.slice(1), factions21.slice(1)]
-    const {x, y, width, height} = this.getBounds()
+    this.factions = [factions01.slice(1), factions10.slice(1)]; // remove 'B'
+    const { x, y, width, height } = this.getBounds() // x = 0, y = -dy, width = 9 * dx, height = 2 * dy;
     this.cache(x, y, width, height);
   }
-  factions: [number[], number[]];
+  factions: [faction[], faction[]];
 
   addSlot(f1: number, f2: number, dxy: XY) {
     const factionColor = (faction: number) => ColCard.factionColors[faction];
     const dxyy = dxy.y, dxyx = (f1 == 0) ? dxy.x / 2 : dxy.x;
-    const { x: x0, y: y0, width, height } = this.getBounds(); // expect x0 = 0, y0 = height/2
+    const { x: x0, y: y0, width, height } = this.getBounds(); // expect x0 = 0, y0 = -height/2
     const c1 = factionColor(f1), c2 = factionColor(f2);
     const rect1 = new RectShape({ s: 1, x: x0 + width, w: dxyx, h: dxyy, y: y0 }, c1, );
     const rect2 = new RectShape({ s: 1, x: x0 + width, w: dxyx, h: dxyy, y: y0 + height - dxyy }, c2, );

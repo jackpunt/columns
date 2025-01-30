@@ -1,6 +1,7 @@
 import { C, Random, S, stime, type Constructor } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
+import { ColCard } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
 import { GamePlay } from "./game-play";
 import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
@@ -116,9 +117,9 @@ export class Player extends PlayerLib implements IPlayer {
     return;
   }
   makeAutoButton() {
-    const { high } = this.panel.metrics
-    const autoBut = new UtilButton('A', {visible: true, active: true, border:.1, fontSize: 30})
-    autoBut.x = 0; autoBut.y = high;
+    const { high } = this.panel.metrics, fs = TP.hexRad / 2;
+    const autoBut = new UtilButton('A', { visible: true, active: true, border: .1, fontSize: fs })
+    autoBut.x = 0 + fs * .5; autoBut.y = high - fs * .6;
     this.panel.addChild(autoBut)
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
   }
@@ -214,13 +215,13 @@ export class Player extends PlayerLib implements IPlayer {
     this.panel.addChild(cc);
 
     // template for making add'tl counters:
-    const c2 = this.counter2 = new NumCounterBox('net', 0, C.BLACK, fs)
+    const c2 = this.counter1 = new NumCounterBox('net', 0, C.BLACK, fs)
     c2.x = cc.x - (c2.wide + gap); c2.y = high - (cc.high / 2 + 2 * gap);
     c2.boxAlign('right');
     this.panel.addChild(c2);
     c2.color;
 
-    const c1 = this.counter1 = new NumCounterBox('net', 0, C.BLACK, fs)
+    const c1 = this.counter0 = new NumCounterBox('net', 0, C.BLACK, fs)
     c1.x = c2.x - (c1.wide + gap); c1.y = high - (cc.high / 2 + 2 * gap);
     c1.boxAlign('right');
     this.panel.addChild(c1);
@@ -229,13 +230,20 @@ export class Player extends PlayerLib implements IPlayer {
     c1.setValue(0)
     c2.setValue(0)
   }
+  counter0!: NumCounter;
   counter1!: NumCounter;
-  counter2!: NumCounter;
   /** advance a counter, then invoke callback */
   advanceCounter(score: number, cb: () => void) {
     // TODO: GUI to click-select the counter to move
-    const ctr = this.counter1.value < this.counter2.value ? this.counter1 : this.counter2;
+    const ndx = this.counter0.value < this.counter1.value ? 0 : 1;
+    const ctr = [this.counter0, this.counter1][ndx];
     ctr.incValue(score);
+    const scoreTrack = this.gamePlay.table.scoreTrack;
+    const markers = scoreTrack.markers[this.index];
+    markers[ndx].setValue(score, ndx)
+    const faction = scoreTrack.factions[ndx][score];
+    const color = ColCard.factionColors[faction];
+    ctr.box.paint(color);
     cb();
   }
 
