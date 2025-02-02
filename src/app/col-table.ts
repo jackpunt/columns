@@ -137,7 +137,7 @@ export class ColTable extends Table {
   }
   override bindKeysToScale(scaleC: ScaleableContainer, ...views: (XY & { scale: number; isk: string; ssk?: string; })[]): void {
     const viewA = { x: 500, y: 2, scale: .5, isk: 'a'}
-    const viewZ = { x: 350, y: 2, scale: 0.647, isk: 'z', ssk: 'x' };
+    const viewZ = { x: 450, y: 2, scale: 0.647, isk: 'z', ssk: 'x' };
     super.bindKeysToScale(scaleC, viewA, viewZ);
   }
 
@@ -314,25 +314,25 @@ class ScoreTrack extends NamedContainer {
   markerCont = new NamedContainer('markerCont');
   markers: [MarkerShape, MarkerShape][] = [];
   addMarkers(plyr: Player) {
-    const markers = [this.makeScoreMarker(plyr), this.makeScoreMarker(plyr)] as [MarkerShape, MarkerShape]
+    const markers = [this.makeScoreMarker(plyr), this.makeScoreMarker(plyr, true)] as [MarkerShape, MarkerShape]
     this.markers.push(markers);
     markers.forEach((m, ndx) => {
       this.markerCont.addChild(m);
       m.setValue(0, ndx);
     })
   }
-  makeScoreMarker(plyr: Player, trk = 0) {
-    return new MarkerShape(plyr, this);
+  makeScoreMarker(plyr: Player, off2 = false) {
+    return new MarkerShape(plyr, this, undefined, off2);
   }
 }
 
 class MarkerShape extends CircleShape {
-  constructor(public player: Player, public track: ScoreTrack, strokeC = '') {
+  constructor(public player: Player, public track: ScoreTrack, strokeC = '', public offSet2 = false) {
     super(player.color, track.radius / 2, strokeC);
     if (!strokeC) {
       // Each primary MarkerShape gets two 'clickers'; which are a MarkerShape with strokeC.
-      const clicker1 = this.clicker1 = new MarkerShape(player, track, C.white);
-      const clicker2 = this.clicker2 = new MarkerShape(player, track, C.white);
+      const clicker1 = this.clicker1 = new MarkerShape(player, track, C.white, this.offSet2);
+      const clicker2 = this.clicker2 = new MarkerShape(player, track, C.white, this.offSet2);
       clicker1.visible = clicker2.visible = true;
       clicker1.mouseEnabled = clicker2.mouseEnabled = true;
       clicker1.on(S.click, (evt) => this.onClick(clicker1), this, false)
@@ -353,11 +353,11 @@ class MarkerShape extends CircleShape {
    * @param index 0: upper-track, 1: lower-track [previous index]
    */
   setValue(value: number, index = this.index) {
-    const { dx, dy, radius } = this.track;
+    const { dx, dy, radius } = this.track; // dx ~= radius * 1.2
     this.index = index;
     this.value = value;
-    this.x = value * dx //+ radius / 2;
-    this.y = index * dy + radius / 2 + this.player.index * dx;
+    this.x = value * dx;
+    this.y = index * dy + this.player.index * dx + radius * (.5 + (this.offSet2 ? .15 : .05));
   }
 
   onClick(clicker: MarkerShape) {

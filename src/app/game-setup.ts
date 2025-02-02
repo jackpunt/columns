@@ -71,8 +71,8 @@ export class GameSetup extends GameSetupLib {
   ) {
     const np = this.getNPlayers();
     // nr includes top & bottom black cells; (8 player could be 7 rows...)
-    const nr = 3 + Math.floor(np / 2) + 2; // include 2 black rows
-    const nc = 2 + Math.ceil(np / 2);
+    const nr = Math.max(4, 3 + Math.floor(np / 2)) + 2; // include 2 black rows
+    const nc = Math.max(4, 2 + Math.ceil(np / 2));
     // const nr = [3, 3, 4, 4, 5, 5, 6, 6, 7, 7][np] + 2;
     // const nc = [2, 3, 3, 4, 4, 5, 5, 6, 6, 7][np];
     //       np =  0  1  2  3  4  5  6  7  8  9

@@ -57,7 +57,7 @@ export class GameState extends GameStateLib {
 
   get panel() { return this.curPlayer.panel; }
 
-  /** from Acquire, for reference; using base GameState for now */
+  /** States for 'Columns' (Knives-Out, Intrigue) */
   override readonly states: { [index: string]: Phase } = {
     SelectCol: {
       start: () => {
@@ -125,9 +125,9 @@ export class GameState extends GameStateLib {
         if (!meep) { this.phase('ResolveWinner', col + 1); return }
         this.gamePlay.setCurPlayer(meep.player);
         this.winnerMeep?.highlight(true);
-        this.table.logText(`${meep} in col ${col}`);
+        this.table.logText(`${meep} in col ${col}`, `BumpAndCascade`);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
-        const bumpDone = () => { setTimeout(() => this.done(), 0) }
+        const bumpDone = () => { setTimeout(() => this.done(), 0) } // HACK: winner does it all
         this.curPlayer.bumpMeeple(meep, undefined, bumpDone)
       },
       done: () => {
