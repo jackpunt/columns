@@ -1,4 +1,4 @@
-import { C, Random, S, stime, type Constructor } from "@thegraid/common-lib";
+import { C, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
@@ -89,8 +89,8 @@ export class Player extends PlayerLib implements IPlayer {
     if (this.index >= 6) {
       this.gamePlay.table.dragger.makeDragable(this.panel)
     }
-    this.makeCardButtons(TP.mHexes);  // number of columns
-    this.setupCounters();
+    const ymax = this.makeCardButtons(TP.mHexes);  // number of columns
+    this.setupCounters(ymax);
     this.makeAutoButton();
   }
 
@@ -114,7 +114,8 @@ export class Player extends PlayerLib implements IPlayer {
     }
     this.colSelButtons = makeButton(ColSelButton, ncol, 0) as ColSelButton[];
     this.coinBidButtons = makeButton(CoinBidButton, ncoin, 1) as CoinBidButton[];
-    return;
+    const ymax = 2 * dy; // bottom edge of last row of buttons
+    return ymax;
   }
   makeAutoButton() {
     const { high } = this.panel.metrics, fs = TP.hexRad / 2;
@@ -169,13 +170,15 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   selectCol() {
-    const col = this.xtraCol()
+    const col = this.xtraCol(this.gamePlay.nCols)
     this.clearButtons();
     this.colSelButtons[col - 1].select()
     this.coinBidButtons[0].select(); // bid 1 to complete selection
   }
+
   collectBid() {
     // if not useRobo, nothing to do.
+
   }
 
   xtraCol(ncols = 4) {
@@ -196,7 +199,8 @@ export class Player extends PlayerLib implements IPlayer {
     meep.paint(this.color);
     const row = (nrows - 1 - rank);
     const hex = hexMap.getHex({ row, col: col - 1 });
-    if (hex.card) hex.card.addMeep(meep);
+    hex.card?.addMeep(meep);
+    this.gamePlay.table.makeDragable(meep);
     return meep;
   }
 
@@ -204,47 +208,62 @@ export class Player extends PlayerLib implements IPlayer {
   override get score() { return this.scoreCounter?.getValue(); }
   override set score(v: number) { this.scoreCounter?.updateValue(v); }
 
-  setupCounters() {
-    // display coin counter:
+  // build counters for each faction influence (bidCards & scoreTrack)
+  makeCounter(xy: { x?: number, y: number }, color: string, fs: number) {
     const { high, wide, gap } = this.panel.metrics;
-    const fs = TP.hexRad * .5;
-    const ic = this.score;
-    const cc = this.scoreCounter = new NumCounterBox('score', ic, C.WHITE, fs);
-    cc.x = wide - 1 * gap; cc.y = high - (cc.high / 2 + 2 * gap);
-    cc.boxAlign('right');
-    this.panel.addChild(cc);
-
-    // template for making add'tl counters:
-    const c2 = this.counter1 = new NumCounterBox('net', 0, C.BLACK, fs)
-    c2.x = cc.x - (c2.wide + gap); c2.y = high - (cc.high / 2 + 2 * gap);
-    c2.boxAlign('right');
-    this.panel.addChild(c2);
-    c2.color;
-
-    const c1 = this.counter0 = new NumCounterBox('net', 0, C.BLACK, fs)
-    c1.x = c2.x - (c1.wide + gap); c1.y = high - (cc.high / 2 + 2 * gap);
+    const c1 = new NumCounterBox(`ctr${color}`, 0, C.BLACK, fs);
+    c1.x = xy.x ?? wide - ( + gap);
+    c1.y = xy.y;
     c1.boxAlign('right');
     this.panel.addChild(c1);
-
-    cc.setValue(0, C.BLACK)
-    c1.setValue(0)
-    c2.setValue(0)
+    c1.setValue(0, color);
+    return c1
+  }
+  setupCounters(ymax: number) {
+    // display coin counter:
+    const fs = TP.hexRad * .45, { gap, high: phigh } = this.panel.metrics, ngt4 = TP.numPlayers > 4;
+    const { high, wide } = this.scoreCounter = this.makeCounter({ y: (phigh + ymax) / 2 }, C.black, fs)
+    const leftOf = (pc: XY) => ({ x: pc.x - wide - gap, y: pc.y });
+    this.counter0 = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
+    this.counter1 = this.makeCounter(leftOf(this.counter0) , C.black, fs)
+    const { x, y } = this.counter1, dx = wide + gap, dy = (high + gap) / 2
+    const qloc = [
+      [-dx * 2, +dy],
+      [-dx * 2, -dy],
+      [-dx * 3, +dy],
+      [-dx * 3, -dy],
+      [-dx * 4, 0],
+    ];
+    let pc: XY = { x: x - wide * 2, y }
+    this.factionCounters = ColCard.factionColors.slice().reverse().map((color, ndx) => {
+      if (ngt4) {
+        return pc = this.makeCounter(leftOf(pc), color, fs)
+      } else { // purple, blue, yellow, red, black
+        const [qx, qy] = qloc[ndx];
+        pc.x = x + qx; pc.y = y + qy;
+        return this.makeCounter(pc, color, fs)
+      }
+    }).reverse()
   }
   counter0!: NumCounter;
   counter1!: NumCounter;
-  /** advance a counter, then invoke callback */
-  advanceCounter(score: number, cb: () => void) {
-    // TODO: GUI to click-select the counter to move
-    const ndx = this.counter0.value < this.counter1.value ? 0 : 1;
-    const ctr = [this.counter0, this.counter1][ndx];
-    ctr.incValue(score);
+  factionCounters: NumCounter[] = [];
+  /** advance one score marker, then invoke callback [to gamePlay] */
+  advanceScore(score: number, cb: () => void) {
+    this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];
-    markers[ndx].setValue(score, ndx)
-    const faction = scoreTrack.factions[ndx][score];
-    const color = ColCard.factionColors[faction];
-    ctr.box.paint(color);
-    cb();
+    markers.forEach((m, index) => {
+      const ctr = [this.counter0, this.counter1][index]; // counter for each marker
+      const clickDone = () => {
+        const color = ColCard.factionColors[m.faction];
+        ctr.setValue(m.value, color)
+        this.score += score;
+        cb();
+      }
+      m.showDeltas(score, clickDone)
+      this.panel.stage?.update();
+    })
   }
 
   /** choose and return one of the indicated meeples */
@@ -270,5 +289,14 @@ export class Player extends PlayerLib implements IPlayer {
     card?.stage?.update();
     // cb();
     return;
+  }
+
+  /** put faction count into panel.factionCounters */
+  countFactions() {
+    this.factionCounters.forEach(fc => fc.setValue(0))
+    this.meeples.forEach(meep => {
+      this.factionCounters[meep.faction].incValue(1);
+    })
+    this.panel.stage.update();
   }
 }

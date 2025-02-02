@@ -81,16 +81,13 @@ export class GamePlay extends GamePlayLib {
     const cardScore = player.coinBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
-    player.advanceCounter(score, cb)
-    player.score += score;
+    player.advanceScore(score, cb)
     return score;
-    //  TODO: include color matches from score counters
   }
 
-  /** advance each player's score by the rank of each meeple; TODO: player chooses counter */
-  /** for each player their score for each rank */
+    /** for each player their score for each rank */
   scoreForRank() {
-    return this.allPlayers.map(plyr => {
+    const rankScoresAry = this.allPlayers.map(plyr => {
       const meeps = plyr.meeples;
       const rankScores: number[] = [], top = this.nRows - 1;
       for (let rank = 1; rank < top; rank++) {
@@ -99,13 +96,19 @@ export class GamePlay extends GamePlayLib {
       }
       return rankScores;
     })
+    // log plyr's scores in each rank:
+    this.table.logText(`Score for Rank: ${rankScoresAry.map(ary => `${ary} -- `)}`);
+    return rankScoresAry.map(plyrAry => Math.sum(...plyrAry))
   }
+  /** advance each player's score by the rank of each meeple; player chooses counter */
   /** EndOfRound: score for rank  */
-  advanceCounters(rankScores: number[][]){
-    rankScores.forEach((plyrScores, ndx) => {
-      plyrScores.forEach(score => this.allPlayers[ndx].score += score);
-    })
-    this.gameState.done();
+  advanceCounters(rankScores: number[], pIndex = 0) {
+    const plyr = this.allPlayers[pIndex];
+    if (plyr) {
+      plyr.advanceScore(rankScores[pIndex], () => this.advanceCounters(rankScores, pIndex + 1))
+    } else {
+      setTimeout(() => this.gameState.done(), 0) // EndRound -> BeginRound || EndGame
+    }
   }
 
   resetPlayerCards() {

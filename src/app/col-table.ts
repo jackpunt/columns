@@ -1,6 +1,6 @@
-import { C, permute, removeEltFromArray, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { CircleShape, NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
-import { Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
+import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
+import { afterUpdate, CircleShape, NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import type { GamePlay } from "./game-play";
@@ -12,7 +12,7 @@ import { TP } from "./table-params";
 export class ColTable extends Table {
   constructor(stage: Stage) {
     super(stage);
-    this.dragger.dragCont.scaleX = this.dragger.dragCont.scaleY = 1.6;
+    this.dragger.dragCont.scaleX = this.dragger.dragCont.scaleY = 1//.6;
     this.initialVis = true;
   }
   declare gamePlay: GamePlay;
@@ -29,8 +29,8 @@ export class ColTable extends Table {
 
   // bgRect tall enough for (3 X mph + gap) PlayerPanels
   override bgXYWH(x0?: number, y0?: number, w0 = this.panelWidth * 2 + 1, h0 = .2, dw?: number, dh?: number): { x: number; y: number; w: number; h: number; } {
-    const nr = this.nRows
-    const h1 = Math.max(nr, 3 * this.mph_g) - nr; // extra height beyond nr + h0
+    const nr = this.nRows, nPanelRows = (TP.numPlayers > 4) ? 3 : 2;
+    const h1 = Math.max(nr, nPanelRows * this.mph_g) - nr; // extra height beyond nr + h0
     return super.bgXYWH(x0, y0, w0, h0 + h1, dw, dh)
   }
 
@@ -44,16 +44,20 @@ export class ColTable extends Table {
       this.scoreTrack.addMarkers(plyr);
     })
   }
-  get super_panelHeight() { return this.nRows / 3 - .2; }
+  get super_panelHeight() {
+    return TP.numPlayers > 4 ? this.nRows / 3 - .2 : this.nRows / 2 - .2;
+  } // (2 * TP.nHexes - 1) / 3 - .2
   override get panelHeight() { return Math.max(this.super_panelHeight, this.mph_g - .2) }
 
   // getPanelLocs adapted for makeRect()
   override getPanelLocs() {
+    const nPanelRows = 0;
+
     const { nh: nr, mh: nc } = this.hexMap.getSize();
     const rC = (nr - 1) / 2;
     const cC = (nc - 1) / 2;
     const coff = (nc / 2) + (this.panelWidth / 2) + .2;
-    const ph = this.panelHeight + .2;
+    const ph = (TP.numPlayers > 4) ? this.panelHeight + .2 : (this.panelHeight + .2) / 2
     // Left of map (dir: +1), Right of map (dir: -1)
     const cL = cC - coff, cR = cC + coff;
     const locs: [row: number, col: number, dir: 1 | -1][] = [
@@ -122,8 +126,9 @@ export class ColTable extends Table {
 
   override layoutTurnlog(rowy?: number, colx?: number): void {
     const row2 = rowy ?? Math.min(-.5, this.nRows - 7.5) + 3.5;
-    const col2 = colx ?? (-1.8 - this.nCols * .5) - 4;
+    const col2 = colx ?? (-1.8 - this.nCols * .5) - 4.5;
     super.layoutTurnlog(row2, col2)
+    this.textLog.parent.addChildAt(this.textLog, 0)
   }
   override setupUndoButtons(bgr: XYWH, row?: number, col?: number, undoButtons?: boolean, xOffs?: number, bSize?: number, skipRad?: number): void {
     const row2 = row ?? Math.min(-.5, this.nRows - 7.5);
@@ -271,6 +276,13 @@ class ScoreTrack extends NamedContainer {
   dx: number;
   dy: number;
 
+  /**
+   *
+   * @param table to find bgRect
+   * @param parent probably scalecont
+   * @param nElts 6 is generally enough
+   * @param radius [TP.hexRad/2]
+   */
   constructor(public table: ColTable, parent: Container, nElts = 6, public radius = TP.hexRad * .5) {
     super('ScoreTrack');
     parent.addChild(this);
@@ -292,7 +304,12 @@ class ScoreTrack extends NamedContainer {
       seg.y = dy;
       seg.x = n * seg.getBounds().width; // all tracks the same width
     })
+    this.overlayCont.x = this.segmentCont.x
+    this.overlayCont.y = this.segmentCont.y
+    this.addChild(this.overlayCont); // holds clicker(s) and ray(s)
+    this.table.dragger.makeDragable(this, this)//, ()=>{this.scaleX=this.scaleY=.5}, ()=>{this.scaleX=this.scaleY=1});
   }
+  overlayCont = new NamedContainer('overlay')
   segmentCont = new NamedContainer('segmentCont');
   markerCont = new NamedContainer('markerCont');
   markers: [MarkerShape, MarkerShape][] = [];
@@ -310,8 +327,17 @@ class ScoreTrack extends NamedContainer {
 }
 
 class MarkerShape extends CircleShape {
-  constructor(public player: Player, public track: ScoreTrack, ) {
-    super(player.color, track.radius / 2, '')
+  constructor(public player: Player, public track: ScoreTrack, strokeC = '') {
+    super(player.color, track.radius / 2, strokeC);
+    if (!strokeC) {
+      // Each primary MarkerShape gets two 'clickers'; which are a MarkerShape with strokeC.
+      const clicker1 = this.clicker1 = new MarkerShape(player, track, C.white);
+      const clicker2 = this.clicker2 = new MarkerShape(player, track, C.white);
+      clicker1.visible = clicker2.visible = true;
+      clicker1.mouseEnabled = clicker2.mouseEnabled = true;
+      clicker1.on(S.click, (evt) => this.onClick(clicker1), this, false)
+      clicker2.on(S.click, (evt) => this.onClick(clicker2), this, false)
+    }
   }
   /** 0: upper-track, 1: lower-track */
   index!: number;
@@ -332,6 +358,38 @@ class MarkerShape extends CircleShape {
     this.value = value;
     this.x = value * dx //+ radius / 2;
     this.y = index * dy + radius / 2 + this.player.index * dx;
+  }
+
+  onClick(clicker: MarkerShape) {
+    this.setValue(clicker.value, clicker.index);
+    this.track.overlayCont.removeAllChildren();
+    afterUpdate(this.track, this.clickDone)
+  }
+  clickDone!: () => void;
+  clicker1!: MarkerShape;
+  clicker2!: MarkerShape; // used if score crosses a black cell
+
+  /** clicker1.setValue(this.value + dScore, this.index)
+   * maybe: clicker2.setValue(this.value + dScore); on the OTHER track.
+   */
+  showDeltas(dScore: number, clickDone: () => void, clicker = this.clicker1, isClkr1 = true) {
+    this.clickDone = clickDone;
+    const over = this.track.overlayCont, sCur = this.value, sNew = sCur + dScore;
+    const [ms0, ms1] = this.track.markers[this.player.index];
+    const sCell = (ms0.index == ms1.index) && (ms0.value == ms1.value)
+    if (sCell && !isClkr1) return;      // do not show sib[1]
+    // In actual game, players choose/rotate an 'advance marker card'
+    // for simultaneous reveal; here we *could* defer setValue(), but it's not an issue.
+    clicker.setValue(sNew, isClkr1 ? this.index : 1 - this.index);
+    const ray = new Shape();
+    ray.graphics.s(C.black).mt(this.x, this.y).lt(clicker.x, clicker.y).es();
+    ray.mouseEnabled = false;
+    over.addChild(ray, clicker);
+    // maybe draw second target:
+    const b0 = Math.ceil(sCur / 9), b1 = Math.ceil(sNew / 9); // on or crossing a Black
+    if (isClkr1 && !sCell && !(b0 == b1)) {
+      this.showDeltas(dScore, clickDone, this.clicker2, false)
+    }
   }
 }
 

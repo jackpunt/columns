@@ -41,8 +41,10 @@ export class GameState extends GameStateLib {
       this.table.doneButton.paint(C.lightgreen);
       this.gamePlay.hexMap.update();
       if (this.autoDone) this.done(true); // CollectBids / SelectCol is done
+    } else {
+      this.table.doneButton.paint(C.YELLOW);
+      this.gamePlay.hexMap.update();
     }
-
   }
 
   get allDone() {
@@ -130,6 +132,7 @@ export class GameState extends GameStateLib {
       },
       done: () => {
         this.winnerMeep?.highlight(false);
+        this.gamePlay.allPlayers.forEach(plyr => plyr.countFactions())
         const nextCol = () => {
           setTimeout(() => this.phase('ResolveWinner', (this.state.col ?? 0) + 1), 0)
         }
@@ -149,14 +152,9 @@ export class GameState extends GameStateLib {
     },
     EndRound: {
       start: () => {
-        const plyrScores = this.gamePlay.scoreForRank();
-        this.table.logText(`Score for Rank: ${plyrScores.map(ary => `${ary} -- `)}`);
-        this.phase('AdvanceCounters', plyrScores);
-      }
-    },
-    AdvanceCounters: {
-      start: (plyrScores) => {
-        this.gamePlay.advanceCounters(plyrScores)
+        const rankScores = this.gamePlay.scoreForRank();
+        this.doneButton(`Advance Markers for Rank`)
+        this.gamePlay.advanceCounters(rankScores)
       },
       done: () => {
         const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)
