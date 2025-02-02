@@ -228,10 +228,10 @@ export class Player extends PlayerLib implements IPlayer {
     this.counter1 = this.makeCounter(leftOf(this.counter0) , C.black, fs)
     const { x, y } = this.counter1, dx = wide + gap, dy = (high + gap) / 2
     const qloc = [
-      [-dx * 2, +dy],
-      [-dx * 2, -dy],
       [-dx * 3, +dy],
+      [-dx * 2, +dy],
       [-dx * 3, -dy],
+      [-dx * 2, -dy],
       [-dx * 4, 0],
     ];
     let pc: XY = { x: x - wide * 2, y }
@@ -249,7 +249,8 @@ export class Player extends PlayerLib implements IPlayer {
   counter1!: NumCounter;
   factionCounters: NumCounter[] = [];
   /** advance one score marker, then invoke callback [to gamePlay] */
-  advanceScore(score: number, cb: () => void) {
+  advanceMarker(score: number, cb: () => void) {
+    if (!score) { setTimeout(cb, 0); return } // zero or undefined
     this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];

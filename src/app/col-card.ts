@@ -38,7 +38,7 @@ export class ColCard extends Tile {
 
   meepCont = new NamedContainer('meepCont')
   _rank?: number; // set on first access; ASSERT cards don't move
-  get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row)) }
+  get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row - 1)) }
   get col() { return this.hex.col + 1 }
 
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
