@@ -113,7 +113,7 @@ export class ColCard extends Tile {
   // 2. for each Player - [1..nc] ColSelect cards
   // 3. for each Player - [1..nc-1 max 4] BidCoin cards
 
-  static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, nPlayers = 4, ) {
+  static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, ) {
     ColCard.allCards.length = 0;
     // narrative: R:military, G:bankers, B:merchant, P:aristocrat
     const nCards = nc * nr, nFacs = 4;

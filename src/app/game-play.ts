@@ -74,9 +74,11 @@ export class GamePlay extends GamePlayLib {
 
   /** EndOfTurn: score for color to meep.player */
   scoreForColor(meep: ColMeeple | undefined, cb: () => void) {
-    if (!meep) return;
+    if (!meep) { cb(); return 0 };
     const faction = meep.faction;
     const player = meep.player;
+    const bidCard = player.coinBidButtons.find(cbb => cbb.state == CB.selected);
+    if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb(); return 0 };
     const colScore = player.meeples.filter(meep => (meep.faction == faction)).length;
     const cardScore = player.coinBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
@@ -98,22 +100,22 @@ export class GamePlay extends GamePlayLib {
       return rankScores;
     })
     // log plyr's scores in each rank:
-    this.table.logText(`Score for Rank: ${rankScoresAry.map(ary => `${ary} -- `)}`);
+    this.table.logText(`Score for Rank: ${rankScoresAry.map(ary => `[${ary}] -- `)}`);
     return rankScoresAry // rankScoresAry.map(plyrAry => Math.sum(...plyrAry))
   }
   /** advance each player's score by the rank of each meeple; player chooses counter */
   /** EndOfRound: score for rank  */
   advanceCounters(rankScores: number[][], pIndex = 0) {
     const plyr = this.allPlayers[pIndex], pScores = rankScores[pIndex];
-    const pcb = (pndx: number) => {
-      if (pndx < pScores.length) {
-        plyr.advanceMarker(pScores[pndx], () => pcb(pndx + 1));
+    const pcb = (rank_1: number) => {
+      if (rank_1 < pScores.length) {
+        plyr.advanceMarker(pScores[rank_1], () => pcb(rank_1 + 1));
       } else {
         this.advanceCounters(rankScores, pIndex + 1);
       }
     }
     if (plyr) {
-      pcb(pIndex);
+      pcb(0);
     } else {
       setTimeout(() => this.gameState.done(), 0) // EndRound -> BeginRound || EndGame
     }

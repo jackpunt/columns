@@ -36,6 +36,8 @@ export class TP extends TPLib {
 
   /** ratio of 'dual' 2-in-a-box Cards */
   static rDuals = .2;
+  static bidReqd = true;
+  static downTwo = false;  // TODO: enable bump down by 2
   static initialCoins = 0;
   static afSize = .5;   // * TP.hexRad
   static afWide = 3;    // pixels

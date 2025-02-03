@@ -136,8 +136,9 @@ export class ColTable extends Table {
     super.setupUndoButtons(bgr, row2, col2, undoButtons, xOffs, bSize, skipRad)
   }
   override bindKeysToScale(scaleC: ScaleableContainer, ...views: (XY & { scale: number; isk: string; ssk?: string; })[]): void {
-    const viewA = { x: 500, y: 2, scale: .5, isk: 'a'}
-    const viewZ = { x: 450, y: 2, scale: 0.647, isk: 'z', ssk: 'x' };
+    const z_x = TP.numPlayers > 4 ? 420 : 470;
+    const viewA = { x: 500, y: 2, scale: 0.500, isk: 'a'}
+    const viewZ = { x: z_x, y: 2, scale: 0.647, isk: 'z', ssk: 'x' };
     super.bindKeysToScale(scaleC, viewA, viewZ);
   }
 

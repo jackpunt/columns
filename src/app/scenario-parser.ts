@@ -48,8 +48,7 @@ export class ScenarioParser extends SPLib {
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     {
-      const np = this.gamePlay.gameSetup.nPlayers
-      ColCard.makeAllCards(TP.mHexes, TP.nHexes, np,); // populate ColCard.cardByName
+      ColCard.makeAllCards(TP.mHexes, TP.nHexes,); // populate ColCard.cardByName
       this.placeCardsOnMap();
     }
     {
