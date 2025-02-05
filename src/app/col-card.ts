@@ -43,30 +43,51 @@ export class ColCard extends Tile {
 
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
-  get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
   meepleLoc(ndx = this.openCells[0]): XY {
     return { x: 0, y: 0 }
   }
   /** when openCells[0] is undefined: */
   get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
+  get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
+  /** for each meep on this card, include the cell it is in. */
   get cellsInUse() {
     return this.meepsOnCard.map(meep => meep.cellNdx as number).sort((a, b) => a - b)
   }
   get maxCells() { return 1 }
   get openCells() {
     const rv: number[] = [], inUse = this.cellsInUse;
-    for (let i = 0; i< this.maxCells; i++) {
+    for (let i = 0; i < this.maxCells; i++) {
       if (!inUse.includes(i)) rv.push(i);
     }
     return rv;
   }
+  otherMeepInCell(meep: ColMeeple, cellNdx?: number) {
+    return this.meepsOnCard.find(m => (m !== meep) && (m.cellNdx == cellNdx))
+  }
+  /**
+   * add meep to this ColCard in cellNdx or bumpLoc
+   * @param meep
+   * @param cellNdx target cell for meep (if supplied by DualCard)
+   * @param xy (supplied by dropFunc -> DualCard)
+   * @returns true if meep is in meepleLoc; false if in bumpLoc
+   */
   addMeep(meep: ColMeeple, cellNdx = this.openCells[0], xy?: XY) {
-    const inUse = (cellNdx !== undefined) ? this.cellsInUse.includes(cellNdx) : true;
-    const locXY = inUse ? this.bumpLoc : this.meepleLoc(cellNdx);
+    const toBump = (cellNdx == undefined) || !!this.otherMeepInCell(meep, cellNdx);
+    const locXY = toBump ? this.bumpLoc : this.meepleLoc(cellNdx); // meepleLoc IFF cellNdx supplied and cell is empty
     this.meepCont.addChild(meep);
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex;
-    meep.card = this; meep.cellNdx = cellNdx; meep.faction = this.faction;
+    meep.card = this;
+    meep.cellNdx = toBump ? undefined : cellNdx;
+    meep.faction = this.faction; // DualCard sets meep.faction(cellNdx)
+    return !toBump;
+  }
+  /**
+   *
+   * @returns true if meep is in meepleLoc; false if in bumpLoc
+   */
+  isBumpLoc(meep: ColMeeple) {
+    return (meep.y == this.bumpLoc.y)
   }
   // not used? just move to another Card...
   rmMeep(meep: ColMeeple) {
@@ -146,18 +167,22 @@ class DualCard extends ColCard {
     this.dualColor();
   }
   factions: number[] =[]
-  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY): void {
+  // determine if meep was dropped on left or right cell
+  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
     // meep on map.tileCont@(mx,my)
     // this on map.tileCont@(tx,ty); meepCont on this@(0,0)
     const pt = xy ?? meep.parent.localToLocal(meep.x, meep.y, this.meepCont)
-    if (cellNdx === undefined) cellNdx = pt.x < 0 ? 0 : 1;
-    super.addMeep(meep, cellNdx)
+    if (cellNdx === undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
+    const rv = super.addMeep(meep, cellNdx)
+    if (!rv) {
+      meep.x += (cellNdx - .5) * .33 * this.cellWidth;
+    }
     meep.faction = this.factions[cellNdx];
-    return;
+    return rv
   }
+  get cellWidth() { return this.getBounds().width }
   override meepleLoc(ndx = this.openCells[0]): XY {
-    const width = this.getBounds().width;
-    return { x: width * (ndx - .5) / 2, y: 0 }
+    return { x: this.cellWidth * (ndx - .5) / 2, y: 0 }
   }
   override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
 

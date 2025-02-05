@@ -95,7 +95,7 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   makeCardButtons(ncol = 4, ncoin = 4) {
-    const opts = { fontSize: 30, visible: true, bgColor: this.color, player: this }
+    const opts = { visible: true, bgColor: this.color, player: this }
     const { width, height } = new ColSelButton(0, opts).getBounds(); // temp Button to getBounds()
     const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap2;
     const dy = height + gap;
@@ -199,7 +199,7 @@ export class Player extends PlayerLib implements IPlayer {
     meep.paint(this.color);
     const row = (nrows - 1 - rank);
     const hex = hexMap.getHex({ row, col: col - 1 });
-    hex.card?.addMeep(meep);
+    hex.card?.addMeep(meep); // makeMeeple
     this.gamePlay.table.makeDragable(meep);
     return meep;
   }
@@ -279,15 +279,17 @@ export class Player extends PlayerLib implements IPlayer {
    * invoke cb() when bump cascade if done (no bumpee, or bump to black)
    *
    * @param meep the meep that need to find a home
-   * @param dir0 the direction for this bump (undefined for winningBidder)
+   * @param dir0 the direction for this bump (undefined for initial/winningBidder)
    * @param cb callback when bump cascade is done
    * @returns
    */
   bumpMeeple(meep: ColMeeple, dir0: HexDir | undefined, cb: () => void) {
     const dir = dir0 ?? 'N';
     const card = (meep.card.hex.nextHex(dir) as OrthoHex2)?.card;// should NOT bump from black, but...
-    card?.addMeep(meep);
-    card?.stage?.update();
+    if (!card) return;
+    const open = card.openCells
+    card.addMeep(meep, open?.[0]); // bump to an openCell
+    card.stage?.update();
     // cb();
     return;
   }

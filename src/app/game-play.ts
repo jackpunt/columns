@@ -1,7 +1,7 @@
 import { stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type HexMap } from "@thegraid/hexlib";
-import { CB, type ColMeeple } from "./col-meeple";
+import { CB, ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
@@ -65,11 +65,24 @@ export class GamePlay extends GamePlayLib {
     }
   }
 
+  /**
+   *
+   * @param col
+   * @param player
+   * @returns meeples of Player in column, suitable for winner.meep
+   */
   meepsInCol(col: number, player?: Player) {
     // cannot advance meep in top row (or in other column)
     const rv = player?.meeples.filter(meep => meep.card.col == col && meep.card.rank < this.nRows) ?? [];
     return rv;
     // TODO: alternative for Pyramid
+  }
+
+  /** move meeple from bumpLoc to center of cell */
+  meeplesToCell(col: number) {
+    const meeps = ColMeeple.allMeeples.filter(meep => meep.card?.col == col && meep.card.faction !== 0)
+    const bumps = meeps.filter(meep => !meep.card?.addMeep(meep, meep.cellNdx)); // re-center
+    return bumps[0]
   }
 
   /** EndOfTurn: score for color to meep.player */

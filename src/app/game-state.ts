@@ -4,6 +4,7 @@ import { type CardButton, type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
+import { afterUpdate } from "@thegraid/easeljs-lib";
 
 interface Phase extends PhaseLib {
   col?: number, // for ScoreForRank
@@ -124,17 +125,23 @@ export class GameState extends GameStateLib {
         if (!this.winnerMeep) this.winnerMeep = meep; // maybe undefined
         if (!meep) { this.phase('ResolveWinner', col + 1); return }
         this.gamePlay.setCurPlayer(meep.player);
-        this.winnerMeep?.highlight(true);
+        meep.highlight(true);
         this.table.logText(`${meep} in col ${col}`, `BumpAndCascade`);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
         const bumpDone = () => { setTimeout(() => this.done(), 0) } // HACK: winner does it all
-        this.curPlayer.bumpMeeple(meep, undefined, bumpDone)
+        this.curPlayer.bumpMeeple(meep, undefined, bumpDone); // advance | bump
       },
       done: () => {
+        const col = this.state.col as number;
         this.winnerMeep?.highlight(false);
+        const fails = this.gamePlay.meeplesToCell(col)
+        if (fails) {
+          afterUpdate(fails, () => this.state.start(col, fails))
+          return;
+        }
         this.gamePlay.allPlayers.forEach(plyr => plyr.countFactions())
         const nextCol = () => {
-          setTimeout(() => this.phase('ResolveWinner', (this.state.col ?? 0) + 1), 0)
+          setTimeout(() => this.phase('ResolveWinner', col + 1), 0)
         }
         this.gamePlay.scoreForColor(this.winnerMeep, nextCol)
 

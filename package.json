@@ -9,8 +9,8 @@
     "test": "ng test",
     "newcom": "npm i ../../ts/common-lib/thegraid-common-lib-*.tgz ; rm -rf .angular/cache ; date",
     "newhex": "npm i ../../ts/hexlib/thegraid-hexlib-*.tgz ; rm -rf .angular/cache ; date",
-    "newejs": "npm i ../../ts/createjs-module/thegraid-easeljs-module-*.tgz ; rm -rf .angular/cache",
-    "newlib": "npm i ../../ts/createjs-lib/thegraid-easeljs-lib-*.tgz ; rm -rf .angular/cache"
+    "newejs": "npm i ../../ts/createjs-module/thegraid-easeljs-module-*.tgz ; rm -rf .angular/cache ; date",
+    "newlib": "npm i ../../ts/createjs-lib/thegraid-easeljs-lib-*.tgz ; rm -rf .angular/cache; date"
   },
   "private": true,
   "dependencies": {

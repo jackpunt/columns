@@ -1,7 +1,8 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CircleShape, NamedContainer, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
+import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import type { GamePlay } from "./game-play";
 import type { GameSetup, Scenario } from "./game-setup";
@@ -156,8 +157,9 @@ export class ColTable extends Table {
     const gui = new ParamGUI(TP, { textAlign: 'right' });
     gui.name = (gui as NamedObject).Aname = 'ParamGUI';
     const gameSetup = this.gamePlay.gameSetup as GameSetup;
-    gui.makeParamSpec('hexRad', [30, 45, 60, 90,], { fontColor: 'red' }); TP.hexRad;
+    gui.makeParamSpec('hexRad', [30, 45, 60, 90, 135,], { fontColor: 'red' }); TP.hexRad;
     gui.spec('hexRad').onChange = (item: ParamItem) => {
+      PaintableShape.defaultRadius = item.value;
       gameSetup.restart({ hexRad: item.value })
     }
     gui.makeParamSpec('numPlayers', [2, 3, 4, 5, 6, 7, 8, 9,], { fontColor: 'red', name: 'nPlayers' }); TP.numPlayers;
@@ -289,22 +291,29 @@ class ScoreTrack extends NamedContainer {
     parent.addChild(this);
     this.addChild(this.segmentCont);
     this.addChild(this.markerCont);
-    const dx = this.dx = this.radius * 1.2, dy = this.dy = dx * TP.numPlayers
+    {
+      const { x, y, height: bgHeight } = this.table.bgRect.getBounds();
+      this.segmentCont.x = this.markerCont.x = x;
+      this.segmentCont.y = this.markerCont.y = y + bgHeight;
+    }
+    const cardRad = new CardShape().getBounds().height / 2;
+    const dx = this.dx = this.radius * 1.2, dy = this.dy = Math.max(dx * TP.numPlayers, cardRad);
 
     const tracks12 = ScoreTrack.anames.map(aname => new TrackSegment(aname, dx, dy)); // make 12 Segments
     const trackSegs = permute(tracks12).slice(0, nElts);     // select nElts for this table
-    const { x, y, height } = this.table.bgRect.getBounds();
-    this.segmentCont.x = this.markerCont.x = x;
-    this.segmentCont.y = this.markerCont.y = y + height;
-    this.segmentCont.addChild(new RectShape({ x: -dx / 2, w: dx, h: dy * 2 }, C.BLACK, ''))
     trackSegs.forEach((seg, n) => {
       const [f0, f1] = seg.factions; // upper and lower factions for cells [1..9]
       this.factions[0] = this.factions[0].concat(f0);
       this.factions[1] = this.factions[1].concat(f1);
       this.segmentCont.addChild(seg);
       seg.y = dy;
-      seg.x = n * seg.getBounds().width; // all tracks the same width
+      seg.x = dx * n * 9;
     })
+    // extend BLACK on each end by w = dx / 2; (on segmentCont, not in TrackSegment)
+    const x = 0, y = 0, w = dx / 2, h = 2 * dy, s = 1, nx9 = (nElts * 9);
+    this.segmentCont.addChild(new RectShape({ x: x - dx * 0.5, y, w, h, s }, C.BLACK, ))
+    this.segmentCont.addChild(new RectShape({ x: x + dx * nx9, y, w, h, s }, C.BLACK, ))
+
     this.overlayCont.x = this.segmentCont.x
     this.overlayCont.y = this.segmentCont.y
     this.addChild(this.overlayCont); // holds clicker(s) and ray(s)
@@ -375,7 +384,8 @@ class MarkerShape extends CircleShape {
    */
   showDeltas(dScore: number, clickDone: () => void, clicker = this.clicker1, isClkr1 = true) {
     this.clickDone = clickDone;
-    const over = this.track.overlayCont, sCur = this.value, sNew = sCur + dScore;
+    const trackMax = this.track.factions[0].length - 1;
+    const over = this.track.overlayCont, sCur = this.value, sNew = Math.min(sCur + dScore, trackMax);
     const [ms0, ms1] = this.track.markers[this.player.index];
     const sCell = (ms0.index == ms1.index) && (ms0.value == ms1.value)
     if (sCell && !isClkr1) return;      // do not show sib[1]
@@ -406,10 +416,10 @@ class TrackSegment extends NamedContainer {
    * Bvbgr1-vbgr2B
    * @param Aname codes the sequence of each rgbv segment.
    *
-   * @param dx [20] width of cell, marker radius * 1.1
-   * @param dy [80] height of cell, marker radius * nPlayers
+   * @param w [20] width of cell, marker radius * 1.1
+   * @param h [80] height of cell, marker radius * nPlayers
    */
-  constructor(Aname: string, dx = 20, dy = 80) {
+  constructor(Aname: string, w = 20, h = 80) {
     super(Aname)
     this.setBounds(0, 0, 0, 0);
     const B = ['B'] as RGBV[];
@@ -419,23 +429,22 @@ class TrackSegment extends NamedContainer {
     const factions10 = B.concat(ary1, ary0, B).reverse().map(s => rgbvIndex[s]);
     factions01.forEach((f0, n) => {
       const f1 = factions10[n];
-      this.addSlot(f0, f1, { x: dx, y: dy });
+      this.addSlot(n, f0, f1, { w, h }); // half-slot for B on each end.
     })
-    this.factions = [factions01.slice(1), factions10.slice(1)]; // remove 'B'
+    this.factions = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
     const { x, y, width, height } = this.getBounds() // x = 0, y = -dy, width = 9 * dx, height = 2 * dy;
-    this.cache(x, y, width, height);
+    this.cache(x, y, width, height, 4);
   }
   factions: [faction[], faction[]];
 
-  addSlot(f1: number, f2: number, dxy: XY) {
+  addSlot(n: number, f1: number, f2: number, wh: { w: number, h: number }, s = 1) {
     const factionColor = (faction: number) => ColCard.factionColors[faction];
-    const dxyy = dxy.y, dxyx = (f1 == 0) ? dxy.x / 2 : dxy.x;
-    const { x: x0, y: y0, width, height } = this.getBounds(); // expect x0 = 0, y0 = -height/2
-    const c1 = factionColor(f1), c2 = factionColor(f2);
-    const rect1 = new RectShape({ s: 1, x: x0 + width, w: dxyx, h: dxyy, y: y0 }, c1, );
-    const rect2 = new RectShape({ s: 1, x: x0 + width, w: dxyx, h: dxyy, y: y0 + height - dxyy }, c2, );
-    this.addChild(rect1)
-    this.addChild(rect2)
+    const c1 = factionColor(f1), c2 = factionColor(f2)
+    const { w, h } = wh, we = (f1 == 0) ? w / 2 : w;
+    const x = w * n + ((n == 0) ? 0 : - w / 2) + 1; // shift right by 1 px to align with counters
+    const rect1 = new RectShape({ s, x, w: we, h, y: -h }, c1);
+    const rect2 = new RectShape({ s, x, w: we, h, y: .0 }, c2);
+    this.addChild(rect1, rect2)
     this.setBoundsNull(); // so createjs will compute containers bounds from children.
   }
 }

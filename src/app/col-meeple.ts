@@ -8,12 +8,14 @@ import type { GameState } from "./game-state";
 import { MeepleShape } from "./meeple-shape";
 import { OrthoHex2 } from "./ortho-hex";
 import type { Player } from "./player";
+import { TP } from "./table-params";
 
 
 export class ColMeeple extends Meeple {
 
   declare player: Player;
   declare baseShape: MeepleShapeLib & { highlight(l?: boolean): void };
+  declare static allMeeples: ColMeeple[];
 
   constructor(Aname: string, player?: Player) {
     super(Aname, player)
@@ -28,7 +30,8 @@ export class ColMeeple extends Meeple {
   /** faction of cell (of card) meeple is in/on. */
   faction!: number;
   override makeShape(): Paintable {
-    return new MeepleShape(this.player?.color ?? 'pink', { x: 30, y: 50 })
+    const x = TP.hexRad / 2, y = x * (5 / 3);
+    return new MeepleShape(this.player?.color ?? 'pink', { x, y })
   }
   highlight(lightup = true) {
     this.baseShape.highlight(lightup);
@@ -59,7 +62,7 @@ export class ColMeeple extends Meeple {
     if (targetHex instanceof OrthoHex2) {
       const xy = this.parent.localToLocal(this.x, this.y, targetHex.card!.meepCont);
       this.hex = targetHex; // record for later use as fromHex
-      targetHex.card?.addMeep(this, undefined, xy);
+      targetHex.card?.addMeep(this, undefined, xy); // drop
     } else {
       super.dropFunc(targetHex, ctx);
     }
@@ -77,16 +80,16 @@ export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.d
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
   static radius = .7 // * ColCard.onScreenRadius
   constructor(label: string, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
+    const { bgColor, player } = opts, rad = CardButton.radius * ColCard.onScreenRadius;
+    opts.fontSize = 30 * rad / 60;
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
-    const { bgColor } = opts;
-    this.altRectShape(bgColor); // rectShape = CardShape;
-    const { player } = opts;
+    this.altRectShape(bgColor, rad); // rectShape = CardShape;
     this.player = player;
     this.mouseEnabled = true;
     this.on(S.click, this.onClick as any, this, false, player);
 
     // make dimmer & highlight:
-    const dColor = 'rgba(100,100,100,.5)', rad = CardButton.radius, vert = true;
+    const dColor = 'rgba(100,100,100,.5)', vert = true;
     this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
     this.addChildAt(this.highlight = new CardShape(C.black, undefined, rad * 1.04, vert), 0); // under baseShape
     this.addChild(this.canceled = this.makeCancelShape())
@@ -171,9 +174,9 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
 
   /** replace UtilButton's border RectShape with CardShape */
-  altRectShape(color = C.WHITE) {
+  altRectShape(color = C.WHITE, rad = CardButton.radius) {
     this.removeChild(this.rectShape);
-    this.rectShape = new CardShape(color, undefined, CardButton.radius, true);
+    this.rectShape = new CardShape(color, undefined, rad, true);
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
