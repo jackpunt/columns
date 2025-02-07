@@ -3,7 +3,7 @@ import { NamedContainer, RectShape, type Paintable } from "@thegraid/easeljs-lib
 import { H, Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColMeeple } from "./col-meeple";
-import { type GamePlay } from "./game-play";
+import { arrayN, type GamePlay } from "./game-play";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
@@ -24,12 +24,15 @@ export class ColCard extends Tile {
   override set hex(hex: Hex1) { super.hex = hex }
 
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
+  factions = [0];
+  get faction() { return this.factions[0] }
 
-  constructor(aname: string, readonly faction = 0) {
+  constructor(aname: string, ...factions: number[]) {
     const Aname = aname.startsWith(':') ? `${ColCard.allCards.length}${aname}` : aname;
-    const color = ColCard.factionColors[faction], tColor = C.pickTextColor(color);
     super(Aname);
+    this.factions = factions
     this.addChild(this.meepCont);
+    const color = ColCard.factionColors[factions[0]], tColor = C.pickTextColor(color);
     this.nameText.color = tColor;
     this.setNameText(Aname, this.radius * .35);
     this.paint(color)
@@ -50,17 +53,15 @@ export class ColCard extends Tile {
   get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
   get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
-  /** for each meep on this card, include the cell it is in. */
+  /** for each meep on this card, include the cell it is in. ASSERT: each meep has unique cellNdx */
   get cellsInUse() {
     return this.meepsOnCard.map(meep => meep.cellNdx as number).sort((a, b) => a - b)
   }
   get maxCells() { return 1 }
+  /** complement of cellsInUse */
   get openCells() {
-    const rv: number[] = [], inUse = this.cellsInUse;
-    for (let i = 0; i < this.maxCells; i++) {
-      if (!inUse.includes(i)) rv.push(i);
-    }
-    return rv;
+    const inUse = this.cellsInUse;
+    return arrayN(this.maxCells).filter(i => !inUse.includes(i))
   }
   otherMeepInCell(meep: ColMeeple, cellNdx?: number) {
     return this.meepsOnCard.find(m => (m !== meep) && (m.cellNdx == cellNdx))
@@ -79,7 +80,8 @@ export class ColCard extends Tile {
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex;
     meep.card = this;
     meep.cellNdx = toBump ? undefined : cellNdx;
-    meep.faction = this.faction; // DualCard sets meep.faction(cellNdx)
+    // toBump -> undefined; BumpAndCascade -> meeplesToCell will addMeep() and resolve
+    meep.faction = this.factions[cellNdx];
     return !toBump;
   }
   /**
@@ -162,11 +164,10 @@ class DualCard extends ColCard {
  override get maxCells() { return 2 }
 
   constructor(Aname: string, faction0: number, faction1: number) {
-    super(Aname, faction0);
-    this.factions = [faction0, faction1]
+    super(Aname, faction0, faction1);
     this.dualColor();
   }
-  factions: number[] =[]
+
   // determine if meep was dropped on left or right cell
   override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
     // meep on map.tileCont@(mx,my)
@@ -175,9 +176,8 @@ class DualCard extends ColCard {
     if (cellNdx === undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
     const rv = super.addMeep(meep, cellNdx)
     if (!rv) {
-      meep.x += (cellNdx - .5) * .33 * this.cellWidth;
+      meep.x += (cellNdx - .5) * .33 * this.cellWidth; // adjust bumpLoc: record desired cellNdx
     }
-    meep.faction = this.factions[cellNdx];
     return rv
   }
   get cellWidth() { return this.getBounds().width }
@@ -207,8 +207,9 @@ class DualCard extends ColCard {
 class BlackCard extends ColCard {
   override get maxCells() { return TP.numPlayers * 2 }
 
-  constructor(Aname: string, faction = 0) {
-    super(Aname, faction)
+  constructor(Aname: string) {
+    super(Aname, 0) // initial factions[] for painting color
+    this.factions = arrayN(this.maxCells, i => 0);
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {

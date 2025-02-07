@@ -93,7 +93,6 @@ export class ColTable extends Table {
   }
 
   override layoutTable2() {
-    super.layoutTable2;
     this.initialVis = false;
     this.addDoneButton().activate(true);
     this.layoutScoreTrack();
@@ -387,7 +386,7 @@ class MarkerShape extends CircleShape {
     const trackMax = this.track.factions[0].length - 1;
     const over = this.track.overlayCont, sCur = this.value, sNew = Math.min(sCur + dScore, trackMax);
     const [ms0, ms1] = this.track.markers[this.player.index];
-    const sCell = (ms0.index == ms1.index) && (ms0.value == ms1.value)
+    const sCell = (ms0.index == ms1.index) && (ms0.value == ms1.value) // from same cell
     if (sCell && !isClkr1) return;      // do not show sib[1]
     // In actual game, players choose/rotate an 'advance marker card'
     // for simultaneous reveal; here we *could* defer setValue(), but it's not an issue.
@@ -400,6 +399,10 @@ class MarkerShape extends CircleShape {
     const b0 = Math.ceil(sCur / 9), b1 = Math.ceil(sNew / 9); // on or crossing a Black
     if (isClkr1 && !sCell && !(b0 == b1)) {
       this.showDeltas(dScore, clickDone, this.clicker2, false)
+      // if converging on same cell of index0, put clicker1 on top:
+      if (this === ms1 && ms0.value == ms1.value) {
+        over.addChild(ms0.clicker1)
+      }
     }
   }
 }

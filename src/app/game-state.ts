@@ -1,10 +1,10 @@
 import { C } from "@thegraid/common-lib";
+import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
 import { type CardButton, type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
-import { afterUpdate } from "@thegraid/easeljs-lib";
 
 interface Phase extends PhaseLib {
   col?: number, // for ScoreForRank
@@ -159,9 +159,19 @@ export class GameState extends GameStateLib {
     },
     EndRound: {
       start: () => {
-        const rankScores = this.gamePlay.scoreForRank();
-        this.doneButton(`Advance Markers for Rank`)
-        this.gamePlay.advanceCounters(rankScores)
+        // score for rank:
+        const rowScores = this.gamePlay.scoreForRow(), nRows = this.gamePlay.nRows;
+        const advanceNextScore = (row: number) => {
+          const rank = nRows - 1 - row;
+          if (rank < 1) { this.done(); return } // no score for rank0; DONE
+          if (row > rowScores.length - 1) { debugger; } // expect rank = 0
+          if (rowScores[row].length == 0) { advanceNextScore(row + 1); return; }
+          const { plyr, score } = rowScores[row][0]
+          rowScores[row].shift(); // remove {plyr,score}
+          this.doneButton(`Advance Markers for Rank ${rank}: ${score}`, plyr.color);
+          plyr.advanceMarker(score, () => advanceNextScore(row))
+        }
+        advanceNextScore(0)
       },
       done: () => {
         const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)

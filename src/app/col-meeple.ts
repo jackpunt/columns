@@ -28,7 +28,7 @@ export class ColMeeple extends Meeple {
   /** ColCard on which this meeple is placed */
   card!: ColCard;
   /** faction of cell (of card) meeple is in/on. */
-  faction!: number;
+  faction?: number;
   override makeShape(): Paintable {
     const x = TP.hexRad / 2, y = x * (5 / 3);
     return new MeepleShape(this.player?.color ?? 'pink', { x, y })

@@ -9,6 +9,11 @@ import type { OrthoHex } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
 
+/** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
+export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
+  const fi = (typeof nf === 'number') ? (i: number) => (i + nf) : nf;
+  return Array.from(Array(n), (_, i) => fi(i))
+}
 
 export class GamePlay extends GamePlayLib {
   constructor (gameSetup: GameSetup, scenario: Scenario) {
@@ -31,7 +36,7 @@ export class GamePlay extends GamePlayLib {
     const row = 0;
     // TODO: end if one cell has all players
     if (this.allPlayers.find(plyr => plyr.score >= 100)) return true;
-    return (!this.hexMap[row].find(hex => hex.card!.meepsOnCard.length < 1))
+    return (!this.hexMap[row].find(hex => hex.card.meepsOnCard.length < 1))
   }
   winningBidder(col: number) {
     const bidsOnCol = this.allPlayers.map(plyr => plyr.bidOnCol(col));
@@ -80,15 +85,15 @@ export class GamePlay extends GamePlayLib {
 
   /** move meeple from bumpLoc to center of cell */
   meeplesToCell(col: number) {
-    const meeps = ColMeeple.allMeeples.filter(meep => meep.card?.col == col && meep.card.faction !== 0)
-    const bumps = meeps.filter(meep => !meep.card?.addMeep(meep, meep.cellNdx)); // re-center
+    const meeps = ColMeeple.allMeeples.filter(meep => meep.card.col == col && meep.faction !== 0)
+    const bumps = meeps.filter(meep => !meep.card.addMeep(meep, meep.cellNdx)); // re-center
     return bumps[0]
   }
 
   /** EndOfTurn: score for color to meep.player */
   scoreForColor(meep: ColMeeple | undefined, cb: () => void) {
     if (!meep) { cb(); return 0 };
-    const faction = meep.faction;
+    const faction = meep.faction as number; // by now, meeplesOnCard has resolved.
     const player = meep.player;
     const bidCard = player.coinBidButtons.find(cbb => cbb.state == CB.selected);
     if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb(); return 0 };
@@ -101,37 +106,22 @@ export class GamePlay extends GamePlayLib {
     return score;
   }
 
-    /** for each player their score for each rank */
-  scoreForRank() {
-    const rankScoresAry = this.allPlayers.map(plyr => {
-      const meeps = plyr.meeples;
-      const rankScores: number[] = [], top = this.nRows - 1;
-      for (let rank = 1; rank < top; rank++) {
-        const nOfRank = meeps.filter(meep => meep.card.rank == rank).length;
-        rankScores.push(nOfRank * rank);
-      }
-      return rankScores;
+  /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
+  scoreForRow() {
+    const nRows = this.nRows, nCols = this.nCols
+    const playerByRow = arrayN(nRows - 1).map(row => {
+      return arrayN(nCols, 0).map(col => {
+        const cardRC = this.hexMap.getHex({ row, col }).card
+        return cardRC.meepsOnCard.map(meep => meep.player)
+      }).flat()
     })
-    // log plyr's scores in each rank:
-    this.table.logText(`Score for Rank: ${rankScoresAry.map(ary => `[${ary}] -- `)}`);
-    return rankScoresAry // rankScoresAry.map(plyrAry => Math.sum(...plyrAry))
-  }
-  /** advance each player's score by the rank of each meeple; player chooses counter */
-  /** EndOfRound: score for rank  */
-  advanceCounters(rankScores: number[][], pIndex = 0) {
-    const plyr = this.allPlayers[pIndex], pScores = rankScores[pIndex];
-    const pcb = (rank_1: number) => {
-      if (rank_1 < pScores.length) {
-        plyr.advanceMarker(pScores[rank_1], () => pcb(rank_1 + 1));
-      } else {
-        this.advanceCounters(rankScores, pIndex + 1);
-      }
-    }
-    if (plyr) {
-      pcb(0);
-    } else {
-      setTimeout(() => this.gameState.done(), 0) // EndRound -> BeginRound || EndGame
-    }
+    return playerByRow.map((plyrsOnRow, row) => {
+      const rank = (row == 0) ? 0 : nRows - 1 - row;
+      return plyrsOnRow.map(plyr => {
+        const allPlyr0 = plyrsOnRow.filter(pf => pf == plyr)
+        return { plyr: plyr, score: allPlyr0.length * rank }
+      }).filter((por, n, ary) => !ary.slice(0, n).find(elt => elt.plyr == por.plyr))
+    })
   }
 
   resetPlayerCards() {

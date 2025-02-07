@@ -3,7 +3,7 @@ import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
-import { GamePlay } from "./game-play";
+import { arrayN, GamePlay } from "./game-play";
 import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
@@ -137,6 +137,19 @@ export class Player extends PlayerLib implements IPlayer {
     this.colSelButtons.forEach(b => b.setState(CB.clear))
     this.coinBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
+
+  /** choose column for xtraMeeple */
+  xtraCol(ncols = 4) {
+    return 1 + Random.random(ncols)
+  }
+
+  selectCol() {
+    const col = this.xtraCol(this.gamePlay.nCols)
+    this.clearButtons();
+    this.colSelButtons[col - 1].select()
+    this.coinBidButtons[0].select(); // bid 1 to complete selection
+  }
+
   /** during CollectBids (& chooseXtra) */
   isDoneSelecting() {
     return (
@@ -169,37 +182,25 @@ export class Player extends PlayerLib implements IPlayer {
     this.coinBidButtons[bid - 1].setState(CB.cancel);
   }
 
-  selectCol() {
-    const col = this.xtraCol(this.gamePlay.nCols)
-    this.clearButtons();
-    this.colSelButtons[col - 1].select()
-    this.coinBidButtons[0].select(); // bid 1 to complete selection
-  }
-
   collectBid() {
     // if not useRobo, nothing to do.
 
   }
 
-  xtraCol(ncols = 4) {
-    return 1 + Random.random(ncols)
-  }
-
   // ColMeeple is Tile with (isMeep==true); use MeepleShape as baseShape
   /**
-   *
+   * make ColMeeple, add to ColCard @ {column, rank}
    * @param hexMap
-   * @param col column number --> hexMap(row, col-1)
-   * @param row [0] rank --> hexMap(nrows - 1 - row, col-1)
+   * @param column column
+   * @param rank [0]
    * @param ext [''] mark name of xtraCol meeple
    */
-  makeMeeple(hexMap: HexMap<OrthoHex>, col: number, rank = 0, ext = '') {
-    const [nrows, ncols] = hexMap.nRowCol;
-    const meep = new ColMeeple(`Meep-${this.index}:${col}${ext}`, this)
+  makeMeeple(hexMap: HexMap<OrthoHex>, column: number, rank = 0, ext = '') {
+    const row = this.gamePlay.nRows - 1 - rank;
+    const meep = new ColMeeple(`Meep-${this.index}:${column}${ext}`, this)
     meep.paint(this.color);
-    const row = (nrows - 1 - rank);
-    const hex = hexMap.getHex({ row, col: col - 1 });
-    hex.card?.addMeep(meep); // makeMeeple
+    const card = hexMap.getHex({ row, col: column - 1 }).card;
+    card.addMeep(meep); // makeMeeple
     this.gamePlay.table.makeDragable(meep);
     return meep;
   }
@@ -251,7 +252,7 @@ export class Player extends PlayerLib implements IPlayer {
   /** advance one score marker, then invoke callback [to gamePlay] */
   advanceMarker(score: number, cb: () => void) {
     if (!score) { setTimeout(cb, 0); return } // zero or undefined
-    this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
+    // this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];
     markers.forEach((m, index) => {
@@ -285,7 +286,7 @@ export class Player extends PlayerLib implements IPlayer {
    */
   bumpMeeple(meep: ColMeeple, dir0: HexDir | undefined, cb: () => void) {
     const dir = dir0 ?? 'N';
-    const card = (meep.card.hex.nextHex(dir) as OrthoHex2)?.card;// should NOT bump from black, but...
+    const card = (meep.card.hex.nextHex(dir) as OrthoHex2).card;// should NOT bump from black, but...
     if (!card) return;
     const open = card.openCells
     card.addMeep(meep, open?.[0]); // bump to an openCell
@@ -298,8 +299,25 @@ export class Player extends PlayerLib implements IPlayer {
   countFactions() {
     this.factionCounters.forEach(fc => fc.setValue(0))
     this.meeples.forEach(meep => {
-      this.factionCounters[meep.faction].incValue(1);
+      this.factionCounters[meep.faction as number].incValue(1); // ASSERT: faction is defined
     })
     this.panel.stage.update();
+  }
+}
+
+class PlayerB extends Player {
+  cardsInCol(col: number) {
+    const nrows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
+    return arrayN(nrows).map(row => {
+      return hexMap.getHex({ row, col }).card;
+    })
+  }
+  factionsInCol(col: number) {
+    const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
+    return cards.map(card => card.factions).flat(1)
+  }
+  override xtraCol(nCols = this.gamePlay.nCols) {
+    const factionsInCol = arrayN(nCols).map(col => this.factionsInCol(col))
+    return 1 + Random.random(nCols)
   }
 }

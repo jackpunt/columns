@@ -58,7 +58,7 @@ export class OrthoHex extends Hex1Lib {
   // user cannot drop meep on the cell/card; code will check hex.meeps()
   // and put them on correct cell/slot [so we are not re-doing unitCollision()]
 
-  get card() { return super.tile as ColCard | undefined }
+  get card() { return super.tile as ColCard }
   set card(card) { super.tile = card; }
 }
 
