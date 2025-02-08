@@ -35,7 +35,7 @@ export class TP extends TPLib {
   static override meepleY0 = 0;
 
   /** ratio of 'dual' 2-in-a-box Cards */
-  static rDuals = .2;
+  static rDuals = .3;
   static bidReqd = true;
   static downTwo = false;  // TODO: enable bump down by 2
   static initialCoins = 0;

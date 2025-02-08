@@ -62,14 +62,11 @@ export class TileExporter {
   composeTile(claz: Constructor<Tile>, args: any[], gridSpec: GridSpec, color?: string  , edge: 'L' | 'R' | 'C' = 'C') {
     const cont = new Container();
 
-    const tile = new claz(...args) as TileLib, base = tile.baseShape as PaintableShape;
+    const tile = new claz(...args) as TileLib;
     this.setOrientation(tile, gridSpec);
     color && tile.paint(color);
-    // TileShape indicates a MapTile [mostly?]
-    const backRad = (base instanceof TileShape) ? tile.radius * H.sqrt3_2 * (55 / 60) : 0;
-    const back = new CircleShape(C.WHITE, backRad);
     const bleedShape = this.makeBleed(tile, gridSpec, edge)
-    cont.addChild(bleedShape, back, tile);
+    cont.addChild(bleedShape, tile);
 
     return cont;
   }

@@ -48,7 +48,7 @@ export class ImageGrid {
     // width: 2530, height: 3290,
     x0: .9, y0: 1.0,
     delx: (1 + 1 / 8), dely: (1 + 1 / 8),
-    dpi: 300,
+    dpi: 300, double: false,
   }
 
   /** 5 rows of 7 columns */
@@ -56,7 +56,7 @@ export class ImageGrid {
     width: 3300, height: 2550, nrow: 5, ncol: 7,
     x0: 576, y0: 451,
     delx: 357, dely: 413.1, bleed: 27, trimLCR: true,
-    dpi: 1,
+    dpi: 1, double: false,
   }
 
   /** 5 rows of 7 columns */
@@ -72,7 +72,7 @@ export class ImageGrid {
     width: 3300, height: 5100, nrow: 8, ncol: 8,
     x0: 242, y0: 335, x1: 430,
     delx: 375, dely: 375,  // ; 2625/7 = 375 ; 1876/5 = 375.2
-    dpi: 1,
+    dpi: 1, double: true,
   }
     // (define PPG-POKER-18-SPEC '((file "PPGPoker18-0.png") (cardw 1108) (cardh 808)
     // (xmin 120) (ymin 85) (xinc 1125) (yinc 825)
@@ -86,7 +86,7 @@ export class ImageGrid {
 	// (xmin 150) (ymin 100) (xinc 833) (yinc 578.25)
 	// (over 1) (bleed 25) (xlim 3600) (ylim 5400))
   static cardSingle_1_75: GridSpec = {
-    width: 3600, height: 5400, nrow: 9, ncol: 4, cardw: 750, cardh: 525,
+    width: 3600, height: 5400, nrow: 9, ncol: 4, cardw: 750, cardh: 525, double: false,
     x0: 258 + 1.75 * 150 + 30, y0: 96 + 1.75 * 150 + 30, delx: 833, dely: 578.25, bleed: 25,
   };
 
@@ -95,7 +95,6 @@ export class ImageGrid {
 
   constructor(makePageSpecs: () => PageSpec[], buttonId = 'makePage', label = 'MakePages') {
     this.setAnchorClick(buttonId, label, () => {
-      console.log(stime(this, `.makePages: clicked`))
       this.setAnchorClick(buttonId, 'Making...')
       setTimeout(() => {
         this.downloadPageSpecs(makePageSpecs());

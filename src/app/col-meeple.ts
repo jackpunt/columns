@@ -78,9 +78,9 @@ export namespace CB {
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel;
 
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
-  static radius = .67 // * ColCard.onScreenRadius
+  static radius = .67 // * CardShape.onScreenRadius
   constructor(label: string, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
-    const { bgColor, player } = opts, rad = CardButton.radius * ColCard.onScreenRadius;
+    const { bgColor, player } = opts, rad = CardButton.radius * CardShape.onScreenRadius;
     opts.fontSize = 30 * rad / 60;
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
     this.altRectShape(bgColor, rad); // rectShape = CardShape;

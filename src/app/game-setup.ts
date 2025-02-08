@@ -1,5 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { GamePlay } from './game-play';
@@ -34,7 +35,7 @@ export class GameSetup extends GameSetupLib {
   }
   override startup(qParams?: { [x: string]: any; }): void {
     // TODO: place all ColCards
-    ColCard.nextRadius = ColCard.onScreenRadius; // reset for on-screen PathCard
+    ColCard.nextRadius = CardShape.onScreenRadius; // reset for on-screen PathCard
     super.startup(qParams)
   }
 

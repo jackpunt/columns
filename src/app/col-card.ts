@@ -14,10 +14,9 @@ export class ColCard extends Tile {
   // static get allCards() { return Array.from(this.cardByName.values()) }
   static allCards: ColCard[] = [];
   static allCols: ColCard[] = [];
-  /** recompute if TP.hexRad has been changed */
-  static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
+
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
-  static nextRadius = ColCard.onScreenRadius; // when super() -> this.makeShape()
+  static nextRadius = CardShape.onScreenRadius; // when super() -> this.makeShape()
   _radius = ColCard.nextRadius;           // when PathCard.constructor eventually runs
   override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
   override get isMeep() { return false; }
@@ -165,10 +164,12 @@ export class DualCard extends ColCard {
   static allDuals: DualCard[] = []
 
   override get maxCells() { return 2 }
+  declare baseShape: CardShape;
 
   constructor(Aname: string, faction0: number, faction1: number) {
     super(Aname, faction0, faction1);
-    this.dualColor();
+    this.baseShape.dualCgf(C.BLACK, ...[faction0, faction1].map(f => ColCard.factionColors[f]));
+    this.paint('ignored')
   }
 
   // determine if meep was dropped on left or right cell
@@ -188,26 +189,6 @@ export class DualCard extends ColCard {
     return { x: this.cellWidth * (ndx - .5) / 2, y: 0 }
   }
   override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
-
-  /** modify baseShape.cgf to paint 2 cells */
-  dualColor(): Paintable {
-    // retool a RectShape with 2 X drawRect(); sadly only the last one renders!
-    const rv = this.baseShape as RectShape; // CardShape
-    const [c1, c2] = this.factions.map(f => ColCard.factionColors[f])
-    // h0 = rad - 2 * (.04 * rad) = .92*rad
-    const { w: w0, h: h0 } = rv._rect, rad = h0 / .92;
-    const s = rad * .04;
-    const w = w0 + s, h = h0 + s;
-    const w2 = w / 2, rr = Math.max(w0, h0) * .05;
-    rv._cgf = (colorn: string, g = rv.g0) => {
-      g.s('black').ss(s);
-      g.f(c1).rc(-w2, -h / 2, w2, h, rr, 0, 0, rr);
-      g.f(c2).rc(0  , -h / 2, w2, h, 0, rr, rr, 0);
-      return g
-    }
-    this.paint('ignored'); // the given colorn is ignored by the cgf above
-    return rv
-  }
 }
 
 export class BlackCard extends ColCard {
