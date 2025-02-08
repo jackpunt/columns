@@ -1,4 +1,4 @@
-import { C, type XY } from "@thegraid/common-lib";
+import { C, F, type XY } from "@thegraid/common-lib";
 import { NamedContainer, RectShape, type Paintable } from "@thegraid/easeljs-lib";
 import { H, Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
@@ -8,10 +8,12 @@ import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
+import { Text } from "@thegraid/easeljs-module";
 
 export class ColCard extends Tile {
   // static get allCards() { return Array.from(this.cardByName.values()) }
   static allCards: ColCard[] = [];
+  static allCols: ColCard[] = [];
   /** recompute if TP.hexRad has been changed */
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
@@ -120,11 +122,6 @@ export class ColCard extends Tile {
     super.showTargetMark(hex, ctx)
   }
 
-  /** how many of which Claz to construct & print: for TileExporter */
-  static countClaz(n = 2) {
-    return [].map(x => [n, ColCard, 750]) as CountClaz
-  }
-
   // Sets of cards:
   // 1. ColTiles: tableau cards (nr: nHexes X nc: mHexes, some with 2 offices?) + black rows
   // shuffle and deal with gameSetup.placeCardsOnMap()
@@ -138,18 +135,21 @@ export class ColCard extends Tile {
 
   static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, ) {
     ColCard.allCards.length = 0;
-    // narrative: R:military, G:bankers, B:merchant, P:aristocrat
-    const nCards = nc * nr, nFacs = 4;
-    for (let n = -2 * nc; n < nCards; n += nFacs) {
-      for (let fact = 1; fact <= nFacs; fact++) {
-        const faction = n < 0 ? 0 : fact, aname = `:${faction}`;
-        const card = (faction == 0) ? new BlackCard(aname) : new ColCard(aname, faction);
-        if (faction > 0) {
-          const f1 = faction, f2 = 1 + (Math.floor(n / nFacs) % nFacs);
-          const dual = new DualCard(`${n+nCards}:${f1}&${f2}`, f1, f2);
-        }
-      }
-    }
+    const nCards = nc * nr, nFacs = 4; // number of factions
+
+    BlackCard.seqN = undefined;
+    BlackCard.allBlack = arrayN(nc * 2).map(i => new BlackCard(`:0`, nc));
+
+    ColCard.allCols = arrayN(nCards).map(n => {
+      const fact = 1 + (n % nFacs), aname = `:${fact}`;
+      return new ColCard(aname, fact);
+    })
+
+    DualCard.allDuals = arrayN(nCards).map(n => {
+      const n4 = Math.floor(n / nFacs)
+      const f1 = 1 + (n % nFacs), f2 = 1 + (n4 % nFacs);
+      return new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
+    })
   }
 
   static source: TileSource<ColCard>;
@@ -160,8 +160,11 @@ export class ColCard extends Tile {
     return src;
   }
 }
-class DualCard extends ColCard {
- override get maxCells() { return 2 }
+
+export class DualCard extends ColCard {
+  static allDuals: DualCard[] = []
+
+  override get maxCells() { return 2 }
 
   constructor(Aname: string, faction0: number, faction1: number) {
     super(Aname, faction0, faction1);
@@ -204,12 +207,25 @@ class DualCard extends ColCard {
   }
 }
 
-class BlackCard extends ColCard {
+export class BlackCard extends ColCard {
   override get maxCells() { return TP.numPlayers * 2 }
 
-  constructor(Aname: string) {
+  static allBlack: BlackCard[] = [];
+  static seqN?: number;
+  static countClaz(n = 0): CountClaz[] {
+    BlackCard.seqN = undefined; // reset sequence
+    return [[n, DupBlack, 'BlackCard', n]]
+  }
+
+  constructor(Aname: string, seqLim = 0) {
     super(Aname, 0) // initial factions[] for painting color
     this.factions = arrayN(this.maxCells, i => 0);
+    const colNum = BlackCard.seqN = (BlackCard.seqN === undefined) ? 1 : BlackCard.seqN + 1;
+    if (colNum <= seqLim) {
+      const colId = new Text(`${colNum}`, F.fontSpec(this.radius * .2), C.WHITE,)
+      colId.y = this.radius * .3;
+      this.addChild(colId)
+    }
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {
@@ -233,5 +249,45 @@ export class CardHex extends Hex2 {
 
   override makeHexShape(colorn = C.grey224): Paintable {
     return new CardShape(colorn);
+  }
+}
+
+export class DupCard extends ColCard {
+  static seqN = 0;
+  /** how many of which Claz to construct & print: for TileExporter */
+  static countClaz(n = 1): CountClaz[] {
+    return [[n, DupCard]]
+  }
+
+  constructor(allCards = ColCard.allCols) {
+    ColCard.nextRadius = 750
+    if (DupCard.seqN  >= allCards.length) DupCard.seqN = 0
+    const n = DupCard.seqN++;
+    const card = allCards[n], { Aname, factions } = card;
+    super(Aname, ...factions);
+    ColCard.allCards.pop()
+    return;
+  }
+}
+export class DupDual extends DualCard {
+  static seqN = 0;
+  static countClaz(n = 20): CountClaz[] {
+    return [[n, DupDual]];
+  }
+  constructor(allCards = DualCard.allDuals) {
+    ColCard.nextRadius = 750
+    if (DupDual.seqN >= allCards.length) DupDual.seqN = 0
+    const n = DupDual.seqN++;
+    const card = allCards[n], { Aname, factions } = card;
+    super(Aname, factions[0], factions[1]);
+    ColCard.allCards.pop();
+  }
+}
+
+export class DupBlack extends BlackCard {
+  constructor(Aname: string, seqLim = 0) {
+    ColCard.nextRadius = 750
+    super(Aname, seqLim)
+    ColCard.allCards.pop();
   }
 }

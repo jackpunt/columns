@@ -3,8 +3,9 @@ import { CircleShape, PaintableShape } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
 import { H, Tile as TileLib, TileShape } from "@thegraid/hexlib";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
-import { ColCard } from "./col-card";
+import { BlackCard, ColCard, DualCard, DupCard, DupDual } from "./col-card";
 import { Player } from "./player";
+import { TP } from "./table-params";
 // end imports
 
 interface Tile extends DisplayObject {
@@ -25,9 +26,13 @@ export class TileExporter {
   imageGrid = new ImageGrid(() => { return this.makeImagePages() });
 
   makeImagePages() {
-    const u = undefined, p0 = Player.allPlayers[0], p1 = Player.allPlayers[1];
+    const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows*nCols;
+    // [...[count, claz, ...constructorArgs]]
     const cardSingle = [
-      ...ColCard.countClaz()// [count, claz, ...constructorArgs]
+      ...BlackCard.countClaz(8),
+      ...BlackCard.countClaz(0),
+      ...DupCard.countClaz(nCards),
+      ...DupDual.countClaz(nCards),
     ] as CountClaz[];
     const hexSingle = [
     ] as CountClaz[];

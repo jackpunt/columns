@@ -37,7 +37,7 @@ export class Player extends PlayerLib implements IPlayer {
   static { PlayerLib.colorScheme = playerColors.concat() }
   static override colorScheme: PlayerColor[];
 
-  static override allPlayers: Player[];
+  declare static allPlayers: Player[];
 
   override get color(): PlayerColor { return super.color as PlayerColor; }
   override set color(c: PlayerColor) { super.color = c; }

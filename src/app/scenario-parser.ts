@@ -1,6 +1,6 @@
 import { permute, stime } from "@thegraid/common-lib";
 import { Meeple, ScenarioParser as SPLib, SetupElt as SetupEltLib, type Tile, type TileSource } from "@thegraid/hexlib";
-import { ColCard } from "./col-card";
+import { BlackCard, ColCard, DualCard } from "./col-card";
 import { type GamePlay, } from "./game-play";
 import { Player } from "./player";
 import { TP } from "./table-params";
@@ -22,10 +22,12 @@ export class ScenarioParser extends SPLib {
   declare gamePlay: GamePlay;
   setUnitsFromSource<T extends Tile>(nameArys: string[][] | undefined, type: { source: TileSource<T> },
     getItem: ((name: string) => T | undefined) | undefined,
-    setItem: (player: Player) => (item: T | undefined) => any) {
+    setItem: (player: Player) => (item: T | undefined) => any)
+  {
+    const allPlayers = this.gamePlay.allPlayers;
     if (getItem === undefined) getItem = (name) => type.source.filterUnits().find(u => u.Aname == name);
     nameArys?.forEach((names, pndx) => {
-      const player = Player.allPlayers[pndx];
+      const player = allPlayers[pndx];
       names.forEach(name => {
         const item = getItem(name)
         if (!item) {
@@ -63,24 +65,24 @@ export class ScenarioParser extends SPLib {
 
   // TODO: parameterize with savedState (vs permute)
   placeCardsOnMap() {
-    const allCards = ColCard.allCards
-    const black = allCards.filter(card => card.faction == 0);
-    const other = allCards.filter(card => card.faction != 0);
-    const pCards = other.filter(card => !card.Aname.includes('&'));
-    const dCards = other.filter(card => card.Aname.includes('&'));
+    const gp = this.gamePlay, nr = gp.nRows, nCards = nr * gp.nCols;
+    const black = BlackCard.allBlack;
+    const pCards = ColCard.allCols.slice();
+    const dCards = DualCard.allDuals.slice();
+    const black0 = black.filter((card, n) => n >= gp.nCols); // row0; rankN
+    const blackN = black.filter((card, n) => n < gp.nCols);  // rowN; rank0
     permute(pCards)
     permute(dCards)
-    const gp = this.gamePlay, nr = gp.nRows, nCards = nr * gp.nCols;
     const nDual = Math.round(nCards * TP.rDuals), nPlain = nCards - nDual;
     const duals = dCards.slice(0, nDual)
     const plain = pCards.slice(0, nPlain)
-    const cards = duals.concat(plain);
+    const cards = plain.concat(duals);
     permute(cards);
 
-    const row0 = nr - 1;
+    const rank0 = nr - 1;
     this.gamePlay.hexMap.forEachHex(hex => {
       const row = hex.row;
-      const card = ((row == 0 || row == row0) ? black : cards).shift() as ColCard;
+      const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
       card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
       return;
     })
