@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
 import { Title } from '@angular/platform-browser';
+import { RouterOutlet } from '@angular/router';
 import { stime } from '@thegraid/common-lib';
-import { KeyBinder } from '@thegraid/easeljs-lib';
 import { StageComponent } from './stage/stage.component';
 
 @Component({
