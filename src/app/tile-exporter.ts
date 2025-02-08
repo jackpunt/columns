@@ -2,8 +2,9 @@ import { C, Constructor, stime } from "@thegraid/common-lib";
 import { CircleShape, PaintableShape } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
 import { H, Tile as TileLib, TileShape } from "@thegraid/hexlib";
+import { BlackCard, DupCard, DupDual } from "./col-card";
+import { TrackSegment } from "./col-table";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
-import { BlackCard, ColCard, DualCard, DupCard, DupDual } from "./col-card";
 import { Player } from "./player";
 import { TP } from "./table-params";
 // end imports
@@ -28,25 +29,22 @@ export class TileExporter {
   makeImagePages() {
     const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows*nCols;
     // [...[count, claz, ...constructorArgs]]
-    const cardSingle = [
+    const cardSingle_3_5 = [
+      [18, TrackSegment, '', 1050/9, 750/2],
+      [18, TrackSegment, '', 1050/9, 750/2],
+    ] as CountClaz[];
+    const cardSingle_1_75 = [
       ...BlackCard.countClaz(8),
-      ...BlackCard.countClaz(0),
-      ...DupCard.countClaz(nCards),
-      ...DupDual.countClaz(nCards),
-    ] as CountClaz[];
-    const hexSingle = [
-    ] as CountClaz[];
-    const hexDouble = [ // [count, claz, ...constructorArgs]
-    ] as CountClaz[];
-    const circDouble = [ // [count, class],
+      ...DupCard.countClaz(28),
+      ...BlackCard.countClaz(8),
+      ...DupCard.countClaz(8),
+      ...DupDual.countClaz(16),
     ] as CountClaz[];
 
     const pageSpecs: PageSpec[] = [];
-    // this.clazToTemplate(circDouble, ImageGrid.circDouble_0_79, pageSpecs);
-    // this.clazToTemplate(ruleFront, ImageGrid.cardSingle_3_5, pageSpecs);
-    this.clazToTemplate(hexDouble, ImageGrid.hexDouble_1_19, pageSpecs);
-    this.clazToTemplate(cardSingle, ImageGrid.cardSingle_3_5, pageSpecs);
-    this.clazToTemplate(hexSingle, ImageGrid.hexSingle_1_19, pageSpecs);
+
+    // this.clazToTemplate(cardSingle_3_5, ImageGrid.cardSingle_3_5, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 
@@ -77,18 +75,13 @@ export class TileExporter {
   }
 
   makeBleed(tile: TileLib, gridSpec: GridSpec, edge: 'L' | 'R' | 'C' = 'C') {
-    const base = tile.baseShape as PaintableShape
-    const bleedShape = tile.makeShape(), bleed = gridSpec.bleed ?? 0;
-    bleedShape.rotation = tile.rotation;
-    const { x, y, width, height } = bleedShape.getBounds()
-    bleedShape.scaleX = (width + 2 * bleed) / width;
-    bleedShape.scaleY = (height + 2 * bleed) / height;
-    bleedShape.paint(base.colorn ?? C.grey, true);
+    const bleed = gridSpec.bleed ?? 0;
+    const bleedShape = tile.makeBleed(bleed)
 
     if (gridSpec.trimLCR) { // for close-packed shapes, exclude bleed on C edges
       // trim bleedShape to base.bounds; allow extra on first/last column of row:
       const dx0 = (edge === 'L') ? bleed : 0, dw = (edge === 'R') ? bleed : 0;
-      const { x, y, width, height } = base.getBounds(), dy = -3;
+      const { x, y, width, height } = tile.getBounds(), dy = -3;
       bleedShape.setBounds(x, y, width, height);
       bleedShape.cache(x - dx0, y - dy, width + dx0 + dw, height + 2 * dy);
     }

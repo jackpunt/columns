@@ -97,7 +97,7 @@ export class Player extends PlayerLib implements IPlayer {
   makeCardButtons(ncol = 4, ncoin = 4) {
     const opts = { visible: true, bgColor: this.color, player: this }
     const { width, height } = new ColSelButton(0, opts).getBounds(); // temp Button to getBounds()
-    const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap2;
+    const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap;
     const dy = height + gap;
     const makeButton = (claz: Constructor<CardButton>, num: number, row = 0) => {
       const x0 = (width / 2) + (wide - (num * dx - gap2)) / 2;
@@ -236,7 +236,7 @@ export class Player extends PlayerLib implements IPlayer {
       [-dx * 4, 0],
     ];
     let pc: XY = { x: x - wide * 2, y }
-    this.factionCounters = ColCard.factionColors.slice().reverse().map((color, ndx) => {
+    this.factionCounters = ColCard.factionColors.slice(0,4).reverse().map((color, ndx) => {
       if (ngt4) {
         return pc = this.makeCounter(leftOf(pc), color, fs)
       } else { // purple, blue, yellow, red, black

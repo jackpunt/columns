@@ -1,6 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
-import { CardHex, ColCard } from './col-card';
+import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { GamePlay } from './game-play';
 import { OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
@@ -110,8 +110,6 @@ export class GameSetup extends GameSetupLib {
 
   override startScenario(scenario: Scenario0) {
     const gp = super.startScenario(scenario)
-    const cmh = this.table.hexMap.cardMarkHexes;
-    cmh.splice(0, cmh.length, ...CardHex.allCardHex)
     return gp
   }
 }

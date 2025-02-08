@@ -78,7 +78,7 @@ export namespace CB {
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel;
 
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
-  static radius = .7 // * ColCard.onScreenRadius
+  static radius = .67 // * ColCard.onScreenRadius
   constructor(label: string, opts: UtilButtonOptions & TextInRectOptions & { player: Player }) {
     const { bgColor, player } = opts, rad = CardButton.radius * ColCard.onScreenRadius;
     opts.fontSize = 30 * rad / 60;
@@ -91,7 +91,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     // make dimmer & highlight:
     const dColor = 'rgba(100,100,100,.5)', vert = true;
     this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
-    this.addChildAt(this.highlight = new CardShape(C.black, undefined, rad * 1.04, vert), 0); // under baseShape
+    this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, rad * 1.05, vert), 0); // under baseShape
     this.addChild(this.canceled = this.makeCancelShape())
     this.highlight.setRectRad({ s: 4 })
     this.setState(CB.clear);
@@ -176,7 +176,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   /** replace UtilButton's border RectShape with CardShape */
   altRectShape(color = C.WHITE, rad = CardButton.radius) {
     this.removeChild(this.rectShape);
-    this.rectShape = new CardShape(color, undefined, rad, true);
+    this.rectShape = new CardShape(color, C.grey, rad, true, rad * .03);
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()

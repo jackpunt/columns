@@ -1,5 +1,5 @@
 import { C, F, type XY } from "@thegraid/common-lib";
-import { NamedContainer, RectShape, type Paintable } from "@thegraid/easeljs-lib";
+import { NamedContainer, RectShape, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import { H, Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColMeeple } from "./col-meeple";
@@ -25,7 +25,7 @@ export class ColCard extends Tile {
   override get hex(): Hex1 { return super.hex as Hex1 }
   override set hex(hex: Hex1) { super.hex = hex }
 
-  static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE];
+  static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE, C.WHITE];
   factions = [0];
   get faction() { return this.factions[0] }
 
@@ -137,7 +137,7 @@ export class ColCard extends Tile {
     ColCard.allCards.length = 0;
     const nCards = nc * nr, nFacs = 4; // number of factions
 
-    BlackCard.seqN = undefined;
+    BlackCard.seqN = 0;
     BlackCard.allBlack = arrayN(nc * 2).map(i => new BlackCard(`:0`, nc));
 
     ColCard.allCols = arrayN(nCards).map(n => {
@@ -194,12 +194,15 @@ export class DualCard extends ColCard {
     // retool a RectShape with 2 X drawRect(); sadly only the last one renders!
     const rv = this.baseShape as RectShape; // CardShape
     const [c1, c2] = this.factions.map(f => ColCard.factionColors[f])
-    const { x, y, width, height } = rv.getBounds();
-    const w2 = width / 2, rr = Math.max(width, height) * .05;
+    // h0 = rad - 2 * (.04 * rad) = .92*rad
+    const { w: w0, h: h0 } = rv._rect, rad = h0 / .92;
+    const s = rad * .04;
+    const w = w0 + s, h = h0 + s;
+    const w2 = w / 2, rr = Math.max(w0, h0) * .05;
     rv._cgf = (colorn: string, g = rv.g0) => {
-      g.s('black').ss(1);
-      g.f(c1).rc(x, y, w2, height, rr, 0, 0, rr);
-      g.f(c2).rc(0, y, w2, height, 0, rr, rr, 0);
+      g.s('black').ss(s);
+      g.f(c1).rc(-w2, -h / 2, w2, h, rr, 0, 0, rr);
+      g.f(c2).rc(0  , -h / 2, w2, h, 0, rr, rr, 0);
       return g
     }
     this.paint('ignored'); // the given colorn is ignored by the cgf above
@@ -211,21 +214,18 @@ export class BlackCard extends ColCard {
   override get maxCells() { return TP.numPlayers * 2 }
 
   static allBlack: BlackCard[] = [];
-  static seqN?: number;
+  static seqN = 0;
   static countClaz(n = 0): CountClaz[] {
-    BlackCard.seqN = undefined; // reset sequence
     return [[n, DupBlack, 'BlackCard', n]]
   }
 
   constructor(Aname: string, seqLim = 0) {
     super(Aname, 0) // initial factions[] for painting color
     this.factions = arrayN(this.maxCells, i => 0);
-    const colNum = BlackCard.seqN = (BlackCard.seqN === undefined) ? 1 : BlackCard.seqN + 1;
-    if (colNum <= seqLim) {
-      const colId = new Text(`${colNum}`, F.fontSpec(this.radius * .2), C.WHITE,)
-      colId.y = this.radius * .3;
-      this.addChild(colId)
-    }
+    const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
+    const colId = new Text(`${colNum}`, F.fontSpec(this.radius * .2), C.WHITE,)
+    colId.y = this.radius * .3;
+    this.addChild(colId)
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {
@@ -238,20 +238,6 @@ export class BlackCard extends ColCard {
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 }
 
-/** CardShape'd "Hex" for placement of PathCard */
-export class CardHex extends Hex2 {
-  /** record all CardHex for PathCard.markLegal() */
-  static allCardHex = [] as CardHex[];
-  constructor(map: HexMap2, row = 0, col = 0, Aname = '') {
-    super(map, row, col, Aname)
-    CardHex.allCardHex.push(this);
-  }
-
-  override makeHexShape(colorn = C.grey224): Paintable {
-    return new CardShape(colorn);
-  }
-}
-
 export class DupCard extends ColCard {
   static seqN = 0;
   /** how many of which Claz to construct & print: for TileExporter */
@@ -260,12 +246,13 @@ export class DupCard extends ColCard {
   }
 
   constructor(allCards = ColCard.allCols) {
-    ColCard.nextRadius = 750
+    ColCard.nextRadius = 525
     if (DupCard.seqN  >= allCards.length) DupCard.seqN = 0
     const n = DupCard.seqN++;
     const card = allCards[n], { Aname, factions } = card;
     super(Aname, ...factions);
-    ColCard.allCards.pop()
+    ColCard.allCards.pop();
+    ;(this.baseShape as PaintableShape).colorn = C.BLACK; // set for bleed.color
     return;
   }
 }
@@ -275,7 +262,7 @@ export class DupDual extends DualCard {
     return [[n, DupDual]];
   }
   constructor(allCards = DualCard.allDuals) {
-    ColCard.nextRadius = 750
+    ColCard.nextRadius = 525
     if (DupDual.seqN >= allCards.length) DupDual.seqN = 0
     const n = DupDual.seqN++;
     const card = allCards[n], { Aname, factions } = card;
@@ -286,7 +273,7 @@ export class DupDual extends DualCard {
 
 export class DupBlack extends BlackCard {
   constructor(Aname: string, seqLim = 0) {
-    ColCard.nextRadius = 750
+    ColCard.nextRadius = 525
     super(Aname, seqLim)
     ColCard.allCards.pop();
   }

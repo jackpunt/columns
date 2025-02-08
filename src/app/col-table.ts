@@ -1,5 +1,5 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { afterUpdate, CenterText, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
@@ -266,12 +266,6 @@ class TrackGen {
 type faction =  0 | 1 | 2 | 3 | 4;
 
 class ScoreTrack extends NamedContainer {
-  // anames derived from TrackGen (monte carlo search)
-  static anames = [
-    'rvgb+vrbg', 'bgvr+gbrv', 'rgbv+grvb', 'gvbr+vgrb',
-    'vrgb+rvbg', 'brvg+rbgv', 'bgrv+gbvr', 'grbv+rgvb',
-    'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
-  ];
 
   /** [0] upper-row factions; [1] lower-row factions  */
   factions: [faction[], faction[]] = [[0], [0]]; // initial 0 ('B') cell
@@ -298,15 +292,15 @@ class ScoreTrack extends NamedContainer {
     const cardRad = new CardShape().getBounds().height / 2;
     const dx = this.dx = this.radius * 1.2, dy = this.dy = Math.max(dx * TP.numPlayers, cardRad);
 
-    const tracks12 = ScoreTrack.anames.map(aname => new TrackSegment(aname, dx, dy)); // make 12 Segments
+    const tracks12 = TrackSegment.anames.map(aname => new TrackSegment(aname, dx, dy,)); // make 12 Segments
     const trackSegs = permute(tracks12).slice(0, nElts);     // select nElts for this table
     trackSegs.forEach((seg, n) => {
-      const [f0, f1] = seg.factions; // upper and lower factions for cells [1..9]
+      const [f0, f1] = seg.facts; // upper and lower factions for cells [1..9]
       this.factions[0] = this.factions[0].concat(f0);
       this.factions[1] = this.factions[1].concat(f1);
       this.segmentCont.addChild(seg);
       seg.y = dy;
-      seg.x = dx * n * 9;
+      seg.x = dx * (n * 9 + 4.5);
     })
     // extend BLACK on each end by w = dx / 2; (on segmentCont, not in TrackSegment)
     const x = 0, y = 0, w = dx / 2, h = 2 * dy, s = 1, nx9 = (nElts * 9);
@@ -411,7 +405,15 @@ type RGBV = 'B' | 'r' | 'g' | 'b' | 'v';   // Black, red, gold, blue, violet
 const rgbvIndex: Record<RGBV, faction> = { 'B': 0, 'r': 1, 'g': 2, 'b': 3, 'v': 4 }
 
 /** a segment of the score track; B-rgbv-vbgr-B (where B is half size) */
-class TrackSegment extends NamedContainer {
+export class TrackSegment extends ColCard {
+  // anames derived from TrackGen (monte carlo search)
+  static anames = [
+    'rvgb+vrbg', 'bgvr+gbrv', 'rgbv+grvb', 'gvbr+vgrb',
+    'vrgb+rvbg', 'brvg+rbgv', 'bgrv+gbvr', 'grbv+rgvb',
+    'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
+  ];
+  static seqN = 0;
+
   /**
    * 9 * 12 = 108; 9 * 11 = 99 (end of game)
    * @example
@@ -422,9 +424,16 @@ class TrackSegment extends NamedContainer {
    * @param w [20] width of cell, marker radius * 1.1
    * @param h [80] height of cell, marker radius * nPlayers
    */
-  constructor(Aname: string, w = 20, h = 80) {
-    super(Aname)
+  constructor(Aname: string, w = 20, h = 80, bleed = 0) {
+    if (!Aname) {
+      if (TrackSegment.seqN >= TrackSegment.anames.length) TrackSegment.seqN = 0;
+      Aname = TrackSegment.anames[TrackSegment.seqN++]
+    }
+    super(Aname, 5)
+    this.removeAllChildren();
     this.setBounds(0, 0, 0, 0);
+    this.addChild(this.slots); this.slots.x = w * -4.5;
+    this.wh = { w, h }
     const B = ['B'] as RGBV[];
     const [rgbv0, rgbv1] = Aname.split('+');
     const ary0 = rgbv0.split('') as RGBV[], ary1 = rgbv1.split('') as RGBV[];
@@ -432,22 +441,42 @@ class TrackSegment extends NamedContainer {
     const factions10 = B.concat(ary1, ary0, B).reverse().map(s => rgbvIndex[s]);
     factions01.forEach((f0, n) => {
       const f1 = factions10[n];
-      this.addSlot(n, f0, f1, { w, h }); // half-slot for B on each end.
+      this.addSlot(n, f0, f1, w, h + bleed, bleed); // half-slot for B on each end.
     })
-    this.factions = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
+    this.facts = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
     const { x, y, width, height } = this.getBounds() // x = 0, y = -dy, width = 9 * dx, height = 2 * dy;
     this.cache(x, y, width, height, 4);
   }
-  factions: [faction[], faction[]];
+  /** slot size */
+  wh!: { w: number, h: number }
+  facts: [faction[], faction[]];
+  slots = new NamedContainer('slots');
 
-  addSlot(n: number, f1: number, f2: number, wh: { w: number, h: number }, s = 1) {
+  addSlot(n: number, f1: number, f2: number, w: number, h: number, bleed = 0, s = 1) {
     const factionColor = (faction: number) => ColCard.factionColors[faction];
-    const c1 = factionColor(f1), c2 = factionColor(f2)
-    const { w, h } = wh, we = (f1 == 0) ? w / 2 : w;
-    const x = w * n + ((n == 0) ? 0 : - w / 2) + 1; // shift right by 1 px to align with counters
+    const c1 = factionColor(f1), c2 = factionColor(f2), b0 = (bleed == 0)
+    const we = (f1 == 0) ? (b0 ? w / 2 : w / 2 + bleed) : w;
+    const x = w * n + ((n == 0) ? (b0 ? 0 : -bleed) : - w / 2) + 1; // shift right by 1 px to align with counters
     const rect1 = new RectShape({ s, x, w: we, h, y: -h }, c1);
     const rect2 = new RectShape({ s, x, w: we, h, y: .0 }, c2);
-    this.addChild(rect1, rect2)
+    this.slots.addChild(rect1, rect2)
     this.setBoundsNull(); // so createjs will compute containers bounds from children.
   }
+  override makeBleed(bleed: number) {
+    const { w, h } = this.wh;
+    const rv = new TrackSegment(this.Aname, w, h, bleed);
+    this.removeAllChildren();
+    this.addChild(rv);
+    this.reCache();
+    return rv
+  }
+}
+
+export class SetupCard extends ColCard {
+  constructor() {
+    super(`Setup`, 5)
+    this.addChild(new CenterText(`This is card`, 50, ))
+  }
+
+  override get bleedColor(): string { return C.BLACK }
 }

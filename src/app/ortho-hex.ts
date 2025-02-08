@@ -95,7 +95,7 @@ export class OrthoHex2 extends OrthoHex2Lib {
 export class HexMap2 extends HexMap<OrthoHex2> {
   constructor(radius?: number, addToMapCont?: boolean, hexC: Constructor<OrthoHex2> = OrthoHex2, Aname?: string) {
     super(radius, addToMapCont, hexC, Aname)
-    this.cardMark = new CardShape(C.nameToRgbaString(C.grey128, .3), '');
+    this.cardMark = new CardShape(C.nameToRgbaString(C.grey128, .3), '', .8);
     this.cardMark.mouseEnabled = false; // prevent objectUnderPoint!
   }
   /** the Mark to display on cardMarkhexes */
@@ -103,7 +103,7 @@ export class HexMap2 extends HexMap<OrthoHex2> {
   /** Hexes for which we show the CardMark */
   cardMarkHexes: Hex[] = []
   override showMark(hex?: Hex): void {
-    const isCardHex = (hex && this.cardMarkHexes.includes(hex))
+    const isCardHex = true;//(hex && this.cardMarkHexes.includes(hex))
     super.showMark(hex, isCardHex ? this.cardMark : this.mark);
     if (!hex) this.cardMark.visible = false;
   }
