@@ -192,13 +192,14 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
 
   makeShape() {
-    const { colorn, radius: rad } = this.rectShape as CardShape
-    return new CardShape(C.grey224, C.grey224, rad, true, rad * .03)
+    const { radius: rad, strokec } = this.rectShape as CardShape
+    return new CardShape(strokec, strokec, rad, true)
   }
   makeBleed(bleed: number) {
-    return (new Tile('demo')).makeBleed.call(this, bleed)
+    return (new Tile('bleed')).makeBleed.call(this, bleed)
   }
 }
+
 export class ColSelButton extends CardButton {
 
   override get plyrButtons(): CardButton[] { return this.player.colSelButtons }

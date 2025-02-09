@@ -29,20 +29,20 @@ export class TileExporter {
   makeImagePages() {
     const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows*nCols;
     // [...[count, claz, ...constructorArgs]]
-    const cardSingle_3_5 = [
+    const cardSingle_3_5_track = [
       [12, TrackSegment, '', 1050/9, 750/2],
-      [6, SetupCard, '野心', 750],
-      // card back if we want it.      // [18, TrackSegment, '', 1050/9, 750/2],
+      [3, SetupCard, '野心', 750],
+      [3, SetupCard, '"利刃出击"', 750], //  '"利刃出击"' // (Blades Strike: "Knives Out")
     ] as CountClaz[];
     const cardSingle_1_75_back = [
-      [36, SetupCard, '野心'],   // card back if we want it.
+      [36, SetupCard, '"利刃出击"'],   // card back if we want it.
     ] as CountClaz[];
     const cardSingle_1_75_base = [
       ...BlackCard.countClaz(8),
       ...BlackCard.countClaz(8),
-      ...PrintCol.countClaz(20),
-      ...PrintCol.countClaz(20),
       ...PrintDual.countClaz(16),
+      ...PrintCol.countClaz(4),
+      ...PrintCol.countClaz(36),
     ]
     const cardSingle_1_75_hand = [
       ...PrintBidValue.countClaz(4, 0, 525),
@@ -69,10 +69,10 @@ export class TileExporter {
 
     const pageSpecs: PageSpec[] = [];
 
-    // this.clazToTemplate(cardSingle_3_5, ImageGrid.cardSingle_3_5, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 
