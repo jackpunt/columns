@@ -27,15 +27,24 @@ export interface IPlayer {
   commitCards(): void;
 }
 
-// do not conflict with AF.Colors
-const playerColors = ['#663300', '#FF33CC', '#FF9900', '#66CC00', C.grey92, 'yellow', 'tan', '#ab47bc', 'lightblue', 'white'] as const;
-
-export type PlayerColor = typeof playerColors[number];
+export type PlayerColor = string;
 export class Player extends PlayerLib implements IPlayer {
   static initialCoins = 400;
-  // set our multi-player colors (concept from Ankh?); we don't use the TP.colorScheme
-  static { PlayerLib.colorScheme = playerColors.concat() }
-  declare static colorScheme: PlayerColor[];
+  // set our multi-player colors; we don't use the TP.colorScheme
+  static {
+    PlayerLib.colorScheme = {
+      brown: '#663300',
+      pink: '#FF33CC',
+      orange: '#FF9900',
+      green: '#66CC00',
+      grey: '#5c5c5c',
+      yellow: 'yellow',
+      tan: 'tan',
+      purple: '#ab47bc',
+      blue: 'lightblue',
+      white: 'white'
+    }
+  }
 
   declare static allPlayers: Player[];
 
