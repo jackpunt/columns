@@ -1,8 +1,8 @@
-import { C, Constructor, stime } from "@thegraid/common-lib";
-import { CircleShape, PaintableShape } from "@thegraid/easeljs-lib";
+import { Constructor, stime } from "@thegraid/common-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
-import { H, Tile as TileLib, TileShape } from "@thegraid/hexlib";
-import { BlackCard, DupCard, DupDual } from "./col-card";
+import { Tile as TileLib } from "@thegraid/hexlib";
+import { BlackCard, PrintCol, PrintDual, SetupCard } from "./col-card";
+import { PrintBidValue, PrintColSelect } from "./col-meeple";
 import { TrackSegment } from "./col-table";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
 import { Player } from "./player";
@@ -30,21 +30,49 @@ export class TileExporter {
     const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows*nCols;
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5 = [
-      [18, TrackSegment, '', 1050/9, 750/2],
-      [18, TrackSegment, '', 1050/9, 750/2],
+      [12, TrackSegment, '', 1050/9, 750/2],
+      [6, SetupCard, '野心', 750],
+      // card back if we want it.      // [18, TrackSegment, '', 1050/9, 750/2],
     ] as CountClaz[];
-    const cardSingle_1_75 = [
+    const cardSingle_1_75_back = [
+      [36, SetupCard, '野心'],   // card back if we want it.
+    ] as CountClaz[];
+    const cardSingle_1_75_base = [
       ...BlackCard.countClaz(8),
-      ...DupCard.countClaz(28),
       ...BlackCard.countClaz(8),
-      ...DupCard.countClaz(8),
-      ...DupDual.countClaz(16),
+      ...PrintCol.countClaz(20),
+      ...PrintCol.countClaz(20),
+      ...PrintDual.countClaz(16),
+    ]
+    const cardSingle_1_75_hand = [
+      ...PrintBidValue.countClaz(4, 0, 525),
+      ...PrintBidValue.countClaz(4, 1, 525),
+      ...PrintBidValue.countClaz(4, 2, 525),
+      ...PrintBidValue.countClaz(4, 3, 525),
+      ...PrintBidValue.countClaz(4, 4, 525),
+      ...PrintBidValue.countClaz(4, 5, 525),
+      ...PrintBidValue.countClaz(4, 6, 525),
+      ...PrintBidValue.countClaz(4, 7, 525),
+      ...PrintBidValue.countClaz(4, 8, 525),
+      ...PrintColSelect.countClaz(7, 0, 525),
+      ...PrintColSelect.countClaz(7, 1, 525),
+      ...PrintColSelect.countClaz(7, 2, 525),
+      ...PrintColSelect.countClaz(7, 3, 525),
+      ...PrintColSelect.countClaz(7, 4, 525),
+      ...PrintColSelect.countClaz(7, 5, 525),
+      ...PrintColSelect.countClaz(7, 6, 525),
+      ...PrintColSelect.countClaz(7, 7, 525),
+      ...PrintColSelect.countClaz(7, 8, 525),
+      [7, PrintColSelect, 7, 9, 525],
+      [2, PrintColSelect, 0, 9, 525],
     ] as CountClaz[];
 
     const pageSpecs: PageSpec[] = [];
 
     // this.clazToTemplate(cardSingle_3_5, ImageGrid.cardSingle_3_5, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 

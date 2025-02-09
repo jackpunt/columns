@@ -23,8 +23,10 @@ export class CardShape extends RectShape {
     const w = (portrait ? rad : rad * a) - 2 * s, h = (portrait ? rad * a : rad) - 2 * s;
     const r = rr ?? Math.max(h, w) * .05;
     super({ x: -w / 2, y: -h / 2, w, h, r, s }, fillc, strokec);
+    this.radius = rad;
   }
 
+  radius!: number;
   /** modify _cgf to produce 2 vertical rectangles */
   dualCgf(strokec: string, ...colors: string[]) {
     const [c1, c2] = colors;

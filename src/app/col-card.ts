@@ -1,6 +1,6 @@
 import { C, F, type XY } from "@thegraid/common-lib";
-import { NamedContainer, RectShape, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
-import { H, Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
+import { CenterText, NamedContainer, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColMeeple } from "./col-meeple";
 import { arrayN, type GamePlay } from "./game-play";
@@ -8,7 +8,6 @@ import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
-import { Text } from "@thegraid/easeljs-module";
 
 export class ColCard extends Tile {
   // static get allCards() { return Array.from(this.cardByName.values()) }
@@ -197,16 +196,16 @@ export class BlackCard extends ColCard {
   static allBlack: BlackCard[] = [];
   static seqN = 0;
   static countClaz(n = 0): CountClaz[] {
-    return [[n, DupBlack, 'BlackCard', n]]
+    return [[n, PrintBlack, 'BlackCard', n]]
   }
 
   constructor(Aname: string, seqLim = 0) {
     super(Aname, 0) // initial factions[] for painting color
     this.factions = arrayN(this.maxCells, i => 0);
     const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
-    const colId = new Text(`${colNum}`, F.fontSpec(this.radius * .2), C.WHITE,)
-    colId.y = this.radius * .3;
-    this.addChild(colId)
+    const colId = new CenterText(`${seqLim > 0 ? colNum : ''}`, F.fontSpec(this.radius * .2), C.WHITE,)
+    colId.y = this.radius * .35;
+    this.addChildAt(colId, 1); // under meepCont
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {
@@ -219,17 +218,17 @@ export class BlackCard extends ColCard {
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 }
 
-export class DupCard extends ColCard {
+export class PrintCol extends ColCard {
   static seqN = 0;
   /** how many of which Claz to construct & print: for TileExporter */
   static countClaz(n = 1): CountClaz[] {
-    return [[n, DupCard]]
+    return [[n, PrintCol]]
   }
 
   constructor(allCards = ColCard.allCols) {
     ColCard.nextRadius = 525
-    if (DupCard.seqN  >= allCards.length) DupCard.seqN = 0
-    const n = DupCard.seqN++;
+    if (PrintCol.seqN  >= allCards.length) PrintCol.seqN = 0
+    const n = PrintCol.seqN++;
     const card = allCards[n], { Aname, factions } = card;
     super(Aname, ...factions);
     ColCard.allCards.pop();
@@ -237,25 +236,38 @@ export class DupCard extends ColCard {
     return;
   }
 }
-export class DupDual extends DualCard {
+export class PrintDual extends DualCard {
   static seqN = 0;
   static countClaz(n = 20): CountClaz[] {
-    return [[n, DupDual]];
+    return [[n, PrintDual]];
   }
   constructor(allCards = DualCard.allDuals) {
     ColCard.nextRadius = 525
-    if (DupDual.seqN >= allCards.length) DupDual.seqN = 0
-    const n = DupDual.seqN++;
+    if (PrintDual.seqN >= allCards.length) PrintDual.seqN = 0
+    const n = PrintDual.seqN++;
     const card = allCards[n], { Aname, factions } = card;
     super(Aname, factions[0], factions[1]);
     ColCard.allCards.pop();
   }
 }
 
-export class DupBlack extends BlackCard {
+export class PrintBlack extends BlackCard {
   constructor(Aname: string, seqLim = 0) {
     ColCard.nextRadius = 525
     super(Aname, seqLim)
     ColCard.allCards.pop();
   }
+}
+
+export class SetupCard extends ColCard {
+  constructor(text = '', size = 525) {
+    ColCard.nextRadius = size;
+    super(`Setup`, 5)
+    this.addChild(new CenterText(text, 150, ))
+    this.paint(C.WHITE)
+  }
+  override makeShape(): Paintable {
+    return new CardShape(C.WHITE, '', this.radius, false, 0)
+  }
+  override get bleedColor(): string { return C.WHITE }
 }

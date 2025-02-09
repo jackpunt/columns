@@ -28,14 +28,14 @@ export interface IPlayer {
 }
 
 // do not conflict with AF.Colors
-const playerColors = ['violet', 'lightblue', 'tan', 'teal', 'yellow', 'orange', 'goldenrod', 'brown', 'lightgreen', ] as const;
+const playerColors = ['#663300', '#FF33CC', '#FF9900', '#66CC00', C.grey92, 'yellow', 'tan', '#ab47bc', 'lightblue', 'white'] as const;
 
 export type PlayerColor = typeof playerColors[number];
 export class Player extends PlayerLib implements IPlayer {
   static initialCoins = 400;
   // set our multi-player colors (concept from Ankh?); we don't use the TP.colorScheme
   static { PlayerLib.colorScheme = playerColors.concat() }
-  static override colorScheme: PlayerColor[];
+  declare static colorScheme: PlayerColor[];
 
   declare static allPlayers: Player[];
 
@@ -229,17 +229,17 @@ export class Player extends PlayerLib implements IPlayer {
     this.counter1 = this.makeCounter(leftOf(this.counter0) , C.black, fs)
     const { x, y } = this.counter1, dx = wide + gap, dy = (high + gap) / 2
     const qloc = [
-      [-dx * 3, +dy],
       [-dx * 2, +dy],
-      [-dx * 3, -dy],
+      [-dx * 3, +dy],
       [-dx * 2, -dy],
+      [-dx * 3, -dy],
       [-dx * 4, 0],
     ];
     let pc: XY = { x: x - wide * 2, y }
-    this.factionCounters = ColCard.factionColors.slice(0,4).reverse().map((color, ndx) => {
+    this.factionCounters = ColCard.factionColors.slice(0, 5).reverse().map((color, ndx) => {
       if (ngt4) {
         return pc = this.makeCounter(leftOf(pc), color, fs)
-      } else { // purple, blue, yellow, red, black
+      } else { // purple, blue, gold, red, black
         const [qx, qy] = qloc[ndx];
         pc.x = x + qx; pc.y = y + qy;
         return this.makeCounter(pc, color, fs)

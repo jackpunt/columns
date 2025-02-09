@@ -1,5 +1,5 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CenterText, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
@@ -470,13 +470,4 @@ export class TrackSegment extends ColCard {
     this.reCache();
     return rv
   }
-}
-
-export class SetupCard extends ColCard {
-  constructor() {
-    super(`Setup`, 5)
-    this.addChild(new CenterText(`This is card`, 50, ))
-  }
-
-  override get bleedColor(): string { return C.BLACK }
 }

@@ -188,19 +188,26 @@ export class ImageGrid {
     });
 
     let viewClick = 0;
-    this.setAnchorClick('viewPage', `ViewPage-P${viewClick}`, () => {
-      if (viewClick >= pageSpecs.length) {
-        this.addCanvas(undefined);
-        this.setAnchorClick('viewPage', 'ViewPage-done', 'stop');
-        return;
-      }
-      const n = viewClick++;
+    const viewPage = (n: number) => {
+      viewClick = n + 1;
       const pageSpec = pageSpecs[n];
       const canvas = pageSpec.canvas as HTMLCanvasElement;
       canvas.style.border = "2px solid";
       this.addCanvas(canvas);
       const next = `${(viewClick < pageSpecs.length) ? `P${viewClick}`: 'done'}`
       this.setAnchorClick('viewPage', `ViewPage-${next}`);
+    }
+
+    this.setAnchorClick('viewPage0', 'ViewPage0', () => {
+      viewPage(0)
+    })
+    this.setAnchorClick('viewPage', `ViewPage-P${viewClick}`, () => {
+      if (viewClick >= pageSpecs.length) {
+        this.addCanvas(undefined);
+        this.setAnchorClick('viewPage', 'ViewPage-done', 'stop');
+        return;
+      }
+      viewPage(viewClick);
     })
     return;
   }
