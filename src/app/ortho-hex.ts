@@ -98,6 +98,10 @@ export class HexMap2 extends HexMap<OrthoHex2> {
     this.cardMark = new CardShape(C.nameToRgbaString(C.grey128, .3), '', .8);
     this.cardMark.mouseEnabled = false; // prevent objectUnderPoint!
   }
+  getCard(rank: number, col: number) {
+    // ASSERT: minRow = 0; maxRow = nRows-1
+    return this[this.maxRow as number - rank][col-1].card;
+  }
   /** the Mark to display on cardMarkhexes */
   cardMark: Paintable
   /** Hexes for which we show the CardMark */

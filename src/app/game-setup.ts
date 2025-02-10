@@ -5,7 +5,7 @@ import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { GamePlay } from './game-play';
 import { OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
-import { Player } from './player';
+import { PlayerB } from './player';
 import { ScenarioParser } from './scenario-parser';
 import { TileExporter } from './tile-exporter';
 
@@ -96,7 +96,7 @@ export class GameSetup extends GameSetupLib {
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
-    return new Player(ndx, gamePlay);
+    return new PlayerB(ndx, gamePlay);
   }
 
   override resetState(stateInfo: Scenario & HexAspect): void {

@@ -1,11 +1,11 @@
 import { stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
-import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type HexMap } from "@thegraid/hexlib";
+import { GamePlay as GamePlayLib, Scenario, TP as TPLib } from "@thegraid/hexlib";
 import { CB, ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
-import type { OrthoHex } from "./ortho-hex";
+import type { HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -21,7 +21,7 @@ export class GamePlay extends GamePlayLib {
   }
   override readonly gameState: GameState = new GameState(this);
   declare gameSetup: GameSetup;
-  declare hexMap: HexMap<OrthoHex>
+  declare hexMap: HexMap2;
   declare table: ColTable;
 
   declare curPlayer: Player;
@@ -108,10 +108,10 @@ export class GamePlay extends GamePlayLib {
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
   scoreForRow() {
-    const nRows = this.nRows, nCols = this.nCols
+    const nRows = this.nRows, nCols = this.nCols, mRank = nRows - 1;
     const playerByRow = arrayN(nRows - 1).map(row => {
       return arrayN(nCols, 0).map(col => {
-        const cardRC = this.hexMap.getHex({ row, col }).card
+        const cardRC = this.hexMap.getCard(mRank - row, col + 1);
         return cardRC.meepsOnCard.map(meep => meep.player)
       }).flat()
     })

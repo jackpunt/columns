@@ -9,6 +9,11 @@ import { Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
 
+
+/** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
+export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
+export const nFacs = 4;
+
 export class ColCard extends Tile {
   // static get allCards() { return Array.from(this.cardByName.values()) }
   static allCards: ColCard[] = [];
@@ -24,10 +29,10 @@ export class ColCard extends Tile {
   override set hex(hex: Hex1) { super.hex = hex }
 
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE, C.WHITE];
-  factions = [0];
+  factions: Faction[] = [0];
   get faction() { return this.factions[0] }
 
-  constructor(aname: string, ...factions: number[]) {
+  constructor(aname: string, ...factions: Faction[]) {
     const Aname = aname.startsWith(':') ? `${ColCard.allCards.length}${aname}` : aname;
     super(Aname);
     this.factions = factions
@@ -133,19 +138,19 @@ export class ColCard extends Tile {
 
   static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, ) {
     ColCard.allCards.length = 0;
-    const nCards = nc * nr, nFacs = 4; // number of factions
+    const nCards = nc * nr ; // number of factions
 
     BlackCard.seqN = 0;
     BlackCard.allBlack = arrayN(nc * 2).map(i => new BlackCard(`:0`, nc));
 
     ColCard.allCols = arrayN(nCards).map(n => {
-      const fact = 1 + (n % nFacs), aname = `:${fact}`;
+      const fact = 1 + (n % nFacs) as Faction, aname = `:${fact}`;
       return new ColCard(aname, fact);
     })
 
     DualCard.allDuals = arrayN(nCards).map(n => {
       const n4 = Math.floor(n / nFacs)
-      const f1 = 1 + (n % nFacs), f2 = 1 + (n4 % nFacs);
+      const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
       return new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
     })
   }
@@ -165,7 +170,7 @@ export class DualCard extends ColCard {
   override get maxCells() { return 2 }
   declare baseShape: CardShape;
 
-  constructor(Aname: string, faction0: number, faction1: number) {
+  constructor(Aname: string, faction0: Faction, faction1: Faction) {
     super(Aname, faction0, faction1);
     this.baseShape.dualCgf(C.BLACK, ...[faction0, faction1].map(f => ColCard.factionColors[f]));
     this.paint('ignored')
@@ -201,7 +206,7 @@ export class BlackCard extends ColCard {
 
   constructor(Aname: string, seqLim = 0) {
     super(Aname, 0) // initial factions[] for painting color
-    this.factions = arrayN(this.maxCells, i => 0);
+    this.factions = arrayN(this.maxCells, i => 0) as Faction[];
     const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
     const colId = new CenterText(`${seqLim > 0 ? colNum : ''}`, F.fontSpec(this.radius * .2), C.WHITE,)
     colId.y = this.radius * .35;
@@ -262,7 +267,7 @@ export class PrintBlack extends BlackCard {
 export class SetupCard extends ColCard {
   constructor(text = '', size = 525) {
     ColCard.nextRadius = size;
-    super(`Setup`, 5)
+    super(`Setup`, 5 as Faction)
     this.addChild(new CenterText(text, 150, ))
     this.paint(C.WHITE)
   }

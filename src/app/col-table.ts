@@ -3,7 +3,7 @@ import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, Rec
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { ColCard } from "./col-card";
+import { ColCard, type Faction } from "./col-card";
 import type { GamePlay } from "./game-play";
 import type { GameSetup, Scenario } from "./game-setup";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
@@ -263,12 +263,13 @@ class TrackGen {
   }
 }
 
-type faction =  0 | 1 | 2 | 3 | 4;
+type RGBV = 'B' | 'r' | 'g' | 'b' | 'v';   // Black, red, gold, blue, violet [white]
+const rgbvIndex: Record<RGBV, Faction> = { 'B': 0, 'r': 1, 'g': 2, 'b': 3, 'v': 4, }
 
 class ScoreTrack extends NamedContainer {
 
   /** [0] upper-row factions; [1] lower-row factions  */
-  factions: [faction[], faction[]] = [[0], [0]]; // initial 0 ('B') cell
+  factions: [Faction[], Faction[]] = [[0], [0]]; // initial 0 ('B') cell
   dx: number;
   dy: number;
 
@@ -401,9 +402,6 @@ class MarkerShape extends CircleShape {
   }
 }
 
-type RGBV = 'B' | 'r' | 'g' | 'b' | 'v';   // Black, red, gold, blue, violet
-const rgbvIndex: Record<RGBV, faction> = { 'B': 0, 'r': 1, 'g': 2, 'b': 3, 'v': 4 }
-
 /** a segment of the score track; B-rgbv-vbgr-B (where B is half size) */
 export class TrackSegment extends ColCard {
   // anames derived from TrackGen (monte carlo search)
@@ -449,7 +447,7 @@ export class TrackSegment extends ColCard {
   }
   /** slot size */
   wh!: { w: number, h: number }
-  facts: [faction[], faction[]];
+  facts: [Faction[], Faction[]];
   slots = new NamedContainer('slots');
 
   addSlot(n: number, f1: number, f2: number, w: number, h: number, bleed = 0, s = 1) {

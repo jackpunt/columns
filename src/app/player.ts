@@ -1,10 +1,10 @@
-import { C, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
+import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
-import { ColCard } from "./col-card";
+import { ColCard, nFacs } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
 import { arrayN, GamePlay } from "./game-play";
-import { OrthoHex, type OrthoHex2 } from "./ortho-hex";
+import { OrthoHex, type HexMap2, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 type PlyrBid = { plyr: Player; bid: number; }
@@ -204,11 +204,10 @@ export class Player extends PlayerLib implements IPlayer {
    * @param rank [0]
    * @param ext [''] mark name of xtraCol meeple
    */
-  makeMeeple(hexMap: HexMap<OrthoHex>, column: number, rank = 0, ext = '') {
-    const row = this.gamePlay.nRows - 1 - rank;
+  makeMeeple(hexMap: HexMap2, column: number, rank = 0, ext = '') {
     const meep = new ColMeeple(`Meep-${this.index}:${column}${ext}`, this)
     meep.paint(this.color);
-    const card = hexMap.getHex({ row, col: column - 1 }).card;
+    const card = hexMap.getCard(rank, column);
     card.addMeep(meep); // makeMeeple
     this.gamePlay.table.makeDragable(meep);
     return meep;
@@ -314,19 +313,47 @@ export class Player extends PlayerLib implements IPlayer {
   }
 }
 
-class PlayerB extends Player {
+export class PlayerB extends Player {
+  // map col [1..n]
   cardsInCol(col: number) {
     const nrows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
-    return arrayN(nrows).map(row => {
-      return hexMap.getHex({ row, col }).card;
-    })
+    return arrayN(nrows).map(row => hexMap.getCard(row, col))
+  }
+
+  dualsInCol(col: number) {
+    const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
+    return cards.filter(card => card.factions.length > 1)
   }
   factionsInCol(col: number) {
+    // non-black cards in col
     const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
     return cards.map(card => card.factions).flat(1)
   }
-  override xtraCol(nCols = this.gamePlay.nCols) {
-    const factionsInCol = arrayN(nCols).map(col => this.factionsInCol(col))
-    return 1 + Random.random(nCols)
+  colScore() {
+    const hexMap = this.gamePlay.hexMap
+    const { nRows, nCols } = this.gamePlay, nCards = nRows * nCols;
+    const nfacs = arrayN(1 + nFacs, i => 0); // count of each faction on board
+    hexMap.forEachHex(hex => hex.card.factions.forEach(f => nfacs[f]++));
+    const colScore = arrayN(1 + nCols, i => 0);
+    arrayN(nCols, 1).map(col => {
+      this.cardsInCol(col).filter(c => c.factions[0] !== 0).map(card => {
+        const facs = card.factions, n = facs.length;
+        facs.forEach(f => colScore[col] += nfacs[f] / n);
+      })
+    })
+    return colScore.map((score, col) => ({ col, score })).slice(1);
+  }
+  override xtraCol() {
+    const nCols = this.gamePlay.nCols
+    const colScore = this.colScore()
+    colScore.sort((a,b) => b.score - a.score)
+    const weights = [0], nof = colScore.map((cs, cr) => (nCols - cr) * nCols + 1 + (nCols - cs.col))
+    colScore.forEach((cs, cr) => weights.splice(0, 0, ...arrayN(nof[cr], j => cr)))
+    const nw = weights.length;
+    permute(weights)
+    const rand = Random.random(nw)
+    const ndx = weights[rand]
+    const col = colScore[ndx].col;
+    return col
   }
 }
