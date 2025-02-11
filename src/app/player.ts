@@ -221,7 +221,7 @@ export class Player extends PlayerLib implements IPlayer {
   makeCounter(xy: { x?: number, y: number }, color: string, fs: number) {
     const { high, wide, gap } = this.panel.metrics;
     const c1 = new NumCounterBox(`ctr${color}`, 0, C.BLACK, fs);
-    c1.x = xy.x ?? wide - ( + gap);
+    c1.x = xy.x ?? (wide - gap);
     c1.y = xy.y;
     c1.boxAlign('right');
     this.panel.addChild(c1);
