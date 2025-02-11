@@ -233,9 +233,9 @@ export class Player extends PlayerLib implements IPlayer {
     const fs = TP.hexRad * .45, { gap, high: phigh } = this.panel.metrics, ngt4 = TP.numPlayers > 4;
     const { high, wide } = this.scoreCounter = this.makeCounter({ y: (phigh + ymax) / 2 }, C.black, fs)
     const leftOf = (pc: XY) => ({ x: pc.x - wide - gap, y: pc.y });
-    this.markers[0] = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
-    this.markers[1] = this.makeCounter(leftOf(this.markers[0]) , C.black, fs)
-    const { x, y } = this.markers[1], dx = wide + gap, dy = (high + gap) / 2
+    this.scoreCounters[0] = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
+    this.scoreCounters[1] = this.makeCounter(leftOf(this.scoreCounters[0]) , C.black, fs)
+    const { x, y } = this.scoreCounters[1], dx = wide + gap, dy = (high + gap) / 2
     const qloc = [
       [-dx * 2, +dy],
       [-dx * 3, +dy],
@@ -254,26 +254,42 @@ export class Player extends PlayerLib implements IPlayer {
       }
     }).reverse()
   }
-  markers: NumCounter[] = []
+  scoreCounters: NumCounter[] = []
+  autoScore = true;
 
   factionCounters: NumCounter[] = [];
   /** advance one score marker, then invoke callback [to gamePlay] */
-  advanceMarker(score: number, cb: () => void) {
-    if (!score) { setTimeout(cb, 0); return } // zero or undefined
+  advanceMarker(dScore: number, cb: () => void) {
+    if (!dScore) { setTimeout(cb, 0); return } // zero or undefined
     // this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];
     markers.forEach((m, index) => {
-      const ctr = this.markers[index]; // counter for each marker
-      const clickDone = () => {
+      const ctr = this.scoreCounters[index]; // counter for each marker
+      const clickDone = (ds: number) => {
         const color = ColCard.factionColors[m.faction];
         ctr.setValue(m.value, color)
-        this.score += score;
+        this.score += ds; // may max out at end of track
         cb();
       }
-      m.showDeltas(score, clickDone)
-      this.panel.stage?.update();
+      // click ScoreTrack.markers to choose which to advance:
+      m.showDeltas(dScore, clickDone)
     })
+    this.panel.stage?.update();
+    if (this.autoScore) {
+      this.autoAdvanceMarker(dScore)
+    }
+  }
+  autoAdvanceMarker(dScore: number) {
+    this.gamePlay.isPhase('BumpAndCascade')// 'EndRound' --> Score for Rank
+    const { row, rowScores } = this.gamePlay.gameState.state;
+    const scoreTrack = this.gamePlay.table.scoreTrack;
+    const [m0, m1] = scoreTrack.markers[this.index];
+    const allClkrs = [m0.clicker1, m0.clicker2, m1.clicker1, m1.clicker2]
+    const valid = allClkrs.filter(clkr => clkr.parent)
+    valid.sort((a, b) => a.value - b.value); // ascending
+    const clicker = valid[0]; // least value
+    clicker.onClick()
   }
 
   /** choose and return one of the indicated meeples */

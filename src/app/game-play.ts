@@ -33,9 +33,9 @@ export class GamePlay extends GamePlayLib {
   }
   override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {
-    const plyrs = this.allPlayers;
+    const plyrs = this.allPlayers, max = this.table.scoreTrack.maxValue;
     // end if any player has both markers on slot 54:
-    const win1 = plyrs.find(plyr => plyr.markers.find(mrkr => mrkr.value < 54));
+    const win1 = plyrs.find(plyr => !plyr.scoreCounters.find(mrkr => mrkr.value < max));
     if (win1) return true;
     // end if each top-black is occupied
     const win2 = (!this.hexMap[0].find(hex => hex.card.meepsOnCard.length == 0))
@@ -97,7 +97,7 @@ export class GamePlay extends GamePlayLib {
     return bumps[0]
   }
 
-  /** EndOfTurn: score for color to meep.player */
+  /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */
   scoreForColor(meep: ColMeeple | undefined, cb: () => void) {
     if (!meep) { cb(); return 0 };
     const faction = meep.faction as number; // by now, meeplesOnCard has resolved.

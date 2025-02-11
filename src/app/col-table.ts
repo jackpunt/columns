@@ -272,6 +272,7 @@ class ScoreTrack extends NamedContainer {
   factions: [Faction[], Faction[]] = [[0], [0]]; // initial 0 ('B') cell
   dx: number;
   dy: number;
+  maxValue!: number;
 
   /**
    *
@@ -282,6 +283,7 @@ class ScoreTrack extends NamedContainer {
    */
   constructor(public table: ColTable, parent: Container, nElts = 6, public radius = TP.hexRad * .5) {
     super('ScoreTrack');
+    this.maxValue = nElts * 9;
     parent.addChild(this);
     this.addChild(this.segmentCont);
     this.addChild(this.markerCont);
@@ -326,21 +328,21 @@ class ScoreTrack extends NamedContainer {
     })
   }
   makeScoreMarker(plyr: Player, off2 = false) {
-    return new MarkerShape(plyr, this, undefined, off2);
+    return new MarkerShape(plyr, this, undefined, undefined, off2);
   }
 }
 
 class MarkerShape extends CircleShape {
-  constructor(public player: Player, public track: ScoreTrack, strokeC = '', public offSet2 = false) {
+  constructor(public player: Player, public track: ScoreTrack, public marker?: MarkerShape, strokeC = '', public offSet2 = false) {
     super(player.color, track.radius / 2, strokeC);
     if (!strokeC) {
       // Each primary MarkerShape gets two 'clickers'; which are a MarkerShape with strokeC.
-      const clicker1 = this.clicker1 = new MarkerShape(player, track, C.white, this.offSet2);
-      const clicker2 = this.clicker2 = new MarkerShape(player, track, C.white, this.offSet2);
+      const clicker1 = this.clicker1 = new MarkerShape(player, track, this, C.white, this.offSet2);
+      const clicker2 = this.clicker2 = new MarkerShape(player, track, this, C.white, this.offSet2);
       clicker1.visible = clicker2.visible = true;
       clicker1.mouseEnabled = clicker2.mouseEnabled = true;
-      clicker1.on(S.click, (evt) => this.onClick(clicker1), this, false)
-      clicker2.on(S.click, (evt) => this.onClick(clicker2), this, false)
+      clicker1.on(S.click, (evt) => clicker1.onClick(), clicker1, false)
+      clicker2.on(S.click, (evt) => clicker2.onClick(), clicker2, false)
     }
   }
   /** 0: upper-track, 1: lower-track */
@@ -364,23 +366,25 @@ class MarkerShape extends CircleShape {
     this.y = index * dy + this.player.index * dx + radius * (.5 + (this.offSet2 ? .15 : .05));
   }
 
-  onClick(clicker: MarkerShape) {
-    this.setValue(clicker.value, clicker.index);
-    this.track.overlayCont.removeAllChildren();
-    afterUpdate(this.track, this.clickDone)
+  onClick() {
+    const marker = this.marker as MarkerShape;
+    const dScore = this.value = marker.value;
+    marker.setValue(this.value, this.index);
+    marker.track.overlayCont.removeAllChildren();
+    afterUpdate(marker.track, () => marker.clickDone(dScore))
   }
-  clickDone!: () => void;
+  clickDone!: (ds: number) => void;
   clicker1!: MarkerShape;
   clicker2!: MarkerShape; // used if score crosses a black cell
 
   /** clicker1.setValue(this.value + dScore, this.index)
    * maybe: clicker2.setValue(this.value + dScore); on the OTHER track.
    */
-  showDeltas(dScore: number, clickDone: () => void, clicker = this.clicker1, isClkr1 = true) {
-    this.clickDone = clickDone;
+  showDeltas(dScore: number, clickDone: (ds: number) => void, clicker = this.clicker1, isClkr1 = true) {
+    this.clickDone = clickDone;  // set on primary MarkerShape
     const trackMax = this.track.factions[0].length - 1;
     const over = this.track.overlayCont, sCur = this.value, sNew = Math.min(sCur + dScore, trackMax);
-    const [ms0, ms1] = this.track.markers[this.player.index];
+    const [ms0, ms1] = this.track.markers[this.player.index]; // the PRIMARY MarkerShapes
     const sCell = (ms0.index == ms1.index) && (ms0.value == ms1.value) // from same cell
     if (sCell && !isClkr1) return;      // do not show sib[1]
     // In actual game, players choose/rotate an 'advance marker card'

@@ -8,6 +8,8 @@ import { Player } from "./player";
 
 interface Phase extends PhaseLib {
   col?: number, // for ScoreForRank
+  row?: number,
+  rowScores?: {plyr: Player, score: number}[][],
 }
 namespace GS {
   export const tpr = 3; // turns per round
@@ -54,7 +56,7 @@ export class GameState extends GameStateLib {
     const notDone = this.gamePlay.allPlayers.find(plyr => !plyr.isDoneSelecting())
     if (notDone) this.table.gamePlay.curPlayer = notDone;
     const plyr = notDone, card = this._cardDone, card_plyr = card?.player;
-    console.log(stime(`gameState.allDone: ${this.state.Aname} card_plyr: ${card_plyr?.Aname} `), this._cardDone?.Aname, plyr?.isDoneSelecting()?.Aname)
+    // console.log(stime(`gameState.allDone: ${this.state.Aname} card_plyr: ${card_plyr?.Aname} `), this._cardDone?.Aname, plyr?.isDoneSelecting()?.Aname)
     return !notDone;
   }
 
@@ -69,8 +71,7 @@ export class GameState extends GameStateLib {
         this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
         this.gamePlay.allPlayers.forEach(plyr => plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), 0)));
       },
-      done: (ok = false, plyr?: Player) => {
-        // console.log(stime(`SelectCol.done: ${plyr?.Aname}`, plyr?.isDoneSelecting()?.Aname))
+      done: (ok = false) => {
         if (!ok && !this.allDone) {
           // curPlayer is set:
           this.panel.areYouSure('This player has not selected.',
@@ -122,6 +123,7 @@ export class GameState extends GameStateLib {
     ResolveWinner: { // resolve winner, select & advance meep
       start: (col = 1) => {
         this.winnerMeep = undefined;
+        if (this.gamePlay.isEndOfGame()) { this.phase('EndGame'); return }
         if (col > this.nCols) { this.phase('EndTurn'); return }
         const colMeep = (meep?: ColMeeple) => {
           setTimeout(() => {
@@ -145,6 +147,7 @@ export class GameState extends GameStateLib {
         const bumpDone = () => { setTimeout(() => this.done(), 0) } // HACK: winner does it all
         this.curPlayer.bumpMeeple(meep, undefined, bumpDone); // advance | bump
       },
+      // when bump and cascade has settled:
       done: () => {
         const col = this.state.col as number;
         this.winnerMeep?.highlight(false);
@@ -153,12 +156,10 @@ export class GameState extends GameStateLib {
           afterUpdate(fails, () => this.state.start(col, fails))
           return;
         }
+        // update faction counters for each Player:
         this.gamePlay.allPlayers.forEach(plyr => plyr.countFactions())
-        const nextCol = () => {
-          setTimeout(() => this.phase('ResolveWinner', col + 1), 0)
-        }
-        this.gamePlay.scoreForColor(this.winnerMeep, nextCol)
-
+        const nextCol = () => setTimeout(() => this.phase('ResolveWinner', col + 1), 0);
+        this.gamePlay.scoreForColor(this.winnerMeep, nextCol);
       }
     },
     EndTurn: {
@@ -172,11 +173,15 @@ export class GameState extends GameStateLib {
       },
     },
     EndRound: {
+      row: 0,
+      rowScores: [],
       start: () => {
         // score for rank:
         const rowScores = this.gamePlay.scoreForRow(), nRows = this.gamePlay.nRows;
+        this.state.rowScores = rowScores; // for AutoPlayer to consider
         const advanceNextScore = (row: number) => {
           const rank = nRows - 1 - row;
+          this.state.row = row;           // for AutoPlayer to consider
           if (rank < 1) { this.done(); return } // no score for rank0; DONE
           if (row > rowScores.length - 1) { debugger; } // expect rank = 0
           if (rowScores[row].length == 0) { advanceNextScore(row + 1); return; }
