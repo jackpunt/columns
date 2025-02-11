@@ -1,4 +1,4 @@
-import { C } from "@thegraid/common-lib";
+import { C, stime } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
 import { type CardButton, type ColMeeple } from "./col-meeple";
@@ -33,7 +33,9 @@ export class GameState extends GameStateLib {
     return;
   }
 
-  autoDone = false; // auto-proceed to done() vs wait for click
+  // auto-proceed to done() vs wait for click
+  get autoDone() { return ['SelectCol'].includes(this.state.Aname as string) }
+
   _cardDone?: CardButton = undefined;
   get cardDone() { return this._cardDone; }
   set cardDone(v) { // BidCard or CoinCard selected [not committed]; "maybeDone"
@@ -51,6 +53,8 @@ export class GameState extends GameStateLib {
   get allDone() {
     const notDone = this.gamePlay.allPlayers.find(plyr => !plyr.isDoneSelecting())
     if (notDone) this.table.gamePlay.curPlayer = notDone;
+    const plyr = notDone, card = this._cardDone, card_plyr = card?.player;
+    console.log(stime(`gameState.allDone: ${this.state.Aname} card_plyr: ${card_plyr?.Aname} `), this._cardDone?.Aname, plyr?.isDoneSelecting()?.Aname)
     return !notDone;
   }
 
@@ -58,20 +62,30 @@ export class GameState extends GameStateLib {
 
   get panel() { return this.curPlayer.panel; }
 
-  /** States for 'Columns' (Knives-Out, Intrigue) */
+  /** States for 'Columns' (Knives-Out, Intrigue, '"利刃出击"' '"利刃出鞘"') */
   override readonly states: { [index: string]: Phase } = {
     SelectCol: {
       start: () => {
         this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
-        this.gamePlay.allPlayers.forEach(plyr => plyr.selectCol()); // cb --> cardDone
+        this.gamePlay.allPlayers.forEach(plyr => plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), 0)));
       },
-      done: () => {
-        this.gamePlay.allPlayers.forEach(plyr => {
-          const xtraCol = plyr.isDoneSelecting()?.colNum as number;
-          plyr.makeMeeple(this.gamePlay.hexMap, xtraCol, undefined, '*');
-          plyr.clearButtons();
-        })
-        this.phase('BeginRound')
+      done: (ok = false, plyr?: Player) => {
+        // console.log(stime(`SelectCol.done: ${plyr?.Aname}`, plyr?.isDoneSelecting()?.Aname))
+        if (!ok && !this.allDone) {
+          // curPlayer is set:
+          this.panel.areYouSure('This player has not selected.',
+            () => this.state.start(), // or: force-select cards for each.
+            () => this.state.start());
+          return;
+        }
+        if (this.allDone || ok) {
+          this.gamePlay.allPlayers.forEach(plyr => {
+            const xtraCol = plyr.isDoneSelecting()?.colNum ?? 1;
+            plyr.makeMeeple(this.gamePlay.hexMap, xtraCol, undefined, '*');
+            plyr.clearButtons();
+          })
+          this.phase('BeginRound');
+        }
       }
     },
     // BeginRound: allPlayer activated;

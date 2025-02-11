@@ -33,10 +33,17 @@ export class GamePlay extends GamePlayLib {
   }
   override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {
-    const row = 0;
-    // TODO: end if one cell has all players
-    if (this.allPlayers.find(plyr => plyr.score >= 100)) return true;
-    return (!this.hexMap[row].find(hex => hex.card.meepsOnCard.length < 1))
+    const plyrs = this.allPlayers;
+    // end if any player has both markers on slot 54:
+    const win1 = plyrs.find(plyr => plyr.markers.find(mrkr => mrkr.value < 54));
+    if (win1) return true;
+    // end if each top-black is occupied
+    const win2 = (!this.hexMap[0].find(hex => hex.card.meepsOnCard.length == 0))
+    if (win2) return true;
+    //  end if one top-Black has all players
+    const win3 = !this.hexMap[0].find(hex => plyrs.find(plyr => !hex.card.meepsOnCard.find(meep => meep.player == plyr)))
+    if (win3) return true;
+    return false;
   }
   winningBidder(col: number) {
     const bidsOnCol = this.allPlayers.map(plyr => plyr.bidOnCol(col));

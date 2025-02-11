@@ -17,7 +17,7 @@ export interface IPlayer {
   meeples: ColMeeple[];
   coinBidButtons: CoinBidButton[]; // { state?: string, factions: number[] }
   clearButtons(): void; // reset CardButton: setState(CB.clear)
-  selectCol(): void;    // for xtraCol
+  selectCol(cb: () => void): void; // for xtraCol
   collectBid(): void;
   isDoneSelecting(): ColSelButton | undefined; // { colNum: number } | undefined
   bidOnCol(col: number): PlyrBid | undefined;
@@ -152,7 +152,7 @@ export class Player extends PlayerLib implements IPlayer {
     return 1 + Random.random(ncols)
   }
 
-  selectCol() {
+  selectCol(cb: () => void) {
     const col = this.xtraCol(this.gamePlay.nCols)
     this.clearButtons();
     this.colSelButtons[col - 1].select()
@@ -214,7 +214,7 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   scoreCounter!: NumCounter;
-  override get score() { return this.scoreCounter?.getValue(); }
+  override get score() { return this.scoreCounter?.value; }
   override set score(v: number) { this.scoreCounter?.updateValue(v); }
 
   // build counters for each faction influence (bidCards & scoreTrack)
@@ -233,9 +233,9 @@ export class Player extends PlayerLib implements IPlayer {
     const fs = TP.hexRad * .45, { gap, high: phigh } = this.panel.metrics, ngt4 = TP.numPlayers > 4;
     const { high, wide } = this.scoreCounter = this.makeCounter({ y: (phigh + ymax) / 2 }, C.black, fs)
     const leftOf = (pc: XY) => ({ x: pc.x - wide - gap, y: pc.y });
-    this.counter0 = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
-    this.counter1 = this.makeCounter(leftOf(this.counter0) , C.black, fs)
-    const { x, y } = this.counter1, dx = wide + gap, dy = (high + gap) / 2
+    this.markers[0] = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
+    this.markers[1] = this.makeCounter(leftOf(this.markers[0]) , C.black, fs)
+    const { x, y } = this.markers[1], dx = wide + gap, dy = (high + gap) / 2
     const qloc = [
       [-dx * 2, +dy],
       [-dx * 3, +dy],
@@ -254,8 +254,8 @@ export class Player extends PlayerLib implements IPlayer {
       }
     }).reverse()
   }
-  counter0!: NumCounter;
-  counter1!: NumCounter;
+  markers: NumCounter[] = []
+
   factionCounters: NumCounter[] = [];
   /** advance one score marker, then invoke callback [to gamePlay] */
   advanceMarker(score: number, cb: () => void) {
@@ -264,7 +264,7 @@ export class Player extends PlayerLib implements IPlayer {
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];
     markers.forEach((m, index) => {
-      const ctr = [this.counter0, this.counter1][index]; // counter for each marker
+      const ctr = this.markers[index]; // counter for each marker
       const clickDone = () => {
         const color = ColCard.factionColors[m.faction];
         ctr.setValue(m.value, color)
@@ -355,5 +355,13 @@ export class PlayerB extends Player {
     const ndx = weights[rand]
     const col = colScore[ndx].col;
     return col
+  }
+
+  override selectCol(cb: () => void) {
+    const col = this.xtraCol()
+    this.clearButtons();
+    this.colSelButtons[col - 1].select()
+    this.coinBidButtons[0].select(); // bid 1 to complete selection
+    cb();
   }
 }
