@@ -50,10 +50,14 @@ export class GamePlay extends GamePlayLib {
     const plyrBids = bidsOnCol.filter(pbid => pbid !== undefined);
     plyrBids.sort((a, b) => b.bid - a.bid); // descending order of bid
     do {
-      const bid = plyrBids[0]?.bid;
+      const bid = plyrBids[0]?.bid; // the highest bid value
       if (bid === undefined) return undefined;
-      const nbids = plyrBids.filter(pb => pb.bid == bid).length
-      if (nbids === 1)  return plyrBids[0].plyr;
+      const nbids = plyrBids.filter(pb => pb.bid == bid).length // others with same bid
+      if (nbids === 1) {
+        const winner = plyrBids.shift()?.plyr;  // exactly 1 --> winner
+        plyrBids.forEach(pb => pb.plyr.outBid(col, bid))
+        return winner
+      }
       const cancels = plyrBids.splice(0, nbids); // remove all equal bids
       cancels.forEach(pb => pb.plyr.cancelBid(col, bid))
     } while (true)

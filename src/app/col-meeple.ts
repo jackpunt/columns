@@ -73,9 +73,10 @@ export namespace CB {
   export const clear = 'clear';
   export const selected = 'selected';
   export const done = 'done';
-  export const cancel = 'cancel';
+  export const cancel = 'cancel'; // rejected: tied for first
+  export const outbid = 'outbid'; // rejected: low bidder
 }
-export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel;
+export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel | typeof CB.outbid;
 type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, radius?: number }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
   static radius = .67 // * CardShape.onScreenRadius
@@ -95,6 +96,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
     this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, rad * 1.05, vert), 0); // under baseShape
     this.addChild(this.canceled = this.makeCancelShape())
+    this.addChild(this.outbid = this.makeOutbidShape())
     this.highlight.setRectRad({ s: 4 })
     this.setState(CB.clear);
   }
@@ -118,7 +120,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
       this.setState(CB.selected);
       setTimeout(() => {
         this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
-      }, 0);
+      }, TP.flipDwell);
     }
   }
   onClick(evt: any, player: Player) {
@@ -134,11 +136,19 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   dimmer!: RectShape;
   highlight!: RectShape;
   canceled!: Shape;
+  outbid!: Shape;
   makeCancelShape() {
     const { width, height } = this.getBounds(), ss = width * .07, rad = width * .35 - 2 * ss;
     const circ = new CircleShape('', rad, C.RED, new Graphics().ss(ss))
     circ.y = height / 2 - width / 2; // center on diagonal from bottom
     return circ;
+  }
+  makeOutbidShape() {
+    const { width, height } = this.getBounds(), ss = width * .07, rad = width * .35 - 2 * ss;
+    const outbid = new Shape();
+    outbid.graphics.ss(ss).s(C.RED).mt(-rad / 2, 0).lt(rad/2, 0);
+    outbid.y = height / 2 - width / 2; // center on diagonal from bottom
+    return outbid;
   }
   /**
    *
@@ -153,6 +163,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         this.dimmer.visible = false;
         this.highlight.visible = false;
         this.canceled.visible = false;
+        this.outbid.visible = false;
         break
       }
       case CB.selected: {
@@ -167,6 +178,11 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
       }
       case CB.cancel: {
         this.canceled.visible = true;
+        this.state = pstate;
+        break
+      }
+      case CB.outbid: {
+        this.outbid.visible = true;
         this.state = pstate;
         break
       }

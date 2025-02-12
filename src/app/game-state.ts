@@ -1,10 +1,11 @@
-import { C, stime } from "@thegraid/common-lib";
+import { C } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
 import { type CardButton, type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
+import { TP } from "./table-params";
 
 interface Phase extends PhaseLib {
   col?: number, // for ScoreForRank
@@ -69,7 +70,8 @@ export class GameState extends GameStateLib {
     SelectCol: {
       start: () => {
         this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
-        this.gamePlay.allPlayers.forEach(plyr => plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), 0)));
+        this.gamePlay.allPlayers.forEach(plyr =>
+          plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), TP.moveDwell)));
       },
       done: (ok = false) => {
         if (!ok && !this.allDone) {
@@ -129,7 +131,7 @@ export class GameState extends GameStateLib {
           setTimeout(() => {
             if (col > this.nCols) return; // zombie colMeep callback!
             this.phase('BumpAndCascade', col, meep)
-          }, 0)
+          }, TP.moveDwell)
         };
         this.gamePlay.resolveWinner(col, colMeep)
       }
@@ -144,7 +146,7 @@ export class GameState extends GameStateLib {
         meep.highlight(true);
         this.table.logText(`${meep} in col ${col}`, `BumpAndCascade`);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
-        const bumpDone = () => { setTimeout(() => this.done(), 0) } // HACK: winner does it all
+        const bumpDone = () => { setTimeout(() => this.done(), TP.moveDwell) } // HACK: winner does it all
         this.curPlayer.bumpMeeple(meep, undefined, bumpDone); // advance | bump
       },
       // when bump and cascade has settled:
@@ -158,7 +160,7 @@ export class GameState extends GameStateLib {
         }
         // update faction counters for each Player:
         this.gamePlay.allPlayers.forEach(plyr => plyr.countFactions())
-        const nextCol = () => setTimeout(() => this.phase('ResolveWinner', col + 1), 0);
+        const nextCol = () => setTimeout(() => this.phase('ResolveWinner', col + 1), TP.flipDwell);
         this.gamePlay.scoreForColor(this.winnerMeep, nextCol);
       }
     },
@@ -200,7 +202,8 @@ export class GameState extends GameStateLib {
     },
     EndGame: {
       start: () => {
-        this.doneButton(`End of Game!\n(click for new game)`, C.RED)
+        const winp = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score )[0]
+        this.doneButton(`End of Game!\n(click for new game)`, winp.color)
       },
       done: () => {
         this.gamePlay.gameSetup.restart({});

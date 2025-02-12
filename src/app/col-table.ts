@@ -171,6 +171,11 @@ export class ColTable extends Table {
       gui.setValue(item);
       gameSetup.restart({})
     }
+    gui.makeParamSpec('nElts', [1, 2, 4, 6, 8], { fontColor: 'red' }); TP.nElts;
+    gui.spec('nElts').onChange = (item: ParamItem) => {
+      gui.setValue(item);
+      gameSetup.restart({})
+    }
 
     parent.addChild(gui)
     gui.x = x; gui.y = y
@@ -178,9 +183,9 @@ export class ColTable extends Table {
     return gui
   }
   scoreTrack!: ScoreTrack;
-  layoutScoreTrack() {
+  layoutScoreTrack(nElts = TP.nElts) {
     // ScoreTrack.findRGBV12(); // search for best permutation of ScoreTrack.rgbv12
-    const scoreTrack = this.scoreTrack = new ScoreTrack(this, this.scaleCont, 6, 30);
+    const scoreTrack = this.scoreTrack = new ScoreTrack(this, this.scaleCont, nElts, 30);
     const {x, y, width, height} = this.bgRect.getBounds()
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
     const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
@@ -368,7 +373,7 @@ class MarkerShape extends CircleShape {
 
   onClick() {
     const marker = this.marker as MarkerShape;
-    const dScore = this.value = marker.value;
+    const dScore = this.value - marker.value;
     marker.setValue(this.value, this.index);
     marker.track.overlayCont.removeAllChildren();
     afterUpdate(marker.track, () => marker.clickDone(dScore))
