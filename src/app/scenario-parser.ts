@@ -65,7 +65,7 @@ export class ScenarioParser extends SPLib {
 
   // TODO: parameterize with savedState (vs permute)
   placeCardsOnMap() {
-    const gp = this.gamePlay, nr = gp.nRows, nCards = nr * gp.nCols;
+    const gp = this.gamePlay, nr = gp.nRows, nCards = (nr - 2) * gp.nCols;
     const black = BlackCard.allBlack;
     const pCards = ColCard.allCols.slice();
     const dCards = DualCard.allDuals.slice();

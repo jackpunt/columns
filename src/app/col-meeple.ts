@@ -217,11 +217,11 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
 }
 
 export class ColSelButton extends CardButton {
-
+  static colNames = ['','A','B','C','D','E','F','G','H'];
   override get plyrButtons(): CardButton[] { return this.player.colSelButtons }
 
   constructor(public colNum = 0, opts: CardButtonOpts) {
-    super(`${colNum == 0 ? '' : colNum}`, opts); // rectShape = RectShape(borders); label = disp = Text
+    super(`${ColSelButton.colNames[colNum]}`, opts); // rectShape = RectShape(borders); label = disp = Text
     this.Aname = `ColSel-${this.player?.index ?? '?'}:${colNum}`;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)

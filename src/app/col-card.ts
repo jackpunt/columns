@@ -2,7 +2,7 @@ import { C, F, type XY } from "@thegraid/common-lib";
 import { CenterText, NamedContainer, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { ColMeeple } from "./col-meeple";
+import { ColMeeple, ColSelButton } from "./col-meeple";
 import { arrayN, type GamePlay } from "./game-play";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
@@ -148,7 +148,7 @@ export class ColCard extends Tile {
       return new ColCard(aname, fact);
     })
 
-    DualCard.allDuals = arrayN(nCards).map(n => {
+    DualCard.allDuals = arrayN(nFacs * nFacs).map(n => {
       const n4 = Math.floor(n / nFacs)
       const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
       return new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
@@ -208,7 +208,8 @@ export class BlackCard extends ColCard {
     super(Aname, 0) // initial factions[] for painting color
     this.factions = arrayN(this.maxCells, i => 0) as Faction[];
     const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
-    const colId = new CenterText(`${seqLim > 0 ? colNum : ''}`, F.fontSpec(this.radius * .2), C.WHITE,)
+    const colName = ColSelButton.colNames[colNum];
+    const colId = new CenterText(`${seqLim > 0 ? colName : ''}`, F.fontSpec(this.radius * .2), C.WHITE,)
     colId.y = this.radius * .35;
     this.addChildAt(colId, 1); // under meepCont
   }
