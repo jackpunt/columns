@@ -1,4 +1,4 @@
-import { stime } from "@thegraid/common-lib";
+import { json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib } from "@thegraid/hexlib";
 import { CB, ColMeeple } from "./col-meeple";
@@ -6,7 +6,7 @@ import type { ColTable } from "./col-table";
 import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
 import type { HexMap2 } from "./ortho-hex";
-import type { Player } from "./player";
+import { Player } from "./player";
 import { TP } from "./table-params";
 
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
@@ -30,6 +30,48 @@ export class GamePlay extends GamePlayLib {
     this.curPlayer.panel.showPlayer(false);
     super.setCurPlayer(player)
     this.curPlayer.panel.showPlayer(true);
+  }
+
+  /** all the cards and the meeples on them */
+  getLayout() {
+    const gp = this, hexMap = gp.hexMap;
+    // generate from bottom to top, the reverse to get them top to bottom:
+    const layout = arrayN(gp.nRows).map(rank =>
+      arrayN(gp.nCols, 1).map(col => {
+        const card = hexMap.getCard(rank, col);
+        const fac = card.factions;
+        const meeps0 = card.meepsOnCard.map(meep => meep.player.index)
+        const meeps = meeps0.length > 0 ? meeps0 : undefined;
+        return ({ fac, meeps })
+      })
+    ).reverse()
+    return layout;
+  }
+
+  override logWriterLine0(key = 'start', line?: Record<string, any>) {
+    if (line) {
+      super.logWriterLine0(key, line);
+      return;
+    }
+    const gp = this, hexMap = gp.hexMap;
+    const time = stime.fs();
+    const nPlayers = gp.allPlayers.length;
+    // colorName shows in player.Aname:
+    const playerColors = gp.allPlayers.map(plyr => Player.colorName(plyr.color)); // canonical color
+    const turn = Math.max(0, gp.turnNumber);
+    const tableElts = gp.table.saveState();
+    const layout = this.getLayout()
+    line = {
+      time, nPlayers, playerColors, turn, ...tableElts, layout,
+    }
+
+    const line00 = json(line, true); // machine readable starting conditions
+    const line01 = line00.replace(/\],(layout)/g, '],\n$1')
+    const line02 = line01.replace(/\],(\[)/g, '],\n        $1')
+    const line03 = line02.replace(/^{/, '{\n')
+    const line0 = line03.replace(/}$/, '\n}')
+    console.log(`-------------------- ${line0}`)
+    this.logWriter.writeLine(`{${key}: ${line0}},`)
   }
   override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {

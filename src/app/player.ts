@@ -31,6 +31,7 @@ export type PlayerColor = string;
 export class Player extends PlayerLib implements IPlayer {
   static initialCoins = 400;
   // set our multi-player colors; we don't use the TP.colorScheme
+  // PlayerLib.playerColor(cname|ndx) --> colorScheme[cname]
   static {
     PlayerLib.colorScheme = {
       brown: '#663300',

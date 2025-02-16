@@ -92,6 +92,7 @@ export class OrthoHex2 extends OrthoHex2Lib {
   }
 }
 
+// Specific HexMap<OrthoHex2> for columns:
 export class HexMap2 extends HexMap<OrthoHex2> {
   constructor(radius?: number, addToMapCont?: boolean, hexC: Constructor<OrthoHex2> = OrthoHex2, Aname?: string) {
     super(radius, addToMapCont, hexC, Aname)
@@ -124,14 +125,14 @@ export class HexMap2 extends HexMap<OrthoHex2> {
     hex2Ary.forEach((hex, n) => {
       let dcolor = HexMap.distColor[hex.district ?? 0]
       hex.setHexColor(dcolor);
-      hex.distText.color = C.pickTextColor(dcolor);
-      hex.distText.visible = true;
+      hex.distText.color = hex.rcText.color = C.pickTextColor(dcolor);
+      hex.showText(true)
       return;
     });
   }
   // inject district from row (also sets color)
   override addHex(row: number, col: number, district?: number, hexC?: Constructor<OrthoHex2>): OrthoHex2 {
-    district = (row == 0) ? 0 : (TP.nHexes - row - 1); // compute district from row
+    district = (TP.nHexes - row - 1); // compute district from row
     return super.addHex(row, col, district, hexC)
   }
 }

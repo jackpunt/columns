@@ -27,7 +27,7 @@ export class TileExporter {
   imageGrid = new ImageGrid(() => { return this.makeImagePages() });
 
   makeImagePages() {
-    const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows*nCols;
+    const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows * nCols;
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
       [12, TrackSegment, '', 1050/9, 750/2],

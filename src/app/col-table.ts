@@ -119,8 +119,8 @@ export class ColTable extends Table {
     return (dragging instanceof ColCard) ? dragging : undefined;
   }
 
-  override startGame(scenario: Scenario) {
-    super.startGame(scenario);         // allTiles.makeDragable(); setNextPlayer()
+  override startGame() {
+    super.startGame();                 // allTiles.makeDragable(); setNextPlayer()
     this.gamePlay.gameState.start();   // gamePlay.phase(startPhase); enable GUI to drive game
   }
 
@@ -190,6 +190,11 @@ export class ColTable extends Table {
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
     const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
     scoreTrack.x = bxy.x - tx - tw / 2;
+  }
+
+  /** state for initial conditions */
+  saveState() {
+    return { trackSegs: this.scoreTrack.trackSegs }
   }
 }
 
@@ -278,6 +283,7 @@ class ScoreTrack extends NamedContainer {
   dx: number;
   dy: number;
   maxValue!: number;
+  trackSegs!: string[]; // anames of each TrackSegment in use
 
   /**
    *
@@ -302,6 +308,7 @@ class ScoreTrack extends NamedContainer {
 
     const tracks12 = TrackSegment.anames.map(aname => new TrackSegment(aname, dx, dy,)); // make 12 Segments
     const trackSegs = permute(tracks12).slice(0, nElts);     // select nElts for this table
+    this.trackSegs = trackSegs.map(ts => ts.Aname);
     trackSegs.forEach((seg, n) => {
       const [f0, f1] = seg.facts; // upper and lower factions for cells [1..9]
       this.factions[0] = this.factions[0].concat(f0);

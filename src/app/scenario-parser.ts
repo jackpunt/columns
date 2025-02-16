@@ -1,10 +1,12 @@
 import { permute, stime } from "@thegraid/common-lib";
 import { Meeple, ScenarioParser as SPLib, SetupElt as SetupEltLib, type Tile, type TileSource } from "@thegraid/hexlib";
-import { BlackCard, ColCard, DualCard } from "./col-card";
-import { type GamePlay, } from "./game-play";
-import { Player } from "./player";
+import { BlackCard, ColCard, DualCard, type Faction } from "./col-card";
+import { type GamePlay } from "./game-play";
+import { Player, type PlayerColor } from "./player";
 import { TP } from "./table-params";
 
+// rowElt.length = nCols
+type RowElt = { fac: Faction[], meeps?: number[] }[];
 
 export interface SetupElt extends SetupEltLib {
   // Aname?: string,        // {orig-scene}@{turn}
@@ -12,10 +14,11 @@ export interface SetupElt extends SetupEltLib {
   // coins?: number[],      // 1
   // gameState?: any[];     // GameState contribution
 
-  time?: string,         // stime.fs() when state was saved.
-  tiles?: string[][],    // Tile->string[] per player
-  cards?: string[][],  // OR: ident of PathCard
-  rules?: string[],    // OR: ident of PathCard
+  time?: string,            // stime.fs() when state was saved.
+  nPlayers?: number;        // number of players, playerColors[index]
+  pColors?: Record<PlayerColor, string>;  // if customized playerColors
+  layout?: RowElt[];
+  trackSegs?: string[];     // name of each TrackSegment
 }
 
 export class ScenarioParser extends SPLib {
@@ -41,7 +44,7 @@ export class ScenarioParser extends SPLib {
   override parseScenario(setup: SetupElt) {
     console.log(stime(this, `.parseScenario: newState =`), setup);
 
-    const { gameState, turn, tiles, cards, rules } = setup;
+    const { gameState, turn, } = setup;
     const map = this.map, gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
     const turnSet = (turn !== undefined); // indicates a Saved Scenario: assign & place everything
     if (turnSet) {
@@ -50,7 +53,8 @@ export class ScenarioParser extends SPLib {
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     {
-      ColCard.makeAllCards(TP.mHexes, TP.nHexes,); // populate ColCard.cardByName
+      // nCol, nRow
+      ColCard.makeAllCards(TP.nHexes, TP.mHexes, ); // populate ColCard.cardByName
       this.placeCardsOnMap();
     }
     {
@@ -101,12 +105,11 @@ export class ScenarioParser extends SPLib {
     })
   }
 
-  /** add the elements are are not in SetupEltLib */
-  override addStateElements(setupElt: SetupElt): void {
-    const namesOf = (ary: (Tile | undefined)[]) => ary.map(tile => tile?.Aname ?? '').filter(n => !!n);
-    const table = this.gamePlay.table;
-    const gameState = this.gamePlay.gameState.saveState();
-    setupElt.gameState = gameState;
+  override addStateElements(setupElt: SetupElt) {
+    const { time, turn } = setupElt;
+    const scores = this.gamePlay.allPlayers.map(plyr => plyr.scoreCounters.map(sc => sc.value))
+    const layout = this.gamePlay.getLayout();
+    return { time, turn, scores, layout, }
   }
 
 }

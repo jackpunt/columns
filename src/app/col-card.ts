@@ -136,7 +136,7 @@ export class ColCard extends Tile {
   // 2. for each Player - [1..nc] ColSelect cards
   // 3. for each Player - [1..nc-1 max 4] BidCoin cards
 
-  static makeAllCards(nc = TP.mHexes, nr = TP.nHexes, ) {
+  static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
     ColCard.allCards.length = 0;
     const nCards = nc * nr ; // number of factions
 

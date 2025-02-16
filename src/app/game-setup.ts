@@ -3,7 +3,7 @@ import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Sc
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
-import { GamePlay } from './game-play';
+import { arrayN, GamePlay } from './game-play';
 import { OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { PlayerB } from './player';
 import { ScenarioParser } from './scenario-parser';
@@ -29,9 +29,9 @@ Math.stime = stime; // can use Math.stime() in js/debugger
 /** initialize & reset & startup the application/game. */
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
-  override loadImagesThenStartup(qParams: Params = {}) {
+  override loadImagesThenStartup() {
     AliasLoader.loader.fnames = ['meeple-shape'];
-    super.loadImagesThenStartup(qParams);    // loader.loadImages(() => this.startup(qParams));
+    super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
   }
   override startup(qParams?: { [x: string]: any; }): void {
     // TODO: place all ColCards
@@ -42,10 +42,7 @@ export class GameSetup extends GameSetupLib {
   // allow qParams as opt arg:
   override initialize(canvasId: string, qParams = this.qParams): void {
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
-    // useEwTopo, size 7.
     const { host, port, file, nH } = qParams;
-    TP.useEwTopo = true;
-    TP.nHexes = nH || 7;
     TP.ghost = host || TP.ghost
     TP.gport = Number.parseInt(port || TP.gport.toString(10), 10)
     TP.networkGroup = 'hexpath:game1';
@@ -65,24 +62,29 @@ export class GameSetup extends GameSetupLib {
     hexCont?.stage?.update();
   }
 
+  /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
+  setRowsCols(nPlayers = this.getNPlayers()) {
+    // nr includes top & bottom black cells; (8 player could be 7 rows...)
+    const nr = Math.max(4, 3 + Math.floor(nPlayers / 2)) + 2; // include 2 black rows
+    const nc = Math.max(4, 2 + Math.ceil(nPlayers / 2));
+    // const nr = [3, 3, 4, 4, 5, 5, 6, 6, 7, 7][np] + 2;
+    // const nc = [2, 3, 3, 4, 4, 5, 5, 6, 6, 7][np];
+    //       np =  0  1  2  3  4  5  6  7  8  9
+    // score            40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
+    TP.nHexes = nr;
+    TP.mHexes = nc;
+    return [nr, nc] as [number, number];
+  }
+
   override makeHexMap(
     hexMC: Constructor<HexMap<Hex>> = HexMap2,
     hexC: Constructor<Hex> = Hex2, // (radius, addToMapCont, hexC, Aname)
     cNames = MapCont.cNames.concat() as string[], // the default layers
   ) {
-    const np = this.getNPlayers();
-    // nr includes top & bottom black cells; (8 player could be 7 rows...)
-    const nr = Math.max(4, 3 + Math.floor(np / 2)) + 2; // include 2 black rows
-    const nc = Math.max(4, 2 + Math.ceil(np / 2));
-    // const nr = [3, 3, 4, 4, 5, 5, 6, 6, 7, 7][np] + 2;
-    // const nc = [2, 3, 3, 4, 4, 5, 5, 6, 6, 7][np];
-    //       np =  0  1  2  3  4  5  6  7  8  9
-    // score            40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
-    // set color of 'hex' for each row:
-    const dc = Array<string>(nr); dc.fill(C.grey224, 0, -1); dc[0] = dc[nr-1] = C.grey64;
+    const [nr] = this.setRowsCols();
+    // set color of 'hex' for each row (district); inject to HexMap.distColor
+    const dc = arrayN(nr).map(i => C.grey224);
     HexMap.distColor.splice(0, HexMap.distColor.length, ...dc);
-    TP.nHexes = nr;
-    TP.mHexes = nc;
     const hexMap = super.makeHexMap(hexMC, hexC, cNames); // hexMap.makeAllHexes(nh=TP.nHexes, mh=TP.mHexes)
     return hexMap;
   }

@@ -71,7 +71,7 @@ export class GameState extends GameStateLib {
       start: () => {
         this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
         this.gamePlay.allPlayers.forEach(plyr =>
-          plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), TP.moveDwell)));
+          plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), TP.flipDwell)));
       },
       done: (ok = false) => {
         if (!ok && !this.allDone) {
@@ -131,7 +131,7 @@ export class GameState extends GameStateLib {
           setTimeout(() => {
             if (col > this.nCols) return; // zombie colMeep callback!
             this.phase('BumpAndCascade', col, meep)
-          }, TP.moveDwell)
+          }, TP.flipDwell)
         };
         this.gamePlay.resolveWinner(col, colMeep)
       }
@@ -146,7 +146,7 @@ export class GameState extends GameStateLib {
         meep.highlight(true);
         this.table.logText(`${meep} in col ${col}`, `BumpAndCascade`);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
-        const bumpDone = () => { setTimeout(() => this.done(), TP.moveDwell) } // HACK: winner does it all
+        const bumpDone = () => { setTimeout(() => this.done(), TP.flipDwell) } // HACK: winner does it all
         this.curPlayer.bumpMeeple(meep, undefined, bumpDone); // advance | bump
       },
       // when bump and cascade has settled:
@@ -202,7 +202,9 @@ export class GameState extends GameStateLib {
     },
     EndGame: {
       start: () => {
+        this.saveGame();
         const winp = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score )[0]
+        this.gamePlay.logWriterLine0('finish', { 'winner': winp.index, 'winColor': winp.color })
         this.doneButton(`End of Game!\n(click for new game)`, winp.color)
       },
       done: () => {
