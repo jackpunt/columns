@@ -264,6 +264,27 @@ export class Player extends PlayerLib implements IPlayer {
   autoScore = true;
 
   factionCounters: NumCounter[] = [];
+  /**
+   * current support from each faction: [B, r, g, b, v]
+   */
+  factionTotals(markers = this.markers) {
+    // factionCounters are ordered by factionColors: [B,r,g,b,v]
+    const cards = this.coinBidButtons.filter(b => (b.state === CB.clear)) // yet to be played
+    const factionTotals = ColCard.factionColors.slice(0, 5).map((color, faction) => 0
+      + this.factionCounters[faction].value
+      + markers.filter(clk => clk.faction == faction).length
+      + cards.filter(card => card.factions.includes(faction)).length / 2
+    )
+    factionTotals[0] = 0; // downgrade Black
+    return factionTotals
+  }
+
+  get markers() {
+    const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
+    const markers = scoreTrack.markers[this.index].filter(m => m.value < max);
+    return markers;
+  }
+
   /** advance one score marker, then invoke callback [to gamePlay] */
   advanceMarker(dScore: number, cb: () => void) {
     if (!dScore) { setTimeout(cb, 0); return } // zero or undefined
@@ -286,15 +307,22 @@ export class Player extends PlayerLib implements IPlayer {
       this.autoAdvanceMarker(dScore)
     }
   }
+
   autoAdvanceMarker(dScore: number) {
     this.gamePlay.isPhase('BumpAndCascade')// 'EndRound' --> Score for Rank
-    const { row, rowScores } = this.gamePlay.gameState.state;
-    const scoreTrack = this.gamePlay.table.scoreTrack;
-    const [m0, m1] = scoreTrack.markers[this.index];
-    const allClkrs = [m0.clicker1, m0.clicker2, m1.clicker1, m1.clicker2]
-    const valid = allClkrs.filter(clkr => clkr.parent)
-    valid.sort((a, b) => a.value - b.value); // ascending
-    const clicker = valid[0]; // least value
+    const { row, rowScores } = this.gamePlay.gameState.state; // TODO: plan ahead
+    const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
+    const allClkrs0 = this.markers.map(m => [m.clicker1, m.clicker2]).flat(1);
+    const allClkrs = allClkrs0.filter(clkr => clkr.parent); // shown an GUI...
+    allClkrs.sort((a, b) => a.value - b.value); // ascending
+    const factionTotals = this.factionTotals(allClkrs);
+    allClkrs.sort((a, b) => factionTotals[b.faction] - factionTotals[a.faction]); // descending
+
+    const maxes = allClkrs.filter(clk => clk.value == max)
+    const clicker = (maxes.length > 0)
+    ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
+    : allClkrs[0];     // lowest mrkr of the most present faction
+    if (!clicker) debugger;
     clicker.onClick()
   }
 
@@ -304,6 +332,10 @@ export class Player extends PlayerLib implements IPlayer {
     const meep = meeps.sort((a, b) => a.card.rank - b.card.rank)[0];
     colMeep(meep)
     return;
+  }
+
+  get curBidCard() {
+    return this.coinBidButtons.filter(b => (b.state === CB.selected))[0];
   }
 
   /** this player moves meep, and invokes bumpee.bumpMeeple.
@@ -318,8 +350,13 @@ export class Player extends PlayerLib implements IPlayer {
     const dir = dir0 ?? 'N';
     const card = (meep.card.hex.nextHex(dir) as OrthoHex2).card;// should NOT bump from black, but...
     if (!card) return;
-    const open = card.openCells
-    card.addMeep(meep, open?.[0]); // bump to an openCell
+    const open = card.openCells;
+    const factionTotals = this.factionTotals()
+    const facs = this.curBidCard.factions.slice(), cardFacs = card.factions;
+    const matches = open.filter(ndx =>facs.includes(cardFacs[ndx]))
+    matches.sort((a, b) => factionTotals[cardFacs[b]] - factionTotals[cardFacs[a]]);
+    const cellNdx = matches[0]
+    const noCascade = card.addMeep(meep, cellNdx); // bump to an openCell
     card.stage?.update();
     // cb();
     return;
@@ -372,6 +409,7 @@ export class PlayerB extends Player {
     const weights = [0], nof = colScore.map((cs, cr) => (nCols - cr) * nCols + 1 + (nCols - cs.col))
     colScore.forEach((cs, cr) => weights.splice(0, 0, ...arrayN(nof[cr], j => cr)))
     const nw = weights.length;
+    // {colScore} nw={nw} [{rand}->{ndx}] = {colScore[ndx].col} {nof}
     permute(weights)
     const rand = Random.random(nw)
     const ndx = weights[rand]
@@ -386,30 +424,7 @@ export class PlayerB extends Player {
     this.coinBidButtons[0].select(); // bid 1 to complete selection
     cb();
   }
-  // factionCounters are ordered by factionColors: [B,r,g,b,v]
-  override autoAdvanceMarker(dScore: number) {
-    const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
-    const mkrs = scoreTrack.markers[this.index].filter(m => m.value < max);
-    const allClkrs0 = mkrs.map(m => [m.clicker1, m.clicker2]).flat(1);
-    const allClkrs = allClkrs0.filter(clkr => clkr.parent); // shown an GUI...
-
-    const cards = this.coinBidButtons.filter(b => (b.state === CB.clear)) // yet to be played
-    const factionTotals = ColCard.factionColors.slice(0, 5).map((color, faction) => 0
-      + this.factionCounters[faction].value
-      + allClkrs.filter(clk => clk.faction == faction).length
-      + cards.filter(card => card.factions.includes(faction)).length / 2
-    )
-    factionTotals[0] = 0; // downgrade Black
-
-    this.gamePlay.isPhase('BumpAndCascade')// 'EndRound' --> Score for Rank
-    const { row, rowScores } = this.gamePlay.gameState.state;
-    allClkrs.sort((a, b) => a.value - b.value); // ascending
-    allClkrs.sort((a, b) => factionTotals[b.faction] - factionTotals[a.faction]); // descending
-    const maxes = allClkrs.filter(clk => clk.value == max)
-    const clicker = (maxes.length > 0)
-    ? maxes.sort((a, b) => a.value - b.value)[0] // lowest able to hit max
-    : allClkrs[0];     // lowest of the most present faction
-    if (!clicker) debugger;
-    clicker.onClick()
+  autoAdvanceMarkerX(dScore: number) {
+    super.autoAdvanceMarker(dScore)
   }
 }
