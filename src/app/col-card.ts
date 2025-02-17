@@ -30,7 +30,6 @@ export class ColCard extends Tile {
 
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE, C.WHITE];
   factions: Faction[] = [0];
-  get faction() { return this.factions[0] }
 
   constructor(aname: string, ...factions: Faction[]) {
     const Aname = aname.startsWith(':') ? `${ColCard.allCards.length}${aname}` : aname;
@@ -72,7 +71,7 @@ export class ColCard extends Tile {
     return this.meepsOnCard.find(m => (m !== meep) && (m.cellNdx == cellNdx))
   }
   /**
-   * add meep to this ColCard in cellNdx or bumpLoc
+   * add meep to this ColCard in cellNdx, at meepleLoc or bumpLoc
    * @param meep
    * @param cellNdx target cell for meep (if supplied by DualCard)
    * @param xy (supplied by dropFunc -> DualCard)
@@ -119,10 +118,6 @@ export class ColCard extends Tile {
 
   override isLegalTarget(toHex: Hex2, ctx: DragContext): boolean {
     return (toHex === ctx.tile?.fromHex) && (ctx.lastShift ?? false);
-  }
-
-  override showTargetMark(hex: IHex2 | undefined, ctx: DragContext): void {
-    super.showTargetMark(hex, ctx)
   }
 
   // Sets of cards:

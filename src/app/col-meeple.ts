@@ -206,9 +206,10 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
   }
+  declare rectShape: CardShape;
 
   makeShape() {
-    const { radius: rad, strokec } = this.rectShape as CardShape
+    const { radius: rad, strokec } = this.rectShape;
     return new CardShape(strokec, strokec, rad, true)
   }
   makeBleed(bleed: number) {

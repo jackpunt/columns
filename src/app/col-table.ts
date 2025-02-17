@@ -1,11 +1,11 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type DragInfo, type NamedObject, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard, type Faction } from "./col-card";
+import type { ColMeeple } from "./col-meeple";
 import type { GamePlay } from "./game-play";
-import type { GameSetup, Scenario } from "./game-setup";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
@@ -142,20 +142,24 @@ export class ColTable extends Table {
     super.bindKeysToScale(scaleC, viewA, viewZ);
   }
 
+  // override countLegalHexes to highlight DualLegalMark and selfdrop;
   override markLegalHexes(tile: Tile, ctx: DragContext): number {
-    return super.markLegalHexes(tile, ctx);  // return super()+1 to allow everything to drag
-  }
-
-  // debug copy; do not keep
-  override dragFunc(tile: Tile, info: DragInfo) {
-    const hex = this.hexUnderObj(tile); // clickToDrag 'snaps' to non-original hex!
-    this.dragFunc0(tile, info, hex);
+    const meep = ctx.tile as ColMeeple;
+    let nLegal = 0;
+    const countLegalHexes = (hex: IHex2) => {
+      if (tile.isLegalTarget(hex, ctx)) {
+        (hex as OrthoHex2).setIsLegal(true, meep); // ==> legalMark.visible = true;
+        nLegal += 1;
+      }
+    };
+    tile.markLegal(this, countLegalHexes, ctx); // visitor to check each potential target
+    return nLegal;
   }
 
   override makeParamGUI(parent: Container, x = 0, y = 0) {
     const gui = new ParamGUI(TP, { textAlign: 'right' });
-    gui.name = (gui as NamedObject).Aname = 'ParamGUI';
-    const gameSetup = this.gamePlay.gameSetup as GameSetup;
+    gui.name = gui.Aname = 'ParamGUI';
+    const gameSetup = this.gamePlay.gameSetup;
     gui.makeParamSpec('hexRad', [30, 45, 60, 90, 135,], { fontColor: 'red' }); TP.hexRad;
     gui.spec('hexRad').onChange = (item: ParamItem) => {
       PaintableShape.defaultRadius = item.value;
@@ -332,25 +336,30 @@ class ScoreTrack extends NamedContainer {
   markerCont = new NamedContainer('markerCont');
   markers: [MarkerShape, MarkerShape][] = [];
   addMarkers(plyr: Player) {
-    const markers = [this.makeScoreMarker(plyr), this.makeScoreMarker(plyr, true)] as [MarkerShape, MarkerShape]
+    const markers = [this.makeScoreMarker(plyr, 0), this.makeScoreMarker(plyr, 1)] as [MarkerShape, MarkerShape]
     this.markers.push(markers);
-    markers.forEach((m, ndx) => {
-      this.markerCont.addChild(m);
-      m.setValue(0, ndx);
-    })
+    this.markerCont.addChild(...markers);
   }
-  makeScoreMarker(plyr: Player, off2 = false) {
-    return new MarkerShape(plyr, this, undefined, undefined, off2);
+  makeScoreMarker(plyr: Player, index = 0) {
+    return new MarkerShape(plyr, this, undefined, index);
   }
 }
 
 class MarkerShape extends CircleShape {
-  constructor(public player: Player, public track: ScoreTrack, public marker?: MarkerShape, strokeC = '', public offSet2 = false) {
-    super(player.color, track.radius / 2, strokeC);
-    if (!strokeC) {
+  /**
+   *
+   * @param player
+   * @param track
+   * @param marker parent marker for clicker
+   * @param index determines initial track (& yoff)
+   */
+  constructor(public player: Player, public track: ScoreTrack, public marker?: MarkerShape, index = 0) {
+    super(player.color, track.radius / 2, marker ? C.WHITE : '');
+    this.setValue(0, index);
+    if (!marker) {
       // Each primary MarkerShape gets two 'clickers'; which are a MarkerShape with strokeC.
-      const clicker1 = this.clicker1 = new MarkerShape(player, track, this, C.white, this.offSet2);
-      const clicker2 = this.clicker2 = new MarkerShape(player, track, this, C.white, this.offSet2);
+      const clicker1 = this.clicker1 = new MarkerShape(player, track, this, index);
+      const clicker2 = this.clicker2 = new MarkerShape(player, track, this, index);
       clicker1.visible = clicker2.visible = true;
       clicker1.mouseEnabled = clicker2.mouseEnabled = true;
       clicker1.on(S.click, (evt) => clicker1.onClick(), clicker1, false)
@@ -371,15 +380,17 @@ class MarkerShape extends CircleShape {
    * @param index 0: upper-track, 1: lower-track [previous index]
    */
   setValue(value: number, index = this.index) {
+    if (this.yoff == undefined) this.yoff = [.55, .65][index]; // first time value is set
     const { dx, dy, radius } = this.track; // dx ~= radius * 1.2
     this.index = index;
     this.value = value;
     this.x = value * dx;
-    this.y = index * dy + this.player.index * dx + radius * (.5 + (this.offSet2 ? .15 : .05));
+    this.y = index * dy + this.player.index * dx + radius * this.yoff;
   }
+  yoff!: number; // alignment & underlap when overlaid
 
   onClick() {
-    const marker = this.marker as MarkerShape;
+    const marker = this.marker as MarkerShape; // ASSERT: each clicker has a marker
     const dScore = this.value - marker.value;
     marker.setValue(this.value, this.index);
     marker.track.overlayCont.removeAllChildren();

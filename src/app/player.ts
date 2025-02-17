@@ -178,6 +178,9 @@ export class Player extends PlayerLib implements IPlayer {
   currentBid() {
     return (this.coinBidButtons.find(but => but.state === CB.selected) as CoinBidButton).coinBid;
   }
+  get curBidCard() {
+    return this.coinBidButtons.filter(b => (b.state === CB.selected))[0];
+  }
 
   /** End of turn */
   commitCards() {
@@ -334,10 +337,6 @@ export class Player extends PlayerLib implements IPlayer {
     return;
   }
 
-  get curBidCard() {
-    return this.coinBidButtons.filter(b => (b.state === CB.selected))[0];
-  }
-
   /** this player moves meep, and invokes bumpee.bumpMeeple.
    * invoke cb() when bump cascade if done (no bumpee, or bump to black)
    *
@@ -355,7 +354,7 @@ export class Player extends PlayerLib implements IPlayer {
     const facs = this.curBidCard.factions.slice(), cardFacs = card.factions;
     const matches = open.filter(ndx =>facs.includes(cardFacs[ndx]))
     matches.sort((a, b) => factionTotals[cardFacs[b]] - factionTotals[cardFacs[a]]);
-    const cellNdx = matches[0]
+    const cellNdx = matches[0];
     const noCascade = card.addMeep(meep, cellNdx); // bump to an openCell
     card.stage?.update();
     // cb();

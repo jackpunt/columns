@@ -88,6 +88,7 @@ export class ScenarioParser extends SPLib {
       const row = hex.row;
       const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
       card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
+      hex.legalMark.doGraphicsDual(card)
       return;
     })
     this.gamePlay.gameSetup.update()

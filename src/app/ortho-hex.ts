@@ -1,8 +1,9 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
-import { type Paintable } from "@thegraid/easeljs-lib";
+import { CircleShape, type Paintable } from "@thegraid/easeljs-lib";
 import { H, Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TP, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
+import type { ColMeeple } from "./col-meeple";
 
 
 type Or4DCR = Record<Or4Dir, DCR>
@@ -21,26 +22,6 @@ export class TopoOR4C extends TopoC<Or4DCR> {
     return { x: col * dxdc, y: row * dydr, w, h, dxdc, dydr }
   }
 }
-
-class DualLegalMark extends LegalMark {
-
-  // allow to be on left or right side of ColCard (hex)
-  override setOnHex(hex: IHex2, align: 'C' | 'L' | 'R' = 'C') {
-    super.setOnHex(hex);
-    // this.hex2 = hex;
-    // this.doGraphics();
-    const hex2 = hex as OrthoHex2;
-    const card = this.hex2;
-    const parent = hex2.mapCont.markCont;
-    hex2.cont.parent.localToLocal(hex2.x, hex2.y, parent, this);
-    this.hitArea = hex2.hexShape; // legal mark is used for hexUnderObject, so need to cover whole hex.
-    this.mouseEnabled = true;
-    this.visible = false;
-    parent.addChild(this);
-    return this;
-  }
-}
-
 
 // Hex1 has get/set tile/meep -> _tile/_meep
 // Hex1 has get/set -> setUnit(unit, isMeep) & unitCollision(unit1, unit2)
@@ -77,6 +58,20 @@ export class OrthoHex2 extends OrthoHex2Lib {
     return new CardShape(colorn);
   }
 
+  override makeLegalMark(): LegalMark {
+    return new DualLegalMark()
+  }
+  declare legalMark: DualLegalMark;
+
+  override setIsLegal(v: boolean, meep?: ColMeeple): boolean {
+    if (v) {
+      const cardFacs = this.card.factions;
+      const bidFacs = meep?.player.curBidCard?.factions ?? [];
+      const legalMark = this.legalMark;
+      cardFacs.forEach((f, i) => legalMark.paint(i, bidFacs.includes(f)))
+    }
+    return super.setIsLegal(v);
+  }
   // leave distText visible
   override showText(vis = !this.rcText.visible) {
     this.rcText.visible = vis;
@@ -92,11 +87,32 @@ export class OrthoHex2 extends OrthoHex2Lib {
   }
 }
 
+
+export class DualLegalMark extends LegalMark {
+  declare children: Paintable[];
+  // replace original legalMark with multiple circles
+  doGraphicsDual(card: ColCard) {
+    const xy = card.factions.map((f,i) => card.meepleLoc(i))
+    const radius = this.hex2.radius/3;
+    this.removeAllChildren();
+    xy.forEach(({x,y}) => {
+      const cs = new CircleShape(this.pc[1], radius, '');
+      cs.x = x; cs.y = y;
+      this.addChild(cs);
+    })
+  }
+  pc = ['rgba(255,255,255,.8)', 'rgba(255,255,255,.3)']
+  paint(i = 0, isBid = false) {
+    this.children[i].paint(this.pc[isBid ? 0 : 1]);
+  }
+}
+
+
 // Specific HexMap<OrthoHex2> for columns:
 export class HexMap2 extends HexMap<OrthoHex2> {
   constructor(radius?: number, addToMapCont?: boolean, hexC: Constructor<OrthoHex2> = OrthoHex2, Aname?: string) {
     super(radius, addToMapCont, hexC, Aname)
-    this.cardMark = new CardShape(C.nameToRgbaString(C.grey128, .3), '', .8);
+    this.cardMark = new CardShape(C.nameToRgbaString(C.grey224, .2), '', .85);
     this.cardMark.mouseEnabled = false; // prevent objectUnderPoint!
   }
   getCard(rank: number, col: number) {
