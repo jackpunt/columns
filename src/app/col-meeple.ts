@@ -1,6 +1,6 @@
 import { C, F, S, stime, type XYWH } from "@thegraid/common-lib";
 import { CenterText, CircleShape, RectShape, UtilButton, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
-import { Graphics, Shape } from "@thegraid/easeljs-module";
+import { Container, Graphics, Shape, type DisplayObject } from "@thegraid/easeljs-module";
 import { Meeple, Player as PlayerLib, Tile, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
@@ -92,9 +92,10 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     this.radius = rad;
 
     // make dimmer & highlight:
-    const dColor = 'rgba(100,100,100,.5)', vert = true;
+    const dColor = C.rgba(C.grey92, .7), vert = true;
     this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
-    this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, rad * 1.05, vert), 0); // under baseShape
+    this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, rad, vert), 0); // under baseShape
+    this.highlight.scaleX = 1.17; this.highlight.scaleY = 1.10; // 10 ~= 3/5 * 17
     this.addChild(this.canceled = this.makeCancelShape())
     this.addChild(this.outbid = this.makeOutbidShape())
     this.highlight.setRectRad({ s: 4 })
@@ -118,9 +119,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
       // clear the previously selected button
       this.plyrButtons.find(cb => cb.state === CB.selected)?.setState(CB.clear, false);
       this.setState(CB.selected);
-      setTimeout(() => {
-        this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
-      }, TP.flipDwell);
+      this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
     }
   }
   onClick(evt: any, player: Player) {
@@ -135,19 +134,28 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   state?: CardButtonState;
   dimmer!: RectShape;
   highlight!: RectShape;
-  canceled!: Shape;
-  outbid!: Shape;
+  canceled!: DisplayObject;
+  outbid!: DisplayObject;
   makeCancelShape() {
     const { width, height } = this.getBounds(), ss = width * .07, rad = width * .35 - 2 * ss;
+    const back = new CircleShape(C.rgba(C.grey224, .5), rad * 1.1, '')
     const circ = new CircleShape('', rad, C.RED, new Graphics().ss(ss))
-    circ.y = height / 2 - width / 2; // center on diagonal from bottom
-    return circ;
+    const slash = new Shape()
+    slash.graphics.ss(ss).s(C.RED).mt(-rad, 0).lt(rad, 0);
+    slash.rotation = 45;
+    const cancel = new Container()
+    cancel.y = height / 2 - width / 2; // center on diagonal from bottom
+    cancel.addChild(back, circ, slash)
+    return cancel;
   }
   makeOutbidShape() {
     const { width, height } = this.getBounds(), ss = width * .07, rad = width * .35 - 2 * ss;
-    const outbid = new Shape();
-    outbid.graphics.ss(ss).s(C.RED).mt(-rad / 2, 0).lt(rad/2, 0);
+    const back = new CircleShape(C.rgba(C.grey224, .5), rad * 1.1, '')
+    const dash = new Shape();
+    dash.graphics.ss(ss).s(C.RED).mt(-rad, 0).lt(rad, 0);
+    const outbid = new Container()
     outbid.y = height / 2 - width / 2; // center on diagonal from bottom
+    outbid.addChild(back, dash)
     return outbid;
   }
   /**

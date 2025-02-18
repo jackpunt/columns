@@ -176,14 +176,16 @@ export class Player extends PlayerLib implements IPlayer {
   bidOnCol(col: number) {
     return this.colSelButtons[col - 1]?.state === CB.selected ? { plyr: this, bid: this.currentBid() } : undefined
   }
+  /** value of the current CB.selected CoinBidButton */
   currentBid() {
-    return (this.coinBidButtons.find(but => but.state === CB.selected) as CoinBidButton).coinBid;
+    return this.curBidCard.coinBid;
   }
+  /** The current CB.selected CoinBidButton */
   get curBidCard() {
-    return this.coinBidButtons.filter(b => (b.state === CB.selected))[0];
+    return this.coinBidButtons.find(b => (b.state === CB.selected)) as CoinBidButton;
   }
 
-  /** End of turn */
+  /** End of turn: mark Sel & Bid cards from CB.selected to CB.done */
   commitCards() {
     const csb = this.colSelButtons.find(b => b.state === CB.selected);
     const cbb = this.coinBidButtons.find(b => b.state === CB.selected);
