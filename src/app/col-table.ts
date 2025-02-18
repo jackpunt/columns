@@ -1,7 +1,7 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
 import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
-import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
+import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2, type NumCounter } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard, type Faction } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
@@ -311,8 +311,8 @@ class ScoreTrack extends NamedContainer {
     const dx = this.dx = this.radius * 1.2, dy = this.dy = Math.max(dx * TP.numPlayers, cardRad);
 
     const tracks12 = TrackSegment.anames.map(aname => new TrackSegment(aname, dx, dy,)); // make 12 Segments
-    const trackSegs = permute(tracks12).slice(0, nElts);     // select nElts for this table
-    this.trackSegs = trackSegs.map(ts => ts.Aname);
+    const trackSegs = this.selectTrackSegs(tracks12);
+    TP.trackSegs = this.trackSegs = trackSegs.map(ts => ts.Aname);
     trackSegs.forEach((seg, n) => {
       const [f0, f1] = seg.facts; // upper and lower factions for cells [1..9]
       this.factions[0] = this.factions[0].concat(f0);
@@ -331,6 +331,15 @@ class ScoreTrack extends NamedContainer {
     this.addChild(this.overlayCont); // holds clicker(s) and ray(s)
     this.table.dragger.makeDragable(this, this)//, ()=>{this.scaleX=this.scaleY=.5}, ()=>{this.scaleX=this.scaleY=1});
   }
+
+  selectTrackSegs(tracks12: TrackSegment[], trackSegs = TP.trackSegs, nElts = TP.nElts) {
+    if (trackSegs) {
+      return trackSegs.map(aname => tracks12.find(ts => ts.Aname === aname)) as TrackSegment[]
+    } else {
+     return permute(tracks12).slice(0, nElts)
+    }
+  }
+
   overlayCont = new NamedContainer('overlay')
   segmentCont = new NamedContainer('segmentCont');
   markerCont = new NamedContainer('markerCont');
@@ -345,21 +354,21 @@ class ScoreTrack extends NamedContainer {
   }
 }
 
-class MarkerShape extends CircleShape {
+export class MarkerShape extends CircleShape {
   /**
    *
    * @param player
-   * @param track
+   * @param scoreTrack
    * @param marker parent marker for clicker
-   * @param index determines initial track (& yoff)
+   * @param track determines initial track (& yoff)
    */
-  constructor(public player: Player, public track: ScoreTrack, public marker?: MarkerShape, index = 0) {
-    super(player.color, track.radius / 2, marker ? C.WHITE : '');
-    this.setValue(0, index);
+  constructor(public player: Player, public scoreTrack: ScoreTrack, public marker?: MarkerShape, track = 0) {
+    super(player.color, scoreTrack.radius / 2, marker ? C.WHITE : C.grey128);
+    this.setValue(0, track);
     if (!marker) {
       // Each primary MarkerShape gets two 'clickers'; which are a MarkerShape with strokeC.
-      const clicker1 = this.clicker1 = new MarkerShape(player, track, this, index);
-      const clicker2 = this.clicker2 = new MarkerShape(player, track, this, index);
+      const clicker1 = this.clicker1 = new MarkerShape(player, scoreTrack, this, track);
+      const clicker2 = this.clicker2 = new MarkerShape(player, scoreTrack, this, track);
       clicker1.visible = clicker2.visible = true;
       clicker1.mouseEnabled = clicker2.mouseEnabled = true;
       clicker1.on(S.click, (evt) => clicker1.onClick(), clicker1, false)
@@ -367,52 +376,53 @@ class MarkerShape extends CircleShape {
     }
   }
   /** 0: upper-track, 1: lower-track */
-  index!: number;
+  track!: number;
   value!: number;
+  index!: number;
   get faction() {
-    const bothFactions = this.track.factions
-    const tfaction = bothFactions[this.index]
+    const bothFactions = this.scoreTrack.factions
+    const tfaction = bothFactions[this.track]
     return tfaction[this.value];
   }
   /**
    *
    * @param value
-   * @param index 0: upper-track, 1: lower-track [previous index]
+   * @param track 0: upper-track, 1: lower-track [previous index]
    */
-  setValue(value: number, index = this.index) {
-    if (this.yoff == undefined) this.yoff = [.55, .65][index]; // first time value is set
-    const { dx, dy, radius } = this.track; // dx ~= radius * 1.2
-    this.index = index;
+  setValue(value: number, track = this.track) {
+    if (this.index == undefined) this.index = track;// scoreTrack[plyr.index].indexOf(m => m == this)
+    const { dx, dy, radius } = this.scoreTrack; // dx ~= radius * 1.2
+    this.track = track;
     this.value = value;
     this.x = value * dx;
-    this.y = index * dy + this.player.index * dx + radius * this.yoff;
+    this.y = track * dy + this.player.index * dx + radius * [.55, .65][this.index];
+    if (!this.marker) this.player.scoreCount(this); // inform player
   }
-  yoff!: number; // alignment & underlap when overlaid
 
+  /** clicker was clicked: move its marker to match */
   onClick() {
     const marker = this.marker as MarkerShape; // ASSERT: each clicker has a marker
-    const dScore = this.value - marker.value;
-    marker.setValue(this.value, this.index);
-    marker.track.overlayCont.removeAllChildren();
-    afterUpdate(marker.track, () => marker.clickDone(dScore))
+    marker.setValue(this.value, this.track);
+    marker.scoreTrack.overlayCont.removeAllChildren(); // circles & rays
+    afterUpdate(marker.scoreTrack, () => marker.clickDone())
   }
-  clickDone!: (ds: number) => void;
+  clickDone!: () => void;
   clicker1!: MarkerShape;
   clicker2!: MarkerShape; // used if score crosses a black cell
 
   /** clicker1.setValue(this.value + dScore, this.index)
    * maybe: clicker2.setValue(this.value + dScore); on the OTHER track.
    */
-  showDeltas(dScore: number, clickDone: (ds: number) => void, clicker = this.clicker1, isClkr1 = true) {
+  showDeltas(dScore: number, clickDone: () => void, clicker = this.clicker1, isClkr1 = true) {
     this.clickDone = clickDone;  // set on primary MarkerShape
-    const trackMax = this.track.factions[0].length - 1;
-    const over = this.track.overlayCont, sCur = this.value, sNew = Math.min(sCur + dScore, trackMax);
-    const [ms0, ms1] = this.track.markers[this.player.index]; // the PRIMARY MarkerShapes
-    const sCell = (ms0.index == ms1.index) && (ms0.value == ms1.value) // from same cell
+    const trackMax = this.scoreTrack.factions[0].length - 1;
+    const over = this.scoreTrack.overlayCont, sCur = this.value, sNew = Math.min(sCur + dScore, trackMax);
+    const [ms0, ms1] = this.scoreTrack.markers[this.player.index]; // the PRIMARY MarkerShapes
+    const sCell = (ms0.track == ms1.track) && (ms0.value == ms1.value) // from same cell
     if (sCell && !isClkr1) return;      // do not show sib[1]
     // In actual game, players choose/rotate an 'advance marker card'
     // for simultaneous reveal; here we *could* defer setValue(), but it's not an issue.
-    clicker.setValue(sNew, isClkr1 ? this.index : 1 - this.index);
+    clicker.setValue(sNew, isClkr1 ? this.track : 1 - this.track);
     const ray = new Shape();
     ray.graphics.s(C.black).mt(this.x, this.y).lt(clicker.x, clicker.y).es();
     ray.mouseEnabled = false;

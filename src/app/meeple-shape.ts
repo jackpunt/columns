@@ -35,7 +35,8 @@ export class MeepleShape extends NamedContainer implements Paintable {
     super('MeepleShape');
     const msBitmap = AliasLoader.loader.getBitmap('meeple-shape', size);
     const backside = this.backside = new StencilImage(msBitmap, C.WHITE);
-    backside.scaleX = 1.17; backside.scaleY = 1.10;
+    this.scaleX = 1.3; this.scaleY = 1.20;
+    backside.scaleX = 1.1 * this.scaleX; backside.scaleY = 1.1 * this.scaleY;
     this.addChild(backside)
     const meepleImage = this.meepleImage = new StencilImage(msBitmap, color);
     this.addChild(meepleImage);

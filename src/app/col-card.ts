@@ -28,6 +28,7 @@ export class ColCard extends Tile {
   override get hex(): Hex1 { return super.hex as Hex1 }
   override set hex(hex: Hex1) { super.hex = hex }
 
+  static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE, C.WHITE];
   factions: Faction[] = [0];
 
@@ -175,8 +176,9 @@ export class DualCard extends ColCard {
   override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
     // meep on map.tileCont@(mx,my)
     // this on map.tileCont@(tx,ty); meepCont on this@(0,0)
-    const pt = xy ?? meep.parent.localToLocal(meep.x, meep.y, this.meepCont)
-    if (cellNdx === undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
+    const pt = xy ?? meep.parent?.localToLocal(meep.x, meep.y, this.meepCont);
+    if (cellNdx === undefined && pt !== undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
+    if (cellNdx === undefined) cellNdx = this.openCells[0];
     const rv = super.addMeep(meep, cellNdx)
     if (!rv) {
       meep.x += (cellNdx - .5) * .33 * this.cellWidth; // adjust bumpLoc: record desired cellNdx

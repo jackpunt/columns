@@ -55,14 +55,14 @@ export class GamePlay extends GamePlayLib {
     }
     const gp = this, hexMap = gp.hexMap;
     const time = stime.fs();
-    const nPlayers = gp.allPlayers.length;
+    const n = gp.allPlayers.length;
     // colorName shows in player.Aname:
     const playerColors = gp.allPlayers.map(plyr => Player.colorName(plyr.color)); // canonical color
     const turn = Math.max(0, gp.turnNumber);
     const tableElts = gp.table.saveState();
     const layout = this.getLayout()
     line = {
-      time, nPlayers, playerColors, turn, ...tableElts, layout,
+      turn, n, time, playerColors, ...tableElts, layout,
     }
 
     const line00 = json(line, true); // machine readable starting conditions

@@ -3,6 +3,7 @@ import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
 import { ColCard, nFacs } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
+import type { MarkerShape } from "./col-table";
 import { arrayN, GamePlay } from "./game-play";
 import { OrthoHex, type HexMap2, type OrthoHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
@@ -34,7 +35,7 @@ export class Player extends PlayerLib implements IPlayer {
   // PlayerLib.playerColor(cname|ndx) --> colorScheme[cname]
   static {
     PlayerLib.colorScheme = {
-      brown: '#663300',
+      brown: '#784600', // #663300
       pink: '#FF33CC',
       orange: '#FF9900',
       green: '#66CC00',
@@ -222,6 +223,9 @@ export class Player extends PlayerLib implements IPlayer {
     return meep;
   }
 
+  factionCounters: NumCounter[] = [];
+  autoScore = true;
+  scoreCounters: NumCounter[] = []
   scoreCounter!: NumCounter;
   override get score() { return this.scoreCounter?.value; }
   override set score(v: number) { this.scoreCounter?.updateValue(v); }
@@ -263,10 +267,7 @@ export class Player extends PlayerLib implements IPlayer {
       }
     }).reverse()
   }
-  scoreCounters: NumCounter[] = []
-  autoScore = true;
 
-  factionCounters: NumCounter[] = [];
   /**
    * current support from each faction: [B, r, g, b, v]
    */
@@ -282,10 +283,23 @@ export class Player extends PlayerLib implements IPlayer {
     return factionTotals
   }
 
+  /** MarkerShapes on ScoreTrack */
   get markers() {
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
     const markers = scoreTrack.markers[this.index].filter(m => m.value < max);
     return markers;
+  }
+
+  /**
+   * update scoreCounters[i] and total score.
+   * @param i marker.origIndex
+   * @param value new value of marker[i] -> counter[i]
+   * @param faction marker.faction
+   */
+  scoreCount(marker: MarkerShape) {
+    const color = ColCard.factionColors[marker.faction];
+    this. scoreCounters[marker.index].setValue(marker.value, color);
+    this.score = Math.sum(...this.scoreCounters.map(ctr => ctr.value))
   }
 
   /** advance one score marker, then invoke callback [to gamePlay] */
@@ -294,12 +308,9 @@ export class Player extends PlayerLib implements IPlayer {
     // this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];
-    markers.forEach((m, index) => {
-      const ctr = this.scoreCounters[index]; // counter for each marker
-      const clickDone = (ds: number) => {
-        const color = ColCard.factionColors[m.faction];
-        ctr.setValue(m.value, color)
-        this.score += ds; // may max out at end of track
+    markers.forEach(m => {
+      const clickDone = () => {
+        this.scoreCount(m)
         cb();
       }
       // click ScoreTrack.markers to choose which to advance:
@@ -323,8 +334,8 @@ export class Player extends PlayerLib implements IPlayer {
 
     const maxes = allClkrs.filter(clk => clk.value == max)
     const clicker = (maxes.length > 0)
-    ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
-    : allClkrs[0];     // lowest mrkr of the most present faction
+      ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
+      : allClkrs[0];     // lowest mrkr of the most present faction
     if (!clicker) debugger;
     clicker.onClick()
   }

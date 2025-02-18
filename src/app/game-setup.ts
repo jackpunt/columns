@@ -33,10 +33,10 @@ export class GameSetup extends GameSetupLib {
     AliasLoader.loader.fnames = ['meeple-shape'];
     super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
   }
-  override startup(qParams?: { [x: string]: any; }): void {
+  override startup(scenario?: Scenario): void {
     // TODO: place all ColCards
     ColCard.nextRadius = CardShape.onScreenRadius; // reset for on-screen PathCard
-    super.startup(qParams)
+    super.startup(scenario)
   }
 
   // allow qParams as opt arg:

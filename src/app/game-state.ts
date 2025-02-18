@@ -69,6 +69,10 @@ export class GameState extends GameStateLib {
   override readonly states: { [index: string]: Phase } = {
     SelectCol: {
       start: () => {
+        if (this.gamePlay.allPlayers[0].meeples.length > this.nCols) {
+          this.phase('BeginRound');
+          return;
+        }
         this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
         this.gamePlay.allPlayers.forEach(plyr =>
           plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), TP.flipDwell)));

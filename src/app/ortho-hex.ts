@@ -92,16 +92,16 @@ export class DualLegalMark extends LegalMark {
   declare children: Paintable[];
   // replace original legalMark with multiple circles
   doGraphicsDual(card: ColCard) {
-    const xy = card.factions.map((f,i) => card.meepleLoc(i))
-    const radius = this.hex2.radius/3;
+    const xy = card.factions.map((f, i) => card.meepleLoc(i))
+    const radius = this.hex2.radius * .27;
     this.removeAllChildren();
-    xy.forEach(({x,y}) => {
+    xy.forEach(({ x, y }) => {
       const cs = new CircleShape(this.pc[1], radius, '');
       cs.x = x; cs.y = y;
       this.addChild(cs);
     })
   }
-  pc = ['rgba(255,255,255,.8)', 'rgba(255,255,255,.3)']
+  pc = ['rgba(255,255,255,.7)', 'rgba(255,255,255,.3)']
   paint(i = 0, isBid = false) {
     this.children[i].paint(this.pc[isBid ? 0 : 1]);
   }
