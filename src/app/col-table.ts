@@ -1,11 +1,11 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
 import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
-import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2, type NumCounter } from "@thegraid/hexlib";
+import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { ColCard, type Faction } from "./col-card";
+import { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
-import type { GamePlay } from "./game-play";
+import type { Faction, GamePlay } from "./game-play";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
@@ -16,6 +16,7 @@ export class ColTable extends Table {
     this.dragger.dragCont.scaleX = this.dragger.dragCont.scaleY = 1//.6;
     this.initialVis = true;
   }
+  static declare table: ColTable;
   declare gamePlay: GamePlay;
   declare hexMap: HexMap2;    // From gamePlay.hexMap
   // return type declaration:

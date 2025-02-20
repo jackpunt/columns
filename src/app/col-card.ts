@@ -1,18 +1,14 @@
 import { C, F, type XY } from "@thegraid/common-lib";
 import { CenterText, NamedContainer, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import { Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColMeeple, ColSelButton } from "./col-meeple";
-import { arrayN, type GamePlay } from "./game-play";
+import { arrayN, nFacs, type Faction, type GamePlay } from "./game-play";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
 import type { CountClaz } from "./tile-exporter";
-
-
-/** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
-export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
-export const nFacs = 4;
 
 export class ColCard extends Tile {
   // static get allCards() { return Array.from(this.cardByName.values()) }
@@ -25,7 +21,7 @@ export class ColCard extends Tile {
   override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
   override get isMeep() { return false; }
   declare gamePlay: GamePlay;
-  override get hex(): Hex1 { return super.hex as Hex1 }
+  override get hex(): Hex2 { return super.hex as Hex2 }
   override set hex(hex: Hex1) { super.hex = hex }
 
   static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
@@ -49,6 +45,15 @@ export class ColCard extends Tile {
   get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row - 1)) }
   get col() { return this.hex.col + 1 }
 
+  /**
+   * @param dir 1: up, -1: down, -2: down-2
+   */
+  nextCard(dir: 1 | -1 | -2): ColCard {
+    return dir == 1 ? this.hex.nextHex('N')?.card ?? this.hex.card
+        : dir == -1 ? this.hex.nextHex('S')?.card ?? this.hex.card
+        : dir == -2 ? this.nextCard(-1).nextCard(-1)
+        : this.hex.card
+  }
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
   meepleLoc(ndx = this.openCells[0]): XY {
@@ -274,3 +279,31 @@ export class SetupCard extends ColCard {
   }
   override get bleedColor(): string { return C.WHITE }
 }
+
+
+export class SummaryCard extends ColCard {
+  constructor(size = 525, fs = size / 8) {
+    ColCard.nextRadius = size;
+    super('per Round:', 5)
+    const l: string[] = []
+     l[0] = `3 x Turns:`;
+     l[1] = '  Select Column & Bid'
+     l[2] = '  Resolve & Advance'
+     l[3] = '  Bump & Cascade'
+     l[4] = '  Score for Color'
+     l[5] = 'Then: Score for Rank'
+    const text = l.join('\n')
+    const elt = new Text(text, F.fontSpec(fs));
+    elt.textAlign = 'left';
+    this.addChild(elt);
+    const { x, y, width, height } = elt.getBounds()
+    elt.x = -width / 2;
+    elt.y = -height / 2;
+    this.paint(C.WHITE, true)
+
+  }
+  override makeShape(): Paintable {
+    return new CardShape('lavender', C.WHITE, this.radius);
+  }
+}
+

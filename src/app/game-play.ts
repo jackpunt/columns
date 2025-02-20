@@ -9,12 +9,17 @@ import type { HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
 
+/** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
+export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
+export const nFacs = 4;
+
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
 export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
   const fi = (typeof nf === 'number') ? (i: number) => (i + nf) : nf;
   return Array.from(Array(n), (_, i) => fi(i))
 }
-
+export type AllState = ReturnType<GamePlay["allState"]>;
+export type CardContent = { fac: Faction[], meeps?: number[] };
 export class GamePlay extends GamePlayLib {
   constructor (gameSetup: GameSetup, scenario: Scenario) {
     super(gameSetup, scenario);
@@ -23,6 +28,7 @@ export class GamePlay extends GamePlayLib {
   declare gameSetup: GameSetup;
   declare hexMap: HexMap2;
   declare table: ColTable;
+  override get allMeeples(): ColMeeple[] { return super.allMeeples as ColMeeple[] }
 
   declare curPlayer: Player;
   override get allPlayers() { return super.allPlayers as Player[] }
@@ -32,8 +38,8 @@ export class GamePlay extends GamePlayLib {
     this.curPlayer.panel.showPlayer(true);
   }
 
-  /** all the cards and the meeples on them */
-  getLayout() {
+  /** all the cards and the meeples on them. ordered [row=0..nrows-1][column=0..ncols-1] */
+  getLayout(): CardContent[][] {
     const gp = this, hexMap = gp.hexMap;
     // generate from bottom to top, the reverse to get them top to bottom:
     const layout = arrayN(gp.nRows).map(rank =>
@@ -48,6 +54,16 @@ export class GamePlay extends GamePlayLib {
     return layout;
   }
 
+  /** cardStates for each player:  */
+  getPlayerState() {
+    return this.allPlayers.map((p, i) => p.cardStates());
+  }
+  /** encapsulate everything: turn, Cards of Player, Layout & Meeples, ScoreTrack */
+  allState() {
+    const pStates = this.getPlayerState();
+    const sState = this.gameSetup.scenarioParser.addStateElements({});
+    return { pStates, ...sState }
+  }
   override logWriterLine0(key = 'start', line?: Record<string, any>) {
     if (line) {
       super.logWriterLine0(key, line);
@@ -138,7 +154,7 @@ export class GamePlay extends GamePlayLib {
 
   /** move meeple from bumpLoc to center of cell */
   meeplesToCell(col: number) {
-    const meeps = ColMeeple.allMeeples.filter(meep => meep.card.col == col && meep.faction !== 0)
+    const meeps = this.allMeeples.filter(meep => meep.card.col == col && meep.faction !== 0)
     const bumps = meeps.filter(meep => !meep.card.addMeep(meep, meep.cellNdx)); // re-center
     return bumps[0]
   }

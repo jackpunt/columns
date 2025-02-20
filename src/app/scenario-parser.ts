@@ -1,7 +1,7 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { ScenarioParser as SPLib, SetupElt as SetupEltLib } from "@thegraid/hexlib";
-import { BlackCard, ColCard, DualCard, type Faction } from "./col-card";
-import { type GamePlay } from "./game-play";
+import { BlackCard, ColCard, DualCard } from "./col-card";
+import { type Faction, type GamePlay } from "./game-play";
 import { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -139,7 +139,7 @@ export class ScenarioParser extends SPLib {
 
   override addStateElements(setupElt: SetupElt) {
     const { time, turn } = setupElt;
-    const scores = this.gamePlay.allPlayers.map(plyr => plyr.markers.map(m => [m.value, m.track] as [v: number, i: number]))
+    const scores = this.gamePlay.allPlayers.map(plyr => plyr.markers.map(m => [m.value, m.track] as [v: number, t: number]))
     const layout = this.gamePlay.getLayout();
     return { turn, scores, time, layout, }
   }

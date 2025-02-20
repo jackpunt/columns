@@ -1,11 +1,13 @@
 import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type HexDir, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
-import { ColCard, nFacs } from "./col-card";
-import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton } from "./col-meeple";
+import { newPlanner, NumCounterBox, Player as PlayerLib, type HexAspect, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
+import { ColCard } from "./col-card";
+import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { MarkerShape } from "./col-table";
-import { arrayN, GamePlay } from "./game-play";
-import { OrthoHex, type HexMap2, type OrthoHex2 } from "./ortho-hex";
+import { GameModel } from "./game-model";
+import { arrayN, GamePlay, nFacs } from "./game-play";
+import type { Scenario } from "./game-setup";
+import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 type PlyrBid = { plyr: Player; bid: number; }
@@ -24,7 +26,7 @@ export interface IPlayer {
   bidOnCol(col: number): PlyrBid | undefined;
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
-  bumpMeeple(meep: ColMeeple, dir0?: HexDir, cb?: () => void): void;
+  bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void): void;
   commitCards(): void;
 }
 
@@ -48,7 +50,7 @@ export class Player extends PlayerLib implements IPlayer {
     }
   }
 
-  declare static allPlayers: Player[];
+  // declare static allPlayers: Player[];
 
   override get color(): PlayerColor { return super.color as PlayerColor; }
   override set color(c: PlayerColor) { super.color = c; }
@@ -130,15 +132,18 @@ export class Player extends PlayerLib implements IPlayer {
   }
   makeAutoButton() {
     const { high } = this.panel.metrics, fs = TP.hexRad / 2;
-    const autoBut = new UtilButton('A', { visible: true, active: true, border: .1, fontSize: fs })
+    const autoBut = this.autoButton = new UtilButton('A', { visible: true, active: true, border: .1, fontSize: fs })
     autoBut.x = 0 + fs * .5; autoBut.y = high - fs * .6;
     this.panel.addChild(autoBut)
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
   }
+  autoButton!: UtilButton;
 
   /** true: player auto-selects play; false: player uses GUI  */
   setAutoPlay(v = !this.useRobo) {
     this.useRobo = v;
+    this.autoButton.paint(v ? '#c5e1a5' : C.WHITE)
+    this.autoButton.stage?.update();
   }
 
   colSelButtons!: ColSelButton[];
@@ -203,11 +208,36 @@ export class Player extends PlayerLib implements IPlayer {
     this.coinBidButtons[bid - 1].setState(CB.outbid);
   }
 
+  /** invoke gameState.cardDone = card when selecting */
   collectBid() {
-    // if not useRobo, nothing to do.
+    if (!this.useRobo) return; // nothing to do; GUI will set cardDone via onClick()
 
   }
 
+  gameModel!: GamePlay
+  // find top 4 apparent best moves (A1...D4); choose one.
+  // metric is immediate points scored
+  // [will improve later,looking a remaining moves, etc]
+  planA() {
+    // clone the current gamePlay from gameSetup:
+    if (!this.gameModel) this.gameModel = new GamePlay(this.gamePlay.gameSetup, this.gamePlay.gameSetup.scenario)
+    const colCards = this.colSelButtons.filter(card => card.state === CB.clear)
+    const bidCards = this.coinBidButtons.filter(card => card.state === CB.clear)
+    const state0 = this.gamePlay.allState();
+    const model = new GameModel(state0)
+    const evals = colCards.map(card => {
+      return bidCards.map(bid => {
+        const eval0 = model.evalState(card.colNum, bid)
+        return eval0;
+      })
+    })
+  }
+
+  cardStates() {
+    const sels = this.colSelButtons.map(b => b.state as CardButtonState);
+    const bids = this.coinBidButtons.map(b => b.state as CardButtonState);
+    return { sels, bids }
+  }
   // ColMeeple is Tile with (isMeep==true); use MeepleShape as baseShape
   /**
    * make ColMeeple, add to ColCard @ {column, rank}
@@ -271,17 +301,15 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /**
-   * current support from each faction: [B, r, g, b, v]
+   * current support (meeps, markers, cards-inPlay) from each faction: [B, r, g, b, v]
    */
-  factionTotals(markers = this.markers) {
-    // factionCounters are ordered by factionColors: [B,r,g,b,v]
-    const cards = this.coinBidButtons.filter(b => (b.state === CB.clear)) // yet to be played
+  factionTotals(markers = this.markers, inPlay = true) {
+    const cards = this.coinBidButtons.filter(b => b.inPlay(inPlay)) // false --> yet to play
     const factionTotals = ColCard.factionColors.slice(0, 5).map((color, faction) => 0
-      + this.factionCounters[faction].value
-      + markers.filter(clk => clk.faction == faction).length
-      + cards.filter(card => card.factions.includes(faction)).length / 2
+      + this.meepFactions[faction]
+      + markers.reduce((pv, mrk) => pv + (mrk.faction == faction ? 1 : 0), 0)
+      + cards.reduce((pv, card) => pv + (card.factions.includes(faction) ? .5 : 0), 0)
     )
-    factionTotals[0] = 0; // downgrade Black
     return factionTotals
   }
 
@@ -326,15 +354,26 @@ export class Player extends PlayerLib implements IPlayer {
 
   autoAdvanceMarker(dScore: number) {
     this.gamePlay.isPhase('BumpAndCascade')// 'EndRound' --> Score for Rank
+    const rMax = this.gamePlay.nRows; // max Rank
     const { row, rowScores } = this.gamePlay.gameState.state; // TODO: plan ahead
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
     const allClkrs0 = this.markers.map(m => [m.clicker1, m.clicker2]).flat(1);
     const allClkrs = allClkrs0.filter(clkr => clkr.parent); // shown an GUI...
     allClkrs.sort((a, b) => a.value - b.value); // ascending
-    const factionTotals = this.factionTotals(allClkrs);
+
+    // do not use Black (unless able to land on rMax w/4-bid)
+    const colSels = this.colSelButtons.filter(b => b.state == CB.clear)
+    const rMaxes = this.meeples.filter(m => m.card.rank == rMax)
+    const useBlack = (rMaxes.length > 0  // meeples on rMax
+      && this.coinBidButtons[3].state == CB.clear  // 4-bid is clear
+      && rMaxes.filter(m => colSels.find(b => b.colNum == m.card.col)).length > 0
+    )
+    const factionTotals = this.factionTotals(allClkrs, false); // yet to play
+    if (!useBlack) factionTotals[0] = 0;
     allClkrs.sort((a, b) => factionTotals[b.faction] - factionTotals[a.faction]); // descending
 
-    const maxes = allClkrs.filter(clk => clk.value == max)
+    // cross the finish line:
+    const maxes = allClkrs.filter(clk => clk.value == max);
     const clicker = (maxes.length > 0)
       ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
       : allClkrs[0];     // lowest mrkr of the most present faction
@@ -358,12 +397,11 @@ export class Player extends PlayerLib implements IPlayer {
    * @param cb callback when bump cascade is done
    * @returns
    */
-  bumpMeeple(meep: ColMeeple, dir0: HexDir | undefined, cb: () => void) {
-    const dir = dir0 ?? 'N';
-    const card = (meep.card.hex.nextHex(dir) as OrthoHex2).card;// should NOT bump from black, but...
-    if (!card) return;
+  bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void) {
+    const dir = dir0 ?? 1;
+    const card = meep.card.nextCard(dir);// should NOT bump from black, but...
     const open = card.openCells;
-    const factionTotals = this.factionTotals()
+    const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
     const facs = this.curBidCard.factions.slice(), cardFacs = card.factions;
     const matches = open.filter(ndx =>facs.includes(cardFacs[ndx]))
     matches.sort((a, b) => factionTotals[cardFacs[b]] - factionTotals[cardFacs[a]]);
@@ -374,12 +412,16 @@ export class Player extends PlayerLib implements IPlayer {
     return;
   }
 
-  /** put faction count into panel.factionCounters */
-  countFactions() {
-    this.factionCounters.forEach(fc => fc.setValue(0))
-    this.meeples.forEach(meep => {
-      this.factionCounters[meep.faction as number].incValue(1); // ASSERT: faction is defined
-    })
+  /** count of meeples on each Faction [B, r, g, b, v] */
+  get meepFactions() {
+    const counts = arrayN(1 + nFacs, i => 0); // B + 4
+    this.meeples.forEach(meep => counts[meep.faction as number]++)// ASSERT: faction is defined
+    return counts;
+  }
+  /** Put Meeple.faction count into panel.factionCounters */
+  setFactionCounters() {
+    const meepFactions = this.meepFactions;
+    this.factionCounters.forEach((fc, i) => fc.setValue(meepFactions[i]))
     this.panel.stage.update();
   }
 }
@@ -439,4 +481,27 @@ export class PlayerB extends Player {
   autoAdvanceMarkerX(dScore: number) {
     super.autoAdvanceMarker(dScore)
   }
+
+  startSetup(scenario?: Scenario) {
+    const setup = this.gamePlay.gameSetup
+    // maybe qParams has nh, mh?
+    setup.resetState(scenario as HexAspect); // <-- inject/edit necessary elements: nGods, godNames,...
+    setup.logWriter.backlog.length = 0; // flush the backlog (assume file is closed)
+    // initialScenario produces a StartupElt from qParams
+    if (!scenario || scenario.turn == undefined) scenario = setup.initialScenario();
+    setup.scenario = scenario;                  // retain for future reference
+    setup.nPlayers = setup.getNPlayers();        // Scenario may override?
+    setup.hexMap = setup.makeHexMap();           // then copied from gameSetup -> gamePlay
+    setup.table = setup.makeTable();
+    // Inject Table into GamePlay;
+    // GameState, mouse/keyboard->GamePlay,
+    setup.gamePlay = setup.makeGamePlay(scenario); // scenario provided... maybe not used
+
+    setup.startScenario(scenario);
+  }
+}
+
+
+class GamePlayMu extends GamePlay {
+
 }

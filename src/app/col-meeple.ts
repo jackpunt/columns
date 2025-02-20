@@ -1,9 +1,10 @@
 import { C, F, S, stime, type XYWH } from "@thegraid/common-lib";
 import { CenterText, CircleShape, RectShape, UtilButton, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Container, Graphics, Shape, type DisplayObject } from "@thegraid/easeljs-module";
-import { Meeple, Player as PlayerLib, Tile, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib } from "@thegraid/hexlib";
+import { Meeple, Player as PlayerLib, Table, Tile, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
+import { ColTable } from "./col-table";
 import type { GameState } from "./game-state";
 import { MeepleShape } from "./meeple-shape";
 import { OrthoHex2 } from "./ortho-hex";
@@ -15,7 +16,6 @@ export class ColMeeple extends Meeple {
 
   declare player: Player;
   declare baseShape: MeepleShapeLib & { highlight(l?: boolean): void };
-  declare static allMeeples: ColMeeple[];
 
   constructor(Aname: string, player?: Player) {
     super(Aname, player)
@@ -76,6 +76,7 @@ export namespace CB {
   export const cancel = 'cancel'; // rejected: tied for first
   export const outbid = 'outbid'; // rejected: low bidder
 }
+/** clear, selected, done */
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel | typeof CB.outbid;
 type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, radius?: number }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
@@ -198,6 +199,10 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     if (update) this.stage?.update()
   }
 
+  inPlay(inPlay = true) {
+    const played = (this.state == CB.selected || this.state == CB.done)
+    return inPlay ? played : !played;
+  }
 
   // ignore label size & borders:
   override calcBounds(): XYWH {
@@ -322,8 +327,9 @@ export class PrintColSelect extends ColSelButton {
   }
 
   constructor(seqLim: number, pid: number, radius: number) {
+    const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = seqLim > 0 ? 1 : 0;
-    const col = PrintColSelect.seqN++, player = Player.allPlayers[pid], bgColor = Player.colorScheme[pid];
+    const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)
     this.addSideNum();
@@ -339,8 +345,9 @@ export class PrintBidValue extends CoinBidButton {
   }
 
   constructor(seqLim: number, pid: number, radius: number) {
+    const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
-    const col = PrintBidValue.seqN++, player = Player.allPlayers[pid], bgColor = Player.colorScheme[pid];
+    const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid)
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)
 

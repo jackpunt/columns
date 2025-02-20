@@ -1,5 +1,5 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, Table, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -29,6 +29,10 @@ Math.stime = stime; // can use Math.stime() in js/debugger
 /** initialize & reset & startup the application/game. */
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
+  declare scenarioParser: ScenarioParser;
+  constructor(canvasId: string, qParam?: Params) {
+    super(canvasId, qParam)
+  }
   override loadImagesThenStartup() {
     AliasLoader.loader.fnames = ['meeple-shape'];
     super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
@@ -89,8 +93,8 @@ export class GameSetup extends GameSetupLib {
     return hexMap;
   }
 
-  override makeTable(): Table {
-    return new ColTable(this.stage);
+  override makeTable(): ColTable {
+    return new ColTable(this.stage); // TODO: update makeStage()
   }
 
   override makeGamePlay(scenario: Scenario): GamePlay {
@@ -102,7 +106,7 @@ export class GameSetup extends GameSetupLib {
   }
 
   override resetState(stateInfo: Scenario & HexAspect): void {
-    const n = stateInfo.nPlayers;
+    const n = stateInfo.nPlayers;   // convert {nPlayers: 3} --> {n: 3}
     this.qParams = { ...this.qParams, n};  // qParams from ng is readonly
     super.resetState(stateInfo);
   }

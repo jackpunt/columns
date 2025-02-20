@@ -163,7 +163,7 @@ export class GameState extends GameStateLib {
           return;
         }
         // update faction counters for each Player:
-        this.gamePlay.allPlayers.forEach(plyr => plyr.countFactions())
+        this.gamePlay.allPlayers.forEach(plyr => plyr.setFactionCounters())
         const nextCol = () => setTimeout(() => this.phase('ResolveWinner', col + 1), TP.flipDwell);
         this.gamePlay.scoreForColor(this.winnerMeep, nextCol);
       }

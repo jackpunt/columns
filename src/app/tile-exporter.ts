@@ -1,11 +1,10 @@
 import { Constructor, stime } from "@thegraid/common-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
-import { Tile as TileLib } from "@thegraid/hexlib";
-import { BlackCard, PrintCol, PrintDual, SetupCard } from "./col-card";
+import { Table, Tile as TileLib } from "@thegraid/hexlib";
+import { BlackCard, PrintCol, PrintDual, SetupCard, SummaryCard } from "./col-card";
 import { PrintBidValue, PrintColSelect } from "./col-meeple";
-import { TrackSegment } from "./col-table";
+import { TrackSegment, type ColTable } from "./col-table";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
-import { Player } from "./player";
 import { TP } from "./table-params";
 // end imports
 
@@ -40,20 +39,21 @@ export class TileExporter {
     const cardSingle_1_75_base = [
       ...BlackCard.countClaz(8),
       ...BlackCard.countClaz(8),
-      ...PrintDual.countClaz(16),
-      ...PrintCol.countClaz(4),
-      ...PrintCol.countClaz(36),
+      // ...PrintDual.countClaz(16),
+      // ...PrintCol.countClaz(4),
+      // ...PrintCol.countClaz(36),
     ]
     const cardSingle_1_75_hand = [
-      ...PrintBidValue.countClaz(4, 0, 525),
-      ...PrintBidValue.countClaz(4, 1, 525),
-      ...PrintBidValue.countClaz(4, 2, 525),
-      ...PrintBidValue.countClaz(4, 3, 525),
-      ...PrintBidValue.countClaz(4, 4, 525),
-      ...PrintBidValue.countClaz(4, 5, 525),
-      ...PrintBidValue.countClaz(4, 6, 525),
-      ...PrintBidValue.countClaz(4, 7, 525),
-      ...PrintBidValue.countClaz(4, 8, 525),
+      // ...PrintBidValue.countClaz(4, 0, 525),
+      // ...PrintBidValue.countClaz(4, 1, 525),
+      // ...PrintBidValue.countClaz(4, 2, 525),
+      // ...PrintBidValue.countClaz(4, 3, 525),
+      // ...PrintBidValue.countClaz(4, 4, 525),
+      // ...PrintBidValue.countClaz(4, 5, 525),
+      // ...PrintBidValue.countClaz(4, 6, 525),
+      // ...PrintBidValue.countClaz(4, 7, 525),
+      // ...PrintBidValue.countClaz(4, 8, 525),
+      ...BlackCard.countClaz(8),
       ...PrintColSelect.countClaz(7, 0, 525),
       ...PrintColSelect.countClaz(7, 1, 525),
       ...PrintColSelect.countClaz(7, 2, 525),
@@ -63,16 +63,17 @@ export class TileExporter {
       ...PrintColSelect.countClaz(7, 6, 525),
       ...PrintColSelect.countClaz(7, 7, 525),
       ...PrintColSelect.countClaz(7, 8, 525),
-      [7, PrintColSelect, 7, 9, 525],
-      [2, PrintColSelect, 0, 9, 525],
+      [1, SummaryCard, 525],
+      // [7, PrintColSelect, 7, 9, 525],
+      // [2, PrintColSelect, 0, 9, 525],
     ] as CountClaz[];
 
     const pageSpecs: PageSpec[] = [];
 
-    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 
@@ -115,6 +116,7 @@ export class TileExporter {
 
   /** each PageSpec will identify the canvas that contains the Tile-Images */
   clazToTemplate(countClaz: CountClaz[], gridSpec = ImageGrid.hexDouble_1_19, pageSpecs: PageSpec[] = []) {
+    const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     const both = false, double = gridSpec.double ?? true;
     const frontAry = [] as DisplayObject[][];
     const backAry = [] as (DisplayObject[] | undefined)[];
@@ -122,8 +124,8 @@ export class TileExporter {
     const { nrow, ncol } = gridSpec, perPage = nrow * ncol;
     let nt = page * perPage;
     countClaz.forEach(([count, claz, ...args]) => {
-      const frontColor = both ? Player.allPlayers[0].color : undefined;
-      const backColor = both ? Player.allPlayers[1].color : claz.colorBack !== undefined ? claz.colorBack : undefined;
+      const frontColor = both ? allPlayers[0].color : undefined;
+      const backColor = both ? allPlayers[1].color : claz.colorBack !== undefined ? claz.colorBack : undefined;
       const nreps = Math.abs(count);
       for (let i = 0; i < nreps; i++) {
         const n = nt % perPage, pagen = Math.floor(nt++ / perPage);

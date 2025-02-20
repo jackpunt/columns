@@ -32,13 +32,14 @@ export class OrthoHex extends Hex1Lib {
   get meep2() { return this._meep2; }
   set meep2(meep: Tile | undefined) { this.setUnit(meep, true) }
 
-  /** like occupied:
+  /** like 'occupied()':
    *  @return [this.meep, this.meep2] | undefined
    */
   get meeps(): [Tile | undefined, Tile | undefined] | undefined { return (this.meep2 || this.meep) ? [this.meep, this.meep2] : undefined; }
   // user cannot drop meep on the cell/card; code will check hex.meeps()
   // and put them on correct cell/slot [so we are not re-doing unitCollision()]
 
+  // Mixin does not preserve types!
   get card() { return super.tile as ColCard }
   set card(card) { super.tile = card; }
 }
