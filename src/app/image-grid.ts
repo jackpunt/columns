@@ -40,6 +40,8 @@ export type PageSpec = {
   basename?: string,
 }
 
+
+/** Setup html buttons, manage canvases, and add "Tile" to grid based on GridSpec. */
 export class ImageGrid {
   // Office Depot stick-on circles; on Brother HL-L3210CW printer
   static circle_1_inch: GridSpec = {

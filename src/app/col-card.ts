@@ -203,16 +203,16 @@ export class BlackCard extends ColCard {
   static allBlack: BlackCard[] = [];
   static seqN = 0;
   static countClaz(n = 0): CountClaz[] {
-    return [[n, PrintBlack, 'BlackCard', n]]
+    return [[n, PrintBlack, 'BlackCard', n, .5]]
   }
 
-  constructor(Aname: string, seqLim = 0) {
+  constructor(Aname: string, seqLim = 0, fs = .5) {
     super(Aname, 0) // initial factions[] for painting color
     this.factions = arrayN(this.maxCells, i => 0) as Faction[];
     const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
     const colName = ColSelButton.colNames[colNum];
-    const colId = new CenterText(`${seqLim > 0 ? colName : ''}`, F.fontSpec(this.radius * .2), C.WHITE,)
-    colId.y = this.radius * .35;
+    const colId = new CenterText(`${seqLim > 0 ? colName : ''}`, Math.round(this.radius * fs), C.WHITE,)
+    colId.y = colId.y = this.radius * (.5 - .48 * fs)
     this.addChildAt(colId, 1); // under meepCont
   }
 
@@ -260,9 +260,9 @@ export class PrintDual extends DualCard {
 }
 
 export class PrintBlack extends BlackCard {
-  constructor(Aname: string, seqLim = 0) {
+  constructor(Aname: string, seqLim = 0, fs?: number) {
     ColCard.nextRadius = 525
-    super(Aname, seqLim)
+    super(Aname, seqLim, fs)
     ColCard.allCards.pop();
   }
 }
