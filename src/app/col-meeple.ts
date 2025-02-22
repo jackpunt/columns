@@ -10,6 +10,7 @@ import { MeepleShape } from "./meeple-shape";
 import { OrthoHex2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
+import type { CountClaz } from "./tile-exporter";
 
 
 export class ColMeeple extends Meeple {
@@ -322,8 +323,8 @@ export class CoinBidButton extends CardButton {
 
 export class PrintColSelect extends ColSelButton {
   static seqN = 1;
-  static countClaz(n: number, pid: number, rad = 525) {
-    return [[n, PrintColSelect, n, pid, rad]]
+  static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
+    return [[n, PrintColSelect, n, pid, rad]];
   }
 
   constructor(seqLim: number, pid: number, radius: number) {
@@ -340,7 +341,7 @@ export class PrintColSelect extends ColSelButton {
 
 export class PrintBidValue extends CoinBidButton {
   static seqN = 1;
-  static countClaz(n: number, pid: number, rad = 525) {
+  static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
     return [[n, PrintBidValue, n, pid, rad]]
   }
 

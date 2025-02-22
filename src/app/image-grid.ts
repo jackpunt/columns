@@ -1,5 +1,5 @@
-import { WH, stime, type XY } from "@thegraid/common-lib";
-import { makeStage } from "@thegraid/easeljs-lib";
+import { stime, WH } from "@thegraid/common-lib";
+import { makeStage, RectShape } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Stage } from "@thegraid/easeljs-module";
 
 
@@ -29,7 +29,14 @@ export type GridSpec = {
   trimLCR?: boolean,
   /** [1: already in pixels] scale factor for [x0/x1, y0, delx, dely] --> pixels */
   dpi?: number,
-  double?:boolean,
+  /** true if template includes slots for double-sided images */
+  double?: boolean,
+  /** set true or false to override orientation derived from delx/dely */
+  land?: boolean,
+  /** if defined, paint a bg RectShape behind the ImageGrid */
+  bgColor?: string,
+  /** set scale on View canvas [.1] */
+  scale?: number,
 }
 
 export type PageSpec = {
@@ -103,16 +110,36 @@ export class ImageGrid {
         this.setAnchorClick(buttonId, label)
       }, 0);
     });
+    this.setAnchorClick('scalePlus', '+', () => this.scalePlus())
+    this.setAnchorClick('scaleMinus', '-', () => this.scaleMinus())
   }
 
-  setStage(wh: WH, canvasId: string | HTMLCanvasElement = 'gridCanvas') {
+  scales = ['0.05', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.75'];
+
+  scalePlus() {
+    const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
+    const scale = canvasDiv.style.scale;
+    const nScale = this.scales.find(scal => scal > scale) ?? scale;
+    canvasDiv.style.setProperty('scale', nScale);
+  }
+  scaleMinus() {
+    const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
+    const scale = canvasDiv.style.scale;
+    const rscales = this.scales.slice().reverse();
+    const nScale = rscales.find(scal => scal < scale) ?? scale;
+    canvasDiv.style.setProperty('scale', nScale);
+  }
+
+  setStageAndCanvas(wh: WH, canvasId: string | HTMLCanvasElement = 'gridCanvas', scale = .25) {
     if (typeof canvasId === 'string') {
       this.canvas = (document.getElementById(canvasId) ?? document.createElement('canvas')) as HTMLCanvasElement;
       this.canvas.id = canvasId;
     } else {
       this.canvas = canvasId as HTMLCanvasElement;
     }
-    this.stage = makeStage(this.canvas);
+    const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
+    canvasDiv.style.setProperty('scale', `${scale}`);
+    this.stage = makeStage(this.canvas, false);
     this.stage.removeAllChildren();
     this.setCanvasSize(wh);
   }
@@ -123,13 +150,19 @@ export class ImageGrid {
   }
 
   makePage(pageSpec: PageSpec, canvas?: HTMLCanvasElement | string ) {
-    const gridSpec = pageSpec.gridSpec;
-    this.setStage(gridSpec, canvas);
+    const gridSpec = pageSpec.gridSpec, { bgColor, scale } = gridSpec;
+    const width = gridSpec.width * (gridSpec.dpi ?? 1);
+    const height = gridSpec.height * (gridSpec.dpi ?? 1);
+    this.setStageAndCanvas({ width, height }, canvas, scale);
+    if (bgColor) {
+      const bg = new RectShape({ x: 0, y: 0, w: width, h: height }, bgColor, '')
+      this.stage.addChild(bg)
+    }
     const nc = this.addObjects(gridSpec, pageSpec.frontObjs, pageSpec.backObjs)
     this.stage.update();
     pageSpec.canvas = this.canvas;
 
-    const { id, width, height } = this.canvas;
+    const { id } = this.canvas;
     const info = { id, width, height, nc }; // not essential...
     console.log(stime(this, `.makePage: info =`), info);
     return;

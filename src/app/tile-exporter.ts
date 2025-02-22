@@ -2,7 +2,7 @@ import { Constructor, stime } from "@thegraid/common-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
 import { BlackCard, PrintCol, PrintDual, SetupCard, SummaryCard } from "./col-card";
 import { PrintBidValue, PrintColSelect } from "./col-meeple";
-import { TrackSegment } from "./col-table";
+import { TrackLabel, TrackSegment } from "./col-table";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
 import { TP } from "./table-params";
 // end imports
@@ -13,6 +13,7 @@ interface Tile extends DisplayObject {
   makeBleed(bleed: number): DisplayObject;
 }
 
+/** Claz has static rotateBack: numer <of degrees of rotation> */
 interface Claz extends Constructor<Tile> {
   /** 0 => flip-on-horiz-axiz, 180 => flip-on-vert-axis, undefined => blank */
   rotateBack?: number | undefined; // static: indicates of a special Back tile is used
@@ -32,17 +33,18 @@ class TileExporterLib {
   /** rotate card to align with template orientation */
   setOrientation(card: Tile, gridSpec: GridSpec, rot = 90) {
     const { width, height } = card.getBounds(), c_land = width > height;
-    const t_land = gridSpec.delx > gridSpec.dely;
+    // determine if gridSpec area is treated as landscape:
+    const t_land = gridSpec.land ?? (gridSpec.delx > gridSpec.dely);
     if (c_land !== t_land) {
       card.rotation += rot;
-      card.updateCache()
+      if (card.cacheID) card.updateCache()
     }
   }
 
   /** Compose tile = new claz(...args) with bleedShape = makeBleed(tile)
    * @returns Container[bleedShape, tile]
    */
-  composeTile(claz: Constructor<Tile>, args: any[], gridSpec: GridSpec, back = false, edge: 'L' | 'R' | 'C' = 'C') {
+  composeTile(claz: Claz, args: any[], gridSpec: GridSpec, back = false, edge: 'L' | 'R' | 'C' = 'C') {
     const cont = new Container();
 
     const tile = new claz(...args);
@@ -116,7 +118,7 @@ export class TileExporter extends TileExporterLib {
     const u = undefined, [nRows, nCols] = [TP.nHexes, TP.mHexes], nCards = nRows * nCols;
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
-      [12, TrackSegment, '', 1050/9, 750/2],
+      [12, TrackSegment, '', 1050 / 9, 750 / 2],
       [3, SetupCard, '野心', 750],
       [3, SetupCard, '"利刃出击"', 750], //  '"利刃出击"' // (Blades Strike: "Knives Out")
     ] as CountClaz[];
@@ -154,13 +156,22 @@ export class TileExporter extends TileExporterLib {
       // [7, PrintColSelect, 7, 9, 525],
       // [2, PrintColSelect, 0, 9, 525],
     ] as CountClaz[];
+    const gs = TrackLabel.gridSpec; gs.dpi = 300;
+    const labelCols = [
+      ...TrackLabel.countClaz(gs, 0, 54, 54),
+      ...TrackLabel.countClaz(gs, 180, 54, 54),
+      ...TrackLabel.countClaz(gs, 0, 54, 54),
+      ...TrackLabel.countClaz(gs, 180, 54, 54),
+      ...TrackLabel.countClaz(gs, 0, 54, 54),
+      ...TrackLabel.countClaz(gs, 180, 54, 54),
+    ];
 
     const pageSpecs: PageSpec[] = [];
-
+    this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
     // this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 

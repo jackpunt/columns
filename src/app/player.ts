@@ -1,12 +1,12 @@
 import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type HexAspect, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
+import { newPlanner, NumCounterBox, Player as PlayerLib, type HexAspect, type HexMap, type LogWriter, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { MarkerShape } from "./col-table";
 import { GameModel } from "./game-model";
 import { arrayN, GamePlay, nFacs } from "./game-play";
-import type { Scenario } from "./game-setup";
+import { type GameSetup, PlayerGameSetup } from "./game-setup";
 import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
@@ -142,7 +142,7 @@ export class Player extends PlayerLib implements IPlayer {
   /** true: player auto-selects play; false: player uses GUI  */
   setAutoPlay(v = !this.useRobo) {
     this.useRobo = v;
-    this.autoButton.paint(v ? '#c5e1a5' : C.WHITE)
+    this.autoButton.paint(this.useRobo ? '#c5e1a5' : C.WHITE)
     this.autoButton.stage?.update();
   }
 
@@ -154,13 +154,43 @@ export class Player extends PlayerLib implements IPlayer {
     this.coinBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
 
+  // map col [1..n]
+  cardsInCol(col: number) {
+    const nrows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
+    return arrayN(nrows).map(row => hexMap.getCard(row, col))
+  }
+  colScore() {
+    const hexMap = this.gamePlay.hexMap
+    const { nRows, nCols } = this.gamePlay, nCards = nRows * nCols;
+    const nfacs = arrayN(1 + nFacs, i => 0); // count of each faction on board
+    hexMap.forEachHex(hex => hex.card.factions.forEach(f => nfacs[f]++));
+    const colScore = arrayN(1 + nCols, i => 0);
+    arrayN(nCols, 1).map(col => {
+      this.cardsInCol(col).filter(c => c.factions[0] !== 0).map(card => {
+        const facs = card.factions, n = facs.length;
+        facs.forEach(f => colScore[col] += nfacs[f] / n);
+      })
+    })
+    return colScore.map((score, col) => ({ col, score })).slice(1);
+  }
   /** choose column for xtraMeeple */
-  xtraCol(ncols = 4) {
-    return 1 + Random.random(ncols)
+  xtraCol() {
+    const nCols = this.gamePlay.nCols
+    const colScore = this.colScore()
+    colScore.sort((a,b) => b.score - a.score)
+    const weights = [0], nof = colScore.map((cs, cr) => (nCols - cr) * nCols + 1 + (nCols - cs.col))
+    colScore.forEach((cs, cr) => weights.splice(0, 0, ...arrayN(nof[cr], j => cr)))
+    const nw = weights.length;
+    // {colScore} nw={nw} [{rand}->{ndx}] = {colScore[ndx].col} {nof}
+    permute(weights)
+    const rand = Random.random(nw)
+    const ndx = weights[rand]
+    const col = colScore[ndx].col;
+    return col
   }
 
   selectCol(cb: () => void) {
-    const col = this.xtraCol(this.gamePlay.nCols)
+    const col = this.xtraCol()
     this.clearButtons();
     this.colSelButtons[col - 1].select()
     this.coinBidButtons[0].select(); // bid 1 to complete selection
@@ -219,7 +249,7 @@ export class Player extends PlayerLib implements IPlayer {
   // metric is immediate points scored
   // [will improve later,looking a remaining moves, etc]
   planA() {
-    // clone the current gamePlay from gameSetup:
+    // clone the current gamePlay from gameSetup: [subGameSetup!]
     if (!this.gameModel) this.gameModel = new GamePlay(this.gamePlay.gameSetup, this.gamePlay.gameSetup.scenario)
     const colCards = this.colSelButtons.filter(card => card.state === CB.clear)
     const bidCards = this.coinBidButtons.filter(card => card.state === CB.clear)
@@ -427,11 +457,6 @@ export class Player extends PlayerLib implements IPlayer {
 }
 
 export class PlayerB extends Player {
-  // map col [1..n]
-  cardsInCol(col: number) {
-    const nrows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
-    return arrayN(nrows).map(row => hexMap.getCard(row, col))
-  }
 
   dualsInCol(col: number) {
     const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
@@ -442,62 +467,30 @@ export class PlayerB extends Player {
     const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
     return cards.map(card => card.factions).flat(1)
   }
-  colScore() {
-    const hexMap = this.gamePlay.hexMap
-    const { nRows, nCols } = this.gamePlay, nCards = nRows * nCols;
-    const nfacs = arrayN(1 + nFacs, i => 0); // count of each faction on board
-    hexMap.forEachHex(hex => hex.card.factions.forEach(f => nfacs[f]++));
-    const colScore = arrayN(1 + nCols, i => 0);
-    arrayN(nCols, 1).map(col => {
-      this.cardsInCol(col).filter(c => c.factions[0] !== 0).map(card => {
-        const facs = card.factions, n = facs.length;
-        facs.forEach(f => colScore[col] += nfacs[f] / n);
-      })
-    })
-    return colScore.map((score, col) => ({ col, score })).slice(1);
-  }
-  override xtraCol() {
-    const nCols = this.gamePlay.nCols
-    const colScore = this.colScore()
-    colScore.sort((a,b) => b.score - a.score)
-    const weights = [0], nof = colScore.map((cs, cr) => (nCols - cr) * nCols + 1 + (nCols - cs.col))
-    colScore.forEach((cs, cr) => weights.splice(0, 0, ...arrayN(nof[cr], j => cr)))
-    const nw = weights.length;
-    // {colScore} nw={nw} [{rand}->{ndx}] = {colScore[ndx].col} {nof}
-    permute(weights)
-    const rand = Random.random(nw)
-    const ndx = weights[rand]
-    const col = colScore[ndx].col;
-    return col
-  }
 
-  override selectCol(cb: () => void) {
-    const col = this.xtraCol()
-    this.clearButtons();
-    this.colSelButtons[col - 1].select()
-    this.coinBidButtons[0].select(); // bid 1 to complete selection
-    cb();
-  }
   autoAdvanceMarkerX(dScore: number) {
     super.autoAdvanceMarker(dScore)
   }
+  /** invoke gameState.cardDone = card when selecting */
+  override collectBid() {
+    if (!this.useRobo) return; // nothing to do; GUI will set cardDone via onClick()
+    // sync subGame with realGame
 
-  startSetup(scenario?: Scenario) {
-    const setup = this.gamePlay.gameSetup
-    // maybe qParams has nh, mh?
-    setup.resetState(scenario as HexAspect); // <-- inject/edit necessary elements: nGods, godNames,...
-    setup.logWriter.backlog.length = 0; // flush the backlog (assume file is closed)
-    // initialScenario produces a StartupElt from qParams
-    if (!scenario || scenario.turn == undefined) scenario = setup.initialScenario();
-    setup.scenario = scenario;                  // retain for future reference
-    setup.nPlayers = setup.getNPlayers();        // Scenario may override?
-    setup.hexMap = setup.makeHexMap();           // then copied from gameSetup -> gamePlay
-    setup.table = setup.makeTable();
-    // Inject Table into GamePlay;
-    // GameState, mouse/keyboard->GamePlay,
-    setup.gamePlay = setup.makeGamePlay(scenario); // scenario provided... maybe not used
+  }
 
-    setup.startScenario(scenario);
+  override setAutoPlay(v?: boolean): void {
+    super.setAutoPlay(v);
+    if (this.useRobo && !this.subGameSetup) this.subGameSetup = this.makeSubGame();
+  }
+
+  subGameSetup!: PlayerGameSetup;
+  makeSubGame() {
+    const gameSetup = this.gamePlay.gameSetup;
+    const stateInfo = this.gamePlay.scenarioParser.saveState();
+    // game with no canvas for Stage:
+    const subGame = this.subGameSetup = new PlayerGameSetup(gameSetup, stateInfo);
+    // subGame.startup(stateInfo);
+    return subGame
   }
 }
 

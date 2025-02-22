@@ -7,6 +7,7 @@ import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
 import type { HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
+import { ScenarioParser } from "./scenario-parser";
 import { TP } from "./table-params";
 
 /** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
@@ -38,6 +39,10 @@ export class GamePlay extends GamePlayLib {
     this.curPlayer.panel.showPlayer(true);
   }
 
+  override makeScenarioParser(hexMap: HexMap2): ScenarioParser {
+    return new ScenarioParser(hexMap, this)
+  }
+
   /** all the cards and the meeples on them. ordered [row=0..nrows-1][column=0..ncols-1] */
   getLayout(): CardContent[][] {
     const gp = this, hexMap = gp.hexMap;
@@ -59,9 +64,9 @@ export class GamePlay extends GamePlayLib {
     return this.allPlayers.map((p, i) => p.cardStates());
   }
   /** encapsulate everything: turn, Cards of Player, Layout & Meeples, ScoreTrack */
-  allState() {
+  allState(base = {}) {
     const pStates = this.getPlayerState();
-    const sState = this.gameSetup.scenarioParser.addStateElements({});
+    const sState = this.gameSetup.scenarioParser.addStateElements(base);
     return { pStates, ...sState }
   }
   override logWriterLine0(key = 'start', line?: Record<string, any>) {

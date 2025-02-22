@@ -1,5 +1,5 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect, type LogWriter } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -23,6 +23,7 @@ declare global {
     stime: (typeof stime) & PublicInterface<typeof stime>;
   }
 }
+// TODO: move to common-lib:
 Math.sum = (...ary: number[]) => ary.reduce((pv, cv) => pv + cv, 0);
 Math.stime = stime; // can use Math.stime() in js/debugger
 
@@ -30,7 +31,7 @@ Math.stime = stime; // can use Math.stime() in js/debugger
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
   declare scenarioParser: ScenarioParser;
-  constructor(canvasId: string, qParam?: Params) {
+  constructor(canvasId?: string, qParam?: Params) {
     super(canvasId, qParam)
   }
   override loadImagesThenStartup() {
@@ -111,12 +112,29 @@ export class GameSetup extends GameSetupLib {
     super.resetState(stateInfo);
   }
 
-  override makeScenarioParser(hexMap: HexMap<Hex>, gamePlay: GamePlay): ScenarioParser {
-    return new ScenarioParser(hexMap, gamePlay)
-  }
-
   override startScenario(scenario: Scenario0) {
     const gp = super.startScenario(scenario)
     return gp
+  }
+}
+
+
+/** GameSetup with no canvas, using gs.logWriter, same loader */
+export class PlayerGameSetup extends GameSetup {
+  constructor(public gs: GameSetup, scenario: Scenario = {}) {
+    super(undefined, gs.qParams)
+    ;(this as any).logWriter = gs.logWriter;
+  }
+  override makeLogWriter() { return {} as LogWriter; }
+
+  override loadImagesThenStartup(scenario: Scenario = this.qParams): void {
+    // do NOT create new loader:
+    const msImage = AliasLoader.loader.getImage('meeple-shape'); // just to show we can
+    setTimeout(() => this.startup(scenario), 0); // new task
+  }
+
+  sync() {
+    const stateInfo = this.gs.scenarioParser.saveState();
+    // TODO: parse into this game
   }
 }

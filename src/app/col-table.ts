@@ -1,14 +1,16 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
-import { Shape, Stage, type Container, type DisplayObject } from "@thegraid/easeljs-module";
+import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { Container, DisplayObject, Shape, Stage } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
-import type { Faction, GamePlay } from "./game-play";
+import { type Faction, type GamePlay } from "./game-play";
+import type { GridSpec } from "./image-grid";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
+import type { CountClaz } from "./tile-exporter";
 
 export class ColTable extends Table {
   constructor(stage: Stage) {
@@ -16,7 +18,6 @@ export class ColTable extends Table {
     this.dragger.dragCont.scaleX = this.dragger.dragCont.scaleY = 1//.6;
     this.initialVis = true;
   }
-  static declare table: ColTable;
   declare gamePlay: GamePlay;
   declare hexMap: HexMap2;    // From gamePlay.hexMap
   // return type declaration:
@@ -505,5 +506,44 @@ export class TrackSegment extends ColCard {
     this.addChild(rv);
     this.reCache();
     return rv
+  }
+}
+
+/** Printable labels to annotate the value along the TrackSegment cards. */
+export class TrackLabel extends TextInRect {
+  static seqN = 0;
+  static rotateBack = undefined;
+  static countClaz(gs: GridSpec, rot = 0, n = 54, nLim = 54) {
+    return [[n, TrackLabel, gs, rot, nLim]] as CountClaz[];
+  }
+
+  /** labels 0..54; construct @ 300 dpi, to printer @ 25% */
+  constructor(gs: GridSpec, rot = 0, seqLim = 54) {
+    if (TrackLabel.seqN >= seqLim) TrackLabel.seqN = 0;
+    const i = TrackLabel.seqN++, fontSize = (gs.dpi ?? 1) * .1;
+    super(`${ i }`, { fontSize })
+    this.rotation = rot;
+    this.borders = [fontSize, fontSize, 1, 1]; // ensure single digits are landscape
+    this.setBounds(undefined, 0, 0, 0);
+  }
+
+  makeBleed() { return this }
+
+  /** GridSpec to create long rows of digits aligned with TrackSegment cards */
+  static gridSpec: GridSpec = {
+    dpi: 300,
+    width: 8,
+    height: 10,
+    nrow: 20,
+    ncol: 9 * 2,   // span 2 TrackSegments
+    y0: .5,
+    x0: .5,
+    delx: 3.5 / 9, // 3.5 inch card, with 9 slots
+    dely: 4 / 8,   // separate rows by half-inch
+    bleed: 0,
+    trimLCR: false,
+    land: true,
+    bgColor: C.WHITE,
+    scale: .25,
   }
 }
