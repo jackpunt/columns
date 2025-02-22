@@ -1,16 +1,14 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type CountClaz, type GridSpec, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Shape, Stage } from "@thegraid/easeljs-module";
 import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
 import { type Faction, type GamePlay } from "./game-play";
-import type { GridSpec } from "./image-grid";
 import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
-import type { CountClaz } from "./tile-exporter";
 
 export class ColTable extends Table {
   constructor(stage: Stage) {
@@ -532,8 +530,8 @@ export class TrackLabel extends TextInRect {
   /** GridSpec to create long rows of digits aligned with TrackSegment cards */
   static gridSpec: GridSpec = {
     dpi: 300,
-    width: 8,
-    height: 10,
+    width: 8.0,
+    height: 10.5,
     nrow: 20,
     ncol: 9 * 2,   // span 2 TrackSegments
     y0: .5,

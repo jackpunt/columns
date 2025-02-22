@@ -1,5 +1,5 @@
 import { C, F, type XY } from "@thegraid/common-lib";
-import { CenterText, NamedContainer, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import { CenterText, NamedContainer, type CountClaz, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import { Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
@@ -8,7 +8,7 @@ import { arrayN, nFacs, type Faction, type GamePlay } from "./game-play";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
-import type { CountClaz } from "./tile-exporter";
+// import type { CountClaz } from "./tile-exporter";
 
 export class ColCard extends Tile {
   // static get allCards() { return Array.from(this.cardByName.values()) }

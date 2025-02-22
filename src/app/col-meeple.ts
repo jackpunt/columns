@@ -1,5 +1,5 @@
 import { C, F, S, stime, type XYWH } from "@thegraid/common-lib";
-import { CenterText, CircleShape, RectShape, UtilButton, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
+import { CenterText, CircleShape, RectShape, UtilButton, type CountClaz, type Paintable, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Container, Graphics, Shape, type DisplayObject } from "@thegraid/easeljs-module";
 import { Meeple, Player as PlayerLib, Table, Tile, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
@@ -10,7 +10,6 @@ import { MeepleShape } from "./meeple-shape";
 import { OrthoHex2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
-import type { CountClaz } from "./tile-exporter";
 
 
 export class ColMeeple extends Meeple {

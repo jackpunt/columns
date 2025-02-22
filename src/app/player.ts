@@ -1,12 +1,12 @@
 import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type HexAspect, type HexMap, type LogWriter, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
+import { newPlanner, NumCounterBox, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { MarkerShape } from "./col-table";
-import { GameModel } from "./game-model";
+// import { GameModel } from "./game-model";
 import { arrayN, GamePlay, nFacs } from "./game-play";
-import { type GameSetup, PlayerGameSetup } from "./game-setup";
+import { PlayerGameSetup } from "./game-setup";
 import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
@@ -244,24 +244,24 @@ export class Player extends PlayerLib implements IPlayer {
 
   }
 
-  gameModel!: GamePlay
-  // find top 4 apparent best moves (A1...D4); choose one.
-  // metric is immediate points scored
-  // [will improve later,looking a remaining moves, etc]
-  planA() {
-    // clone the current gamePlay from gameSetup: [subGameSetup!]
-    if (!this.gameModel) this.gameModel = new GamePlay(this.gamePlay.gameSetup, this.gamePlay.gameSetup.scenario)
-    const colCards = this.colSelButtons.filter(card => card.state === CB.clear)
-    const bidCards = this.coinBidButtons.filter(card => card.state === CB.clear)
-    const state0 = this.gamePlay.allState();
-    const model = new GameModel(state0)
-    const evals = colCards.map(card => {
-      return bidCards.map(bid => {
-        const eval0 = model.evalState(card.colNum, bid)
-        return eval0;
-      })
-    })
-  }
+  // // gameModel!: GamePlay
+  // // find top 4 apparent best moves (A1...D4); choose one.
+  // // metric is immediate points scored
+  // // [will improve later,looking a remaining moves, etc]
+  // planA() {
+  //   // clone the current gamePlay from gameSetup: [subGameSetup!]
+  //   if (!this.gameModel) this.gameModel = new GamePlay(this.gamePlay.gameSetup, this.gamePlay.gameSetup.scenario)
+  //   const colCards = this.colSelButtons.filter(card => card.state === CB.clear)
+  //   const bidCards = this.coinBidButtons.filter(card => card.state === CB.clear)
+  //   const state0 = this.gamePlay.allState();
+  //   const model = new GameModel(state0)
+  //   const evals = colCards.map(card => {
+  //     return bidCards.map(bid => {
+  //       const eval0 = model.evalState(card.colNum, bid)
+  //       return eval0;
+  //     })
+  //   })
+  // }
 
   cardStates() {
     const sels = this.colSelButtons.map(b => b.state as CardButtonState);
