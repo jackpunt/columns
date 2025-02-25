@@ -73,7 +73,7 @@ export class ColCard extends Tile {
     const inUse = this.cellsInUse;
     return arrayN(this.maxCells).filter(i => !inUse.includes(i))
   }
-  otherMeepInCell(meep: ColMeeple, cellNdx?: number) {
+  otherMeepInCell(meep: ColMeeple, cellNdx = meep.cellNdx) {
     return this.meepsOnCard.find(m => (m !== meep) && (m.cellNdx == cellNdx))
   }
   /**
@@ -101,9 +101,16 @@ export class ColCard extends Tile {
     meep.faction = (cellNdx == undefined) ? undefined : this.factions[cellNdx];
     return toBump;
   }
+
+  atBumpLoc() {
+    const meeps = this.meepsOnCard.filter(meep => this.isBumpLoc(meep));
+    if (meeps.length > 1) debugger;
+    return meeps[0] as ColMeeple | undefined;
+  }
+
   /**
    *
-   * @returns true if meep is in meepleLoc; false if in bumpLoc
+   * @returns true if meep is in bumpLoc; false if in meepleLoc
    */
   isBumpLoc(meep: ColMeeple) {
     return (meep.y == this.bumpLoc.y)

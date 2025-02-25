@@ -153,12 +153,38 @@ export class GamePlay extends GamePlayLib {
     // TODO: alternative for Pyramid
   }
 
+
+  /**
+   * advance (dir = 0); then bump & cascade.
+   * @param meep
+   * @param cb callback when bump & cascade is complete
+   */
+  advanceMeeple(meep: ColMeeple, cb?: () => void) {
+    const player = meep.player, dir0: (0) = 0;
+    const toBump = player.bumpMeeple(meep, dir0); // loop until no more bumps
+    if (toBump) {
+      const [bumpee, bumpDir] = meep.player.chooseMeepAndBumpDir(meep, dir0);
+      this.bumpAndCascade(bumpee, bumpDir);
+    }
+    if (cb) cb(); // only for the original, outer-most, winning-bidder
+  }
+
+  bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2) {
+    const toBump = meep.player.bumpMeeple(meep, bumpDir)
+    if (toBump) {
+      const [bumpee] = meep.player.chooseMeepAndBumpDir(meep, bumpDir);
+      this.bumpAndCascade(bumpee, bumpDir)
+    }
+  }
+
   /** move meeple from bumpLoc to center of cell;
    * @returns a meep that needs to bump.
    */
   meeplesToCell(col: number) {
-    const meeps = this.allMeeples.filter(meep => meep.card.col == col && meep.faction !== 0)
-    const bumps = meeps.filter(meep => meep.card.addMeep(meep, meep.cellNdx)); // re-center
+    // arrayN(this.nRows - 2, 1).map(row => console.log(`row,col = [${row}][${col}]`, this.hexMap[row][col]));
+    const cards = arrayN(this.nRows - 2, 1).map(row => this.hexMap[row][col - 1].card);
+    const meeps = cards.map(card => card.atBumpLoc()).filter(meep => !!meep)
+    const bumps = meeps.filter(meep => meep.card.addMeep(meep)); // re-center
     return bumps[0]
   }
 
@@ -214,6 +240,7 @@ export class GamePlay extends GamePlayLib {
   override bindKeys(): void {
     super.bindKeys();
     const table = this.table;
+    KeyBinder.keyBinder.setKey('S-s', () => { this.saveGame() })
     KeyBinder.keyBinder.setKey('C-d', () => this.toggleBrake());
     KeyBinder.keyBinder.setKey('M-c', () => {
       const tp=TP, tpl=TPLib

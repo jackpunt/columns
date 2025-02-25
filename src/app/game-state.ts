@@ -152,12 +152,12 @@ export class GameState extends GameStateLib {
         this.state.col = col;
         if (!this.winnerMeep) this.winnerMeep = meep; // maybe undefined
         if (!meep) { this.phase('ResolveWinner', col + 1); return }
-        this.gamePlay.setCurPlayer(meep.player);
+        this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
-        this.table.logText(`${meep} in col ${col}`, `BumpAndCascade`);
+        this.table.logText(`${meep} in col ${['0','A','B','C','D'][col]}`, `BumpAndCascade`);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
         const bumpDone = () => setTimeout(() => this.done(), TP.flipDwell); // HACK: winner does it all
-        this.curPlayer.bumpMeeple(meep, 0, bumpDone); // advance | bump
+        this.gamePlay.advanceMeeple(meep, bumpDone); // advance; bump & cascade -> bumpDone
       },
       // when bump and cascade has settled:
       done: () => {

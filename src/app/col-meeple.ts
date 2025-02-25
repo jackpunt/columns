@@ -33,6 +33,11 @@ export class ColMeeple extends Meeple {
     const x = TP.hexRad / 2, y = x * (5 / 3);
     return new MeepleShape(this.player?.color ?? 'pink', { x, y })
   }
+
+  override toString(): string {
+    return `${super.toString()}#${this.cellNdx ?? '-'}`;
+  }
+
   highlight(lightup = true) {
     this.baseShape.highlight(lightup);
     this.updateCache()

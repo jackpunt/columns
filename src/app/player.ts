@@ -27,7 +27,7 @@ export interface IPlayer {
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
   /** @param dir 0: advance, 1: up, -1, -2: down */
-  bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2), cb?: () => void): [tobump: boolean, dir: number];
+  bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2), cb?: () => void): boolean;
   commitCards(): void;
 }
 
@@ -414,13 +414,12 @@ export class Player extends PlayerLib implements IPlayer {
    * invoke cb() when bump cascade if done (no bumpee, or bump to black)
    *
    * @param meep the meep that need to find a home
-   * @param dir the direction for this bump (undefined for initial/winningBidder)
-   * @param cb callback when bump cascade is done
-   * @returns [true if bump cascades, false if done, dir]
+   * @param dir the direction for this bump (0 for initial/winningBidder: up & then choose bumpDir)
+   * @returns true if bump cascades
    */
-  bumpMeeple(meep: ColMeeple, dir0: (0 | 1 | -1 | -2), cb?: () => void) {
-    const dir = dir0 || 1;  // (dir0 == 0) IFF advance/winner
-    const card = meep.card.nextCard(dir);   // should NOT bump from black, but...
+  bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2)) {
+    const dir0 = dir || 1;  // (dir0 == 0) IFF advance/winner
+    const card = meep.card.nextCard(dir0);   // should NOT bump from black, but...
     const open = card.openCells;
     const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
     const bidFacs = this.curBidCard.factions, bestFacs = card.factions;
@@ -430,17 +429,22 @@ export class Player extends PlayerLib implements IPlayer {
     const cellNdx = (open.length == 1) ? open[0]
       //   2 open slots  || no matching bid     || 2 equally valueable slots
       : (open.length > 1 || bidFac == undefined || factionTotals[cardFacs[0]] === factionTotals[cardFacs[1]])
-        ? this.chooseDualCell(card, factionTotals, bestFacs)
+        ? this.chooseDualCellToEnter(card, factionTotals, bestFacs)
         : cardFacs.indexOf(bidFac);
     const toBump = card.addMeep(meep, cellNdx); // place in chosen cellNdx
-    const bumpee = card.otherMeepInCell(meep, cellNdx)
-    card.stage?.update();
-    // if (cb) cb();
-    return [toBump, dir] as [boolean, number];
+    return toBump;
   }
 
-  chooseDualCell(card: ColCard, factionTotals: number[], cardFacs: Faction[]) {
-    return card.factions.indexOf(cardFacs[0]);
+  /** choose meep to bump; if winning-bidder (dir == 0) also choose bumpDir  */
+  chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2) {
+    const other = meep.card.otherMeepInCell(meep) as ColMeeple;
+    const bumpDir = (dir !== 0) ? dir : 1; // TODO: more consideration
+    return [meep, bumpDir] as [ColMeeple, 1 | -1 | -2];
+  }
+
+  /** same or equivalent factions, both empty or both occupied */
+  chooseDualCellToEnter(card: ColCard, factionTotals: number[], bestFacs: Faction[]) {
+    return card.factions.indexOf(bestFacs[0]);
   }
 
   /** count of meeples on each Faction [B, r, g, b, v] */
@@ -526,7 +530,7 @@ export class PlayerB extends Player {
     let toBump = false;
     // initial advance: move up
     if (dir0 == 0) {
-      const [aBump, adir] = super.bumpMeeple(meep, 1); // does not invoke cb()
+      const aBump = super.bumpMeeple(meep, 1); // does not invoke cb()
       // meep.cellNdx is set
     }
     const cellNdx = meep.cellNdx as number; // super.bumpMeeple sets cellNdx
@@ -535,8 +539,8 @@ export class PlayerB extends Player {
       if (dir < 0) {
 
       }
-       const other = meep.card.otherMeepInCell(meep, cellNdx)
+       const other = meep.card.otherMeepInCell(meep)
     }
-    return [false, dir] as [boolean, number];
+    return toBump;
   }
 }

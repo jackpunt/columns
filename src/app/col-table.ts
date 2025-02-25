@@ -137,7 +137,7 @@ export class ColTable extends Table {
   }
   override bindKeysToScale(scaleC: ScaleableContainer, ...views: (XY & { scale: number; isk: string; ssk?: string; })[]): void {
     const z_x = TP.numPlayers > 4 ? 420 : 470;
-    const viewA = { x: 500, y: 2, scale: 0.500, isk: 'a'}
+    const viewA = { x: 510, y: 2, scale: 0.500, isk: 'a'}
     const viewZ = { x: z_x, y: 2, scale: 0.647, isk: 'z', ssk: 'x' };
     super.bindKeysToScale(scaleC, viewA, viewZ);
   }
