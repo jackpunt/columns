@@ -1,12 +1,12 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect, type LogWriter } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect, type LogWriter, type SetupElt as SetupEltLib } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { arrayN, GamePlay } from './game-play';
 import { OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { PlayerB } from './player';
-import { ScenarioParser } from './scenario-parser';
+import { ScenarioParser, type SetupElt } from './scenario-parser';
 import { TileExporter } from './tile-exporter';
 
 type Params = Record<string, any>; // until hexlib supplies
@@ -31,35 +31,29 @@ Math.stime = stime; // can use Math.stime() in js/debugger
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
   declare scenarioParser: ScenarioParser;
+  declare startupScenario: SetupElt;
   constructor(canvasId?: string, qParam?: Params) {
     super(canvasId, qParam)
   }
+
+  tileExporter = new TileExporter(); // enable 'Make Pages' buttons
+
+  override initialize(canvasId: string): void {
+    // for hexmarket to bringup their own menus:
+    window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
+    super.initialize(canvasId)
+    return;
+  }
+
   override loadImagesThenStartup() {
     AliasLoader.loader.fnames = ['meeple-shape'];
     super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
   }
-  override startup(scenario?: Scenario): void {
-    // TODO: place all ColCards
+
+  override startup(scenario: Scenario): void {
     ColCard.nextRadius = CardShape.onScreenRadius; // reset for on-screen PathCard
     super.startup(scenario)
   }
-
-  // allow qParams as opt arg:
-  override initialize(canvasId: string, qParams = this.qParams): void {
-    window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
-    const { host, port, file, nH } = qParams;
-    TP.ghost = host || TP.ghost
-    TP.gport = Number.parseInt(port || TP.gport.toString(10), 10)
-    TP.networkGroup = 'hexpath:game1';
-    TP.networkUrl = TP.buildURL(undefined);
-    super.initialize(canvasId);
-    let rfn = document.getElementById('readFileName') as HTMLInputElement;
-    rfn.value = file ?? 'setup@0';
-
-    return;
-  }
-
-  tileExporter = new TileExporter(); // enable 'Make Pages' buttons
 
   update() {
     const hexCont = this.hexMap.mapCont?.hexCont;
@@ -68,7 +62,7 @@ export class GameSetup extends GameSetupLib {
   }
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
-  setRowsCols(nPlayers = this.getNPlayers()) {
+  setRowsCols(nPlayers = TP.numPlayers) {
     // nr includes top & bottom black cells; (8 player could be 7 rows...)
     const nr = Math.max(4, 3 + Math.floor(nPlayers / 2)) + 2; // include 2 black rows
     const nc = Math.max(4, 2 + Math.ceil(nPlayers / 2));
@@ -121,6 +115,9 @@ export class GameSetup extends GameSetupLib {
 
 /** GameSetup with no canvas, using gs.logWriter, same loader */
 export class PlayerGameSetup extends GameSetup {
+  /**
+   * @param gs the original/actual running GameSetup, GameState, Players, Table, etc
+   */
   constructor(public gs: GameSetup, scenario: Scenario = {}) {
     super(undefined, gs.qParams)
     ;(this as any).logWriter = gs.logWriter;
@@ -134,7 +131,9 @@ export class PlayerGameSetup extends GameSetup {
   }
 
   sync() {
+    // get state of real game:
     const stateInfo = this.gs.scenarioParser.saveState();
-    // TODO: parse into this game
+    // push into this subGame:
+    this.scenarioParser.parseScenario(stateInfo); // parse into this game
   }
 }

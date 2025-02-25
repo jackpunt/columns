@@ -1,11 +1,11 @@
 import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel } from "@thegraid/hexlib";
+import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { MarkerShape } from "./col-table";
 // import { GameModel } from "./game-model";
-import { arrayN, GamePlay, nFacs } from "./game-play";
+import { arrayN, GamePlay, nFacs, type Faction } from "./game-play";
 import { PlayerGameSetup } from "./game-setup";
 import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
@@ -20,13 +20,13 @@ export interface IPlayer {
   meeples: ColMeeple[];
   coinBidButtons: CoinBidButton[]; // { state?: string, factions: number[] }
   clearButtons(): void; // reset CardButton: setState(CB.clear)
-  selectCol(cb: () => void): void; // for xtraCol
+  selectCol(): void; // for xtraCol
   collectBid(): void;
   isDoneSelecting(): ColSelButton | undefined; // { colNum: number } | undefined
   bidOnCol(col: number): PlyrBid | undefined;
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
-  bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void): void;
+  bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void): boolean;
   commitCards(): void;
 }
 
@@ -189,7 +189,8 @@ export class Player extends PlayerLib implements IPlayer {
     return col
   }
 
-  selectCol(cb: () => void) {
+  /** for xtraCol; card.select() -> cardDone = card */
+  selectCol() {
     const col = this.xtraCol()
     this.clearButtons();
     this.colSelButtons[col - 1].select()
@@ -244,29 +245,18 @@ export class Player extends PlayerLib implements IPlayer {
 
   }
 
-  // // gameModel!: GamePlay
-  // // find top 4 apparent best moves (A1...D4); choose one.
-  // // metric is immediate points scored
-  // // [will improve later,looking a remaining moves, etc]
-  // planA() {
-  //   // clone the current gamePlay from gameSetup: [subGameSetup!]
-  //   if (!this.gameModel) this.gameModel = new GamePlay(this.gamePlay.gameSetup, this.gamePlay.gameSetup.scenario)
-  //   const colCards = this.colSelButtons.filter(card => card.state === CB.clear)
-  //   const bidCards = this.coinBidButtons.filter(card => card.state === CB.clear)
-  //   const state0 = this.gamePlay.allState();
-  //   const model = new GameModel(state0)
-  //   const evals = colCards.map(card => {
-  //     return bidCards.map(bid => {
-  //       const eval0 = model.evalState(card.colNum, bid)
-  //       return eval0;
-  //     })
-  //   })
-  // }
 
-  cardStates() {
+  saveCardStates() {
     const sels = this.colSelButtons.map(b => b.state as CardButtonState);
     const bids = this.coinBidButtons.map(b => b.state as CardButtonState);
     return { sels, bids }
+  }
+
+  parseCardStates(pStates: ReturnType<Player['saveCardStates']>) {
+    const { sels, bids } = pStates
+    sels.forEach((b, ndx) => this.colSelButtons[ndx].setState(b, false))
+    bids.forEach((b, ndx) => this.coinBidButtons[ndx].setState(b, false))
+    return
   }
   // ColMeeple is Tile with (isMeep==true); use MeepleShape as baseShape
   /**
@@ -425,21 +415,28 @@ export class Player extends PlayerLib implements IPlayer {
    * @param meep the meep that need to find a home
    * @param dir0 the direction for this bump (undefined for initial/winningBidder)
    * @param cb callback when bump cascade is done
-   * @returns
+   * @returns true if bump cascades, false if done.
    */
   bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void) {
-    const dir = dir0 ?? 1;
+    const dir = dir0 ?? 1;  // dir0 == undefined IFF advance/winner
     const card = meep.card.nextCard(dir);// should NOT bump from black, but...
     const open = card.openCells;
     const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
-    const facs = this.curBidCard.factions.slice(), cardFacs = card.factions;
-    const matches = open.filter(ndx =>facs.includes(cardFacs[ndx]))
-    matches.sort((a, b) => factionTotals[cardFacs[b]] - factionTotals[cardFacs[a]]);
-    const cellNdx = matches[0];
-    const noCascade = card.addMeep(meep, cellNdx); // bump to an openCell
+    const bidFacs = this.curBidCard.factions, cardFacs = card.factions;
+    cardFacs.sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
+    const bidFac = cardFacs.find(fac => bidFacs.includes(fac));
+    const cellNdx = (open.length == 1) ? open[0]
+    : (open.length > 1 || !bidFac || cardFacs[0] === cardFacs[1])
+    ? this.chooseDualCell(card, factionTotals, cardFacs)
+    : card.factions.indexOf(bidFac);
+    const toBump = card.addMeep(meep, cellNdx); // bump to an openCell
     card.stage?.update();
-    // cb();
-    return;
+    // if (cb) cb();
+    return toBump;
+  }
+
+  chooseDualCell(card: ColCard, factionTotals: number[], cardFacs: Faction[]) {
+    return card.factions.indexOf(cardFacs[0]);
   }
 
   /** count of meeples on each Faction [B, r, g, b, v] */
@@ -474,8 +471,6 @@ export class PlayerB extends Player {
   /** invoke gameState.cardDone = card when selecting */
   override collectBid() {
     if (!this.useRobo) return; // nothing to do; GUI will set cardDone via onClick()
-    // sync subGame with realGame
-
   }
 
   override setAutoPlay(v?: boolean): void {
@@ -486,11 +481,57 @@ export class PlayerB extends Player {
   subGameSetup!: PlayerGameSetup;
   makeSubGame() {
     const gameSetup = this.gamePlay.gameSetup;
+    const state0 = gameSetup.startupScenario;
+    const scene0 = { start: state0 }
     const stateInfo = this.gamePlay.scenarioParser.saveState();
     // game with no canvas for Stage:
     const subGame = this.subGameSetup = new PlayerGameSetup(gameSetup, stateInfo);
     // subGame.startup(stateInfo);
     return subGame
+  }
+
+  // find top 4 apparent best moves (A1, A2, ..., D3, D4); choose one.
+  // metric is immediate points scored
+  collectBid_simpleGreedy() {
+    // sync subGame with realGame
+    this.subGameSetup.sync(); PlayerGameSetup
+    const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
+    const subPlyr = subGamePlay.allPlayers[this.index] as PlayerB;
+    const colCards = this.colSelButtons.filter(card => card.state === CB.clear).map((_, ndx) => subPlyr.colSelButtons[ndx])
+    const bidCards = this.coinBidButtons.filter(b => b.state == CB.clear).map((_, ndx)=>subPlyr.coinBidButtons[ndx])
+    colCards.map(ccard => {
+      bidCards.map(bcard => {
+        // enable faction match, without triggering isDoneSelecting()
+        ccard.setState(CB.done);
+        bcard.setState(CB.done);
+        this.pseudoWin(ccard, bcard)
+      })
+    })
+
+  }
+  /** pretend ccard,bcard win, and advance on col */
+  pseudoWin(ccard: ColSelButton, bcard: CoinBidButton) {
+    const col = ccard.colNum;
+    const meepsInCol = this.gamePlay.meepsInCol(col, this);
+    this.meepleToAdvance(meepsInCol, (meep?: ColMeeple) => meep ? this.bumpMeeple(meep) : null)
+  }
+
+  override bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void) {
+    const dir = dir0 ?? 1;
+    let toBump = false;
+    // initial advance: move up
+    if (!dir0) {
+      toBump = super.bumpMeeple(meep, dir); // does not invoke cb()
+    }
+    const cellNdx = meep.cellNdx as number; // super.bumpMeeple supplies cellNdx
+    if (toBump) {
+      // TODO: if other meep is ours && (cell.faction === our best faction) ? bump other : bump meep
+      if (dir < 0) {
+
+      }
+       const other = meep.card.otherMeepInCell(meep, cellNdx)
+    }
+    return false;
   }
 }
 

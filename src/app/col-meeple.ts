@@ -111,17 +111,14 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     this.addChild(ll)
   }
 
-  /** Select this card/button for CollectBids: all Players in parallel */
+  /** onClick: Select this card/button for CollectBids: all Players in parallel */
   select() {
     // radio button
     if (this.state === CB.selected) {
       this.setState(CB.clear); // toggle from selected to not selected
     } else if (this.state === CB.clear) {
-      // clear the previously selected button
-      this.plyrButtons.find(cb => cb.state === CB.selected)?.setState(CB.clear, false);
       this.setState(CB.selected);
-      this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
-    }
+    } else { /** ignore click */}
   }
   onClick(evt: any, player: Player) {
     const gs = this.player.gamePlay.gameState;
@@ -160,15 +157,14 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     return outbid;
   }
   /**
-   *
-   * @param state [clear] clear, light, done, cancel (does not change state)
-   * @param update [true] stage.update after changes
+   * set state and appearance of a CardButton
+   * @param state [clear] clear, selected, done; [cancel, outbid: does not change state]
+   * @param update [true] stage.update() after changes
    */
   setState(state: CardButtonState = CB.clear, update = true) {
-    const pstate = this.state;
-    this.state = state;
     switch (state) {
       case CB.clear: {
+        this.state = state;
         this.dimmer.visible = false;
         this.highlight.visible = false;
         this.canceled.visible = false;
@@ -176,23 +172,26 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         break
       }
       case CB.selected: {
+        // clear any previously selected button:
+        this.plyrButtons.find(cb => cb.state === CB.selected)?.setState(CB.clear, false);
         this.dimmer.visible = false;
         this.highlight.visible = true;
+        this.state = state;
+        this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
         break
       }
       case CB.done: {
+        this.state = state;
         this.dimmer.visible = true;
         this.highlight.visible = false;
         break
       }
       case CB.cancel: {
         this.canceled.visible = true;
-        this.state = pstate;
         break
       }
       case CB.outbid: {
         this.outbid.visible = true;
-        this.state = pstate;
         break
       }
     }

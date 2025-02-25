@@ -81,7 +81,7 @@ export class ColCard extends Tile {
    * @param meep
    * @param cellNdx target cell for meep (if supplied by DualCard)
    * @param xy (supplied by dropFunc -> DualCard)
-   * @returns true if meep is in meepleLoc; false if in bumpLoc
+   * @returns false if meep is in meepleLoc; true if in bumpLoc
    */
   addMeep(meep: ColMeeple, cellNdx = this.openCells[0], xy?: XY) {
     const toBump = (cellNdx == undefined) || !!this.otherMeepInCell(meep, cellNdx);
@@ -89,10 +89,10 @@ export class ColCard extends Tile {
     this.meepCont.addChild(meep);
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex;
     meep.card = this;
-    meep.cellNdx = toBump ? undefined : cellNdx;
+    meep.cellNdx = cellNdx;
     // toBump -> undefined; BumpAndCascade -> meeplesToCell will addMeep() and resolve
     meep.faction = this.factions[cellNdx];
-    return !toBump;
+    return toBump;
   }
   /**
    *
@@ -185,7 +185,7 @@ export class DualCard extends ColCard {
     if (cellNdx === undefined && pt !== undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
     if (cellNdx === undefined) cellNdx = this.openCells[0];
     const rv = super.addMeep(meep, cellNdx)
-    if (!rv) {
+    if (rv) {
       meep.x += (cellNdx - .5) * .33 * this.cellWidth; // adjust bumpLoc: record desired cellNdx
     }
     return rv

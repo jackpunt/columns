@@ -19,7 +19,7 @@ export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
   const fi = (typeof nf === 'number') ? (i: number) => (i + nf) : nf;
   return Array.from(Array(n), (_, i) => fi(i))
 }
-export type AllState = ReturnType<GamePlay["allState"]>;
+
 export type CardContent = { fac: Faction[], meeps?: number[] };
 export class GamePlay extends GamePlayLib {
   constructor (gameSetup: GameSetup, scenario: Scenario) {
@@ -39,6 +39,7 @@ export class GamePlay extends GamePlayLib {
     this.curPlayer.panel.showPlayer(true);
   }
 
+  declare scenarioParser: ScenarioParser; // ReturnType<GamePlay['makeScenarioParser']>
   override makeScenarioParser(hexMap: HexMap2): ScenarioParser {
     return new ScenarioParser(hexMap, this)
   }
@@ -61,14 +62,9 @@ export class GamePlay extends GamePlayLib {
 
   /** cardStates for each player:  */
   getPlayerState() {
-    return this.allPlayers.map((p, i) => p.cardStates());
+    return this.allPlayers.map((p, i) => p.saveCardStates());
   }
-  /** encapsulate everything: turn, Cards of Player, Layout & Meeples, ScoreTrack */
-  allState(base = {}) {
-    const pStates = this.getPlayerState();
-    const sState = this.gameSetup.scenarioParser.addStateElements(base);
-    return { pStates, ...sState }
-  }
+
   override logWriterLine0(key = 'start', line?: Record<string, any>) {
     if (line) {
       super.logWriterLine0(key, line);
@@ -157,10 +153,12 @@ export class GamePlay extends GamePlayLib {
     // TODO: alternative for Pyramid
   }
 
-  /** move meeple from bumpLoc to center of cell */
+  /** move meeple from bumpLoc to center of cell;
+   * @returns a meep that needs to bump.
+   */
   meeplesToCell(col: number) {
     const meeps = this.allMeeples.filter(meep => meep.card.col == col && meep.faction !== 0)
-    const bumps = meeps.filter(meep => !meep.card.addMeep(meep, meep.cellNdx)); // re-center
+    const bumps = meeps.filter(meep => meep.card.addMeep(meep, meep.cellNdx)); // re-center
     return bumps[0]
   }
 

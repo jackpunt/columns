@@ -32,7 +32,14 @@ export class GameState extends GameStateLib {
   get turnOfRound() { return 1 + this.gamePlay.turnNumber % GS.tpr}
   get roundNumber() { return 1 + Math.floor(this.gamePlay.turnNumber / GS.tpr) }
 
+  override saveState(): any[] {
+    return [this.state.Aname] as [string];
+  }
+
   override parseState(gameState: any[]): void {
+    const [Aname, ...args] = gameState as [string, ...any[]];
+    this.startPhase = Aname;
+    this.startArgs = args;
     return;
   }
 
@@ -65,7 +72,7 @@ export class GameState extends GameStateLib {
 
   get panel() { return this.curPlayer.panel; }
 
-  /** States for 'Columns' (Knives-Out, Intrigue, '"利刃出击"' '"利刃出鞘"') */
+  /** States for 'Columns' (Knives-Out, Ambition, '"利刃出击"' '"利刃出鞘"') */
   override readonly states: { [index: string]: Phase } = {
     SelectCol: {
       start: () => {
@@ -74,8 +81,7 @@ export class GameState extends GameStateLib {
           return;
         }
         this.doneButton(`Select Extra Column`, C.YELLOW)!.activate();
-        this.gamePlay.allPlayers.forEach(plyr =>
-          plyr.selectCol(() => setTimeout(() => this.cardDone = (undefined), TP.flipDwell)));
+        this.gamePlay.allPlayers.forEach(plyr => plyr.selectCol())
       },
       done: (ok = false) => {
         if (!ok && !this.allDone) {
@@ -106,7 +112,7 @@ export class GameState extends GameStateLib {
     },
     BeginTurn: {
       start: () => {
-        this.saveGame();
+        this.gamePlay.saveGame();
         this.phase('CollectBids');
       }
     },
@@ -206,7 +212,7 @@ export class GameState extends GameStateLib {
     },
     EndGame: {
       start: () => {
-        this.saveGame();
+        this.gamePlay.saveGame();
         const winp = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score )[0]
         this.gamePlay.logWriterLine0('finish', { 'winner': winp.index, 'winColor': winp.color })
         this.doneButton(`End of Game!\n(click for new game)`, winp.color)
