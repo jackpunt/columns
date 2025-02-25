@@ -48,7 +48,7 @@ export class ColCard extends Tile {
   /**
    * @param dir 1: up, -1: down, -2: down-2
    */
-  nextCard(dir: 1 | -1 | -2): ColCard {
+  nextCard(dir: 0 | 1 | -1 | -2): ColCard {
     return dir == 1 ? this.hex.nextHex('N')?.card ?? this.hex.card
         : dir == -1 ? this.hex.nextHex('S')?.card ?? this.hex.card
         : dir == -2 ? this.nextCard(-1).nextCard(-1)
@@ -79,19 +79,26 @@ export class ColCard extends Tile {
   /**
    * add meep to this ColCard in cellNdx, at meepleLoc or bumpLoc
    * @param meep
-   * @param cellNdx target cell for meep (if supplied by DualCard)
-   * @param xy (supplied by dropFunc -> DualCard)
+   * @param cellNdx target cell for meep (if supplied by DualCard or openCells[0])
+   * @param xy coordinates on this card (supplied by dropFunc -> DualCard)
    * @returns false if meep is in meepleLoc; true if in bumpLoc
    */
-  addMeep(meep: ColMeeple, cellNdx = this.openCells[0], xy?: XY) {
-    const toBump = (cellNdx == undefined) || !!this.otherMeepInCell(meep, cellNdx);
+  // makeMeeple: always an openCell; cellNdx: number
+  //
+  // dropFunc: addMeep(meep, undefined, xy); cellNdx: undefined -> openCell[0]
+  // player.bumpMeeple: player has chosen a callNdx
+  //
+  // meeplesToCell: meep.cellNdx:? number --> openCell[0]: number
+  addMeep(meep: ColMeeple, cellNdx = this.openCells[0] ?? 0, xy?: XY) {
+    // use ?? 0; b/c dualCell would parse xy->cellNdx[0..1]; must be a single-cell
+    const toBump = !!this.otherMeepInCell(meep, cellNdx);
     const locXY = toBump ? this.bumpLoc : this.meepleLoc(cellNdx); // meepleLoc IFF cellNdx supplied and cell is empty
     this.meepCont.addChild(meep);
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex;
     meep.card = this;
-    meep.cellNdx = cellNdx;
+    meep.cellNdx = cellNdx; // undefined if no openCell
     // toBump -> undefined; BumpAndCascade -> meeplesToCell will addMeep() and resolve
-    meep.faction = this.factions[cellNdx];
+    meep.faction = (cellNdx == undefined) ? undefined : this.factions[cellNdx];
     return toBump;
   }
   /**
@@ -177,13 +184,19 @@ export class DualCard extends ColCard {
     this.paint('ignored')
   }
 
+  // makeMeeple: always an openCell; cellNdx: number
+  // dropFunc: addMeep(meep, undefined, xy); cellNdx: undefined -> openCell[0]
+  // meeplesToCell: meep.cellNdx:? number (meep.faction !== 0; could be undefined!)
+  // player.bumpMeeple: player has chosen a cellNdx
+
   // determine if meep was dropped on left or right cell
   override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
     // meep on map.tileCont@(mx,my)
     // this on map.tileCont@(tx,ty); meepCont on this@(0,0)
     const pt = xy ?? meep.parent?.localToLocal(meep.x, meep.y, this.meepCont);
     if (cellNdx === undefined && pt !== undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
-    if (cellNdx === undefined) cellNdx = this.openCells[0];
+    if (cellNdx === undefined) cellNdx = this.openCells[0]// as number | undefined;
+    // when meeplesToCell is invoked, should be an open cell, b/c bumpee was moved.
     const rv = super.addMeep(meep, cellNdx)
     if (rv) {
       meep.x += (cellNdx - .5) * .33 * this.cellWidth; // adjust bumpLoc: record desired cellNdx

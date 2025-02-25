@@ -26,7 +26,8 @@ export interface IPlayer {
   bidOnCol(col: number): PlyrBid | undefined;
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
-  bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void): boolean;
+  /** @param dir 0: advance, 1: up, -1, -2: down */
+  bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2), cb?: () => void): [tobump: boolean, dir: number];
   commitCards(): void;
 }
 
@@ -413,26 +414,29 @@ export class Player extends PlayerLib implements IPlayer {
    * invoke cb() when bump cascade if done (no bumpee, or bump to black)
    *
    * @param meep the meep that need to find a home
-   * @param dir0 the direction for this bump (undefined for initial/winningBidder)
+   * @param dir the direction for this bump (undefined for initial/winningBidder)
    * @param cb callback when bump cascade is done
-   * @returns true if bump cascades, false if done.
+   * @returns [true if bump cascades, false if done, dir]
    */
-  bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void) {
-    const dir = dir0 ?? 1;  // dir0 == undefined IFF advance/winner
-    const card = meep.card.nextCard(dir);// should NOT bump from black, but...
+  bumpMeeple(meep: ColMeeple, dir0: (0 | 1 | -1 | -2), cb?: () => void) {
+    const dir = dir0 || 1;  // (dir0 == 0) IFF advance/winner
+    const card = meep.card.nextCard(dir);   // should NOT bump from black, but...
     const open = card.openCells;
     const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
-    const bidFacs = this.curBidCard.factions, cardFacs = card.factions;
-    cardFacs.sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
-    const bidFac = cardFacs.find(fac => bidFacs.includes(fac));
+    const bidFacs = this.curBidCard.factions, bestFacs = card.factions;
+    bestFacs.sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
+    const bidFac = bestFacs.find(fac => bidFacs.includes(fac));
+    const cardFacs = card.factions;
     const cellNdx = (open.length == 1) ? open[0]
-    : (open.length > 1 || !bidFac || cardFacs[0] === cardFacs[1])
-    ? this.chooseDualCell(card, factionTotals, cardFacs)
-    : card.factions.indexOf(bidFac);
-    const toBump = card.addMeep(meep, cellNdx); // bump to an openCell
+      //   2 open slots  || no matching bid     || 2 equally valueable slots
+      : (open.length > 1 || bidFac == undefined || factionTotals[cardFacs[0]] === factionTotals[cardFacs[1]])
+        ? this.chooseDualCell(card, factionTotals, bestFacs)
+        : cardFacs.indexOf(bidFac);
+    const toBump = card.addMeep(meep, cellNdx); // place in chosen cellNdx
+    const bumpee = card.otherMeepInCell(meep, cellNdx)
     card.stage?.update();
     // if (cb) cb();
-    return toBump;
+    return [toBump, dir] as [boolean, number];
   }
 
   chooseDualCell(card: ColCard, factionTotals: number[], cardFacs: Faction[]) {
@@ -514,16 +518,18 @@ export class PlayerB extends Player {
     const col = ccard.colNum;
     const meepsInCol = this.gamePlay.meepsInCol(col, this);
     this.meepleToAdvance(meepsInCol, (meep?: ColMeeple) => meep ? this.bumpMeeple(meep) : null)
+    // continue in bumpMeeple(meep, dir=undefined)
   }
 
-  override bumpMeeple(meep: ColMeeple, dir0?: (1 | -1 | -2), cb?: () => void) {
-    const dir = dir0 ?? 1;
+  override bumpMeeple(meep: ColMeeple, dir0?: (0 | 1 | -1 | -2), cb?: () => void) {
+    const dir = dir0 || 1;  // advance to the north
     let toBump = false;
     // initial advance: move up
-    if (!dir0) {
-      toBump = super.bumpMeeple(meep, dir); // does not invoke cb()
+    if (dir0 == 0) {
+      const [aBump, adir] = super.bumpMeeple(meep, 1); // does not invoke cb()
+      // meep.cellNdx is set
     }
-    const cellNdx = meep.cellNdx as number; // super.bumpMeeple supplies cellNdx
+    const cellNdx = meep.cellNdx as number; // super.bumpMeeple sets cellNdx
     if (toBump) {
       // TODO: if other meep is ours && (cell.faction === our best faction) ? bump other : bump meep
       if (dir < 0) {
@@ -531,11 +537,6 @@ export class PlayerB extends Player {
       }
        const other = meep.card.otherMeepInCell(meep, cellNdx)
     }
-    return false;
+    return [false, dir] as [boolean, number];
   }
-}
-
-
-class GamePlayMu extends GamePlay {
-
 }
