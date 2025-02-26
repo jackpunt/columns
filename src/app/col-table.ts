@@ -396,10 +396,10 @@ export class MarkerShape extends CircleShape {
     this.value = value;
     this.x = value * dx;
     this.y = track * dy + this.player.index * dx + radius * [.55, .65][this.index];
-    if (!this.marker) this.player.scoreCount(this); // inform player
+    if (!this.marker) this.player.scoreCount(this); // PRIMARY: update GUI
   }
 
-  /** clicker was clicked: move its marker to match */
+  /** clicker was clicked: move its marker to match; then marker.clickDone() */
   onClick() {
     const marker = this.marker as MarkerShape; // ASSERT: each clicker has a marker
     marker.setValue(this.value, this.track);

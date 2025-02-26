@@ -1,7 +1,7 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
-import { ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
+import { ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
 import { BlackCard, ColCard, DualCard } from "./col-card";
-import { type Faction, type GamePlay } from "./game-play";
+import { arrayN, type Faction, type GamePlay } from "./game-play";
 import { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -58,6 +58,7 @@ export class ScenarioParser extends SPLib {
       scores.forEach((viviAry, pid) => {
         const plyr = allPlayers[pid];
         const markers = plyr.markers, counters = plyr.scoreCounters;
+        if (!markers[0] || !markers[1]) debugger;
         viviAry.forEach(([value, index], i) => markers[i].setValue(value, index))
       })
     }
@@ -115,8 +116,10 @@ export class ScenarioParser extends SPLib {
 
   placeMeeplesOnMap(layout?: RowElt[]) {
     const hexMap = this.gamePlay.hexMap, [nrows, ncols] = hexMap.nRowCol;
+    const allPlayers = this.gamePlay.allPlayers;
+    this.gamePlay.allMeeples.length = 0; // discard initial/default meeples
     if (layout) {
-      const allPlayers = this.gamePlay.allPlayers;
+      Tile.gamePlay = this.gamePlay; // so Meeples can find their GamePlay
       layout.forEach((rowElt, row) => {
         rowElt.forEach(({ meeps }, col) => {
           meeps?.forEach(pid => {
@@ -126,13 +129,15 @@ export class ScenarioParser extends SPLib {
         })
       })
       return;
+    } else {
+      // StartElt has no layout: place one each on rank 0
+      allPlayers.forEach(player => {
+        arrayN(ncols).forEach(col => {
+          (player as Player).makeMeeple(hexMap, 1 + col, 0); // rank = 0
+        })
+      })
+      return;
     }
-    // StartElt has no layout: place one each on rank 0
-    this.gamePlay.forEachPlayer(player => {
-      for (let col = 1; col <= ncols; col++) {
-        (player as Player).makeMeeple(hexMap, col); // rank = 0
-      }
-    })
   }
   // override to declare return type:
   override saveState(gamePlay?: GamePlay0, logWriter?: LogWriter | false): SetupElt {

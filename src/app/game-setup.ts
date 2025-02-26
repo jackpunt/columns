@@ -1,5 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect, type LogWriter, type SetupElt as SetupEltLib } from '@thegraid/hexlib';
+import { makeStage } from '@thegraid/easeljs-lib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect, type LogWriter } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -30,6 +31,7 @@ Math.stime = stime; // can use Math.stime() in js/debugger
 /** initialize & reset & startup the application/game. */
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
+  declare gamePlay: GamePlay;
   declare scenarioParser: ScenarioParser;
   declare startupScenario: SetupElt;
   constructor(canvasId?: string, qParam?: Params) {
@@ -41,6 +43,7 @@ export class GameSetup extends GameSetupLib {
   override initialize(canvasId: string): void {
     // for hexmarket to bringup their own menus:
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
+    console.log(stime(this, `------------------------ GameSetup ---------------------------`))
     super.initialize(canvasId)
     return;
   }
@@ -122,7 +125,12 @@ export class PlayerGameSetup extends GameSetup {
     super(undefined, gs.qParams)
     ;(this as any).logWriter = gs.logWriter;
   }
+  override initialize(canvasId: string): void {
+    console.log(stime(this, `-------------------      GameSetup     ----------------`))
+    this.stage = makeStage(canvasId, false);
+  }
   override makeLogWriter() { return {} as LogWriter; }
+  // TODO: override makePlayer() to provide a no-GUI auto-Player
 
   override loadImagesThenStartup(scenario: Scenario = this.qParams): void {
     // do NOT create new loader:
@@ -130,10 +138,11 @@ export class PlayerGameSetup extends GameSetup {
     setTimeout(() => this.startup(scenario), 0); // new task
   }
 
-  sync() {
+  syncGame() {
     // get state of real game:
-    const stateInfo = this.gs.scenarioParser.saveState();
+    const gamePlay = this.gs.gamePlay
+    const stateInfo = gamePlay.scenarioParser.saveState();
     // push into this subGame:
-    this.scenarioParser.parseScenario(stateInfo); // parse into this game
+    this.gamePlay.scenarioParser.parseScenario(stateInfo); // parse into this game
   }
 }

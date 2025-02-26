@@ -157,8 +157,8 @@ export class Player extends PlayerLib implements IPlayer {
 
   // map col [1..n]
   cardsInCol(col: number) {
-    const nrows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
-    return arrayN(nrows).map(row => hexMap.getCard(row, col))
+    const nRows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
+    return arrayN(nRows).map(row => hexMap.getCard(row, col))
   }
   colScore() {
     const hexMap = this.gamePlay.hexMap
@@ -354,22 +354,22 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /** advance one score marker, then invoke callback [to gamePlay] */
-  advanceMarker(dScore: number, cb: () => void) {
-    if (!dScore) { setTimeout(cb, 0); return } // zero or undefined
+  advanceMarker(dScore: number, cb?: () => void) {
+    if (!dScore) { cb && setTimeout(cb, 0); return } // zero or undefined
     // this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
     const markers = scoreTrack.markers[this.index];
     markers.forEach(m => {
       const clickDone = () => {
         this.scoreCount(m)
-        cb();
+        cb && cb();
       }
       // click ScoreTrack.markers to choose which to advance:
-      m.showDeltas(dScore, clickDone)
+      m.showDeltas(dScore, clickDone) // pick a marker, setValue(ds,tr), storeCount()
     })
     this.panel.stage?.update();
     if (this.autoScore) {
-      this.autoAdvanceMarker(dScore)
+      this.autoAdvanceMarker(dScore); // auto-click one of the markers
     }
   }
 
@@ -403,11 +403,11 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /** choose and return one of the indicated meeples */
-  meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void) {
+  meepleToAdvance(meeps: ColMeeple[], colMeep?: (meep?: ColMeeple) => void) {
     // TODO: GUI: set dropFunc -> colMeep(meep)
     const meep = meeps.sort((a, b) => a.card.rank - b.card.rank)[0];
-    colMeep(meep)
-    return;
+    if (colMeep) colMeep(meep)
+    return meep;
   }
 
   /** this player moves meep, and invokes bumpee.bumpMeeple.
@@ -422,8 +422,8 @@ export class Player extends PlayerLib implements IPlayer {
     const card = meep.card.nextCard(dir0);   // should NOT bump from black, but...
     const open = card.openCells;
     const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
-    const bidFacs = this.curBidCard.factions, bestFacs = card.factions;
-    bestFacs.sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
+    const bidFacs = this.curBidCard.factions;
+    const bestFacs = card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
     const bidFac = bestFacs.find(fac => bidFacs.includes(fac));
     const cardFacs = card.factions;
     const cellNdx = (open.length == 1) ? open[0]
@@ -444,6 +444,10 @@ export class Player extends PlayerLib implements IPlayer {
 
   /** same or equivalent factions, both empty or both occupied */
   chooseDualCellToEnter(card: ColCard, factionTotals: number[], bestFacs: Faction[]) {
+    const open = card.openCells
+    // Black card, take next open slot;
+    if (open.length > 0 && open.length < card.factions.length) return open[0];
+    // if equal value take the left slot TODO: do better
     return card.factions.indexOf(bestFacs[0]);
   }
 
@@ -476,14 +480,15 @@ export class PlayerB extends Player {
   autoAdvanceMarkerX(dScore: number) {
     super.autoAdvanceMarker(dScore)
   }
-  /** invoke gameState.cardDone = card when selecting */
-  override collectBid() {
-    if (!this.useRobo) return; // nothing to do; GUI will set cardDone via onClick()
-  }
 
   override setAutoPlay(v?: boolean): void {
     super.setAutoPlay(v);
     if (this.useRobo && !this.subGameSetup) this.subGameSetup = this.makeSubGame();
+    if (this.gamePlay.isPhase('CollectBids')) {
+    setTimeout(() => {
+        this.collectBid();
+    }, 100);
+    }
   }
 
   subGameSetup!: PlayerGameSetup;
@@ -498,49 +503,63 @@ export class PlayerB extends Player {
     return subGame
   }
 
+  /** invoke gameState.cardDone = card when selecting */
+  override collectBid() {
+    if (!this.useRobo) return; // nothing to do; GUI will set cardDone via onClick()
+    this.collectBid_simpleGreedy(); // this.gameState.cardDone = ccard & bcard
+  }
+
   // find top 4 apparent best moves (A1, A2, ..., D3, D4); choose one.
   // metric is immediate points scored
   collectBid_simpleGreedy() {
     // sync subGame with realGame
-    this.subGameSetup.sync(); PlayerGameSetup
+    this.subGameSetup.syncGame(); PlayerGameSetup
     const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
     const subPlyr = subGamePlay.allPlayers[this.index] as PlayerB;
-    const colCards = this.colSelButtons.filter(card => card.state === CB.clear).map((_, ndx) => subPlyr.colSelButtons[ndx])
-    const bidCards = this.coinBidButtons.filter(b => b.state == CB.clear).map((_, ndx)=>subPlyr.coinBidButtons[ndx])
-    colCards.map(ccard => {
+    const colCards = this.colSelButtons.filter(c => c.state === CB.clear).map(c => subPlyr.colSelButtons[c.colNum - 1])
+    const bidCards = this.coinBidButtons.filter(b => b.state == CB.clear).map(b => subPlyr.coinBidButtons[b.coinBid - 1])
+    const scores = colCards.map(ccard =>
       bidCards.map(bcard => {
         // enable faction match, without triggering isDoneSelecting()
-        ccard.setState(CB.done);
-        bcard.setState(CB.done);
-        this.pseudoWin(ccard, bcard)
+        ccard.setState(CB.selected);
+        bcard.setState(CB.selected);
+        const score = this.pseudoWin(ccard, bcard, subGamePlay); // advance in ccard.col
+        ccard.setState(CB.clear);
+        bcard.setState(CB.clear);
+        return { ccard, bcard, score }
       })
-    })
-
+    )
+    const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
+    const { ccard, bcard } = scoress[0]
+    const colCard = this.colSelButtons[ccard.colNum - 1]
+    const bidCard = this.coinBidButtons[bcard.coinBid - 1]
+    console.log(stime(this, `.collectBid_sg: col=${colCard.colNum}, bid=${bidCard.coinBid}`))
+    colCard.onClick({}, this)
+    bidCard.onClick({}, this)
+    this.gamePlay.hexMap.update()
   }
   /** pretend ccard,bcard win, and advance on col */
-  pseudoWin(ccard: ColSelButton, bcard: CoinBidButton) {
-    const col = ccard.colNum;
-    const meepsInCol = this.gamePlay.meepsInCol(col, this);
-    this.meepleToAdvance(meepsInCol, (meep?: ColMeeple) => meep ? this.bumpMeeple(meep) : null)
-    // continue in bumpMeeple(meep, dir=undefined)
+  pseudoWin(ccard: ColSelButton, bcard: CoinBidButton, subGamePlay: GamePlay) {
+    const col = ccard.colNum
+    const gamePlay = this.subGameSetup.gamePlay;
+    const plyr = gamePlay.allPlayers[this.index];
+    // save original locations:
+    const allMeepsInCol = gamePlay.allMeeples.filter(meep => meep.card.col == col);
+    const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.card.rank, meep.cellNdx] as [ColMeeple, ColCard, number, number])
+    // player meepsInCol:
+    const meepsInCol = gamePlay.meepsInCol(col, plyr);
+    const meep = this.meepleToAdvance(meepsInCol);
+    gamePlay.advanceMeeple(meep)
+    const score = subGamePlay.scoreForColor(meep)
+    fromCardNdx.sort((a, b) => a[1].rank - b[1].rank); // increasing rank (for up-bumps)
+    fromCardNdx.forEach(([meep, card, rank, ndx]) => card.addMeep(meep, ndx)); // back to original slots
+    return score
+  }
+  scoreLayout() {
+
   }
 
   override bumpMeeple(meep: ColMeeple, dir0?: (0 | 1 | -1 | -2), cb?: () => void) {
-    const dir = dir0 || 1;  // advance to the north
-    let toBump = false;
-    // initial advance: move up
-    if (dir0 == 0) {
-      const aBump = super.bumpMeeple(meep, 1); // does not invoke cb()
-      // meep.cellNdx is set
-    }
-    const cellNdx = meep.cellNdx as number; // super.bumpMeeple sets cellNdx
-    if (toBump) {
-      // TODO: if other meep is ours && (cell.faction === our best faction) ? bump other : bump meep
-      if (dir < 0) {
-
-      }
-       const other = meep.card.otherMeepInCell(meep)
-    }
-    return toBump;
+    return super.bumpMeeple(meep, dir0 ?? 1)
   }
 }

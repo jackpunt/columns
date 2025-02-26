@@ -169,11 +169,12 @@ export class GamePlay extends GamePlayLib {
     if (cb) cb(); // only for the original, outer-most, winning-bidder
   }
 
-  bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2) {
+  bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2, depth = 0) {
+    if (depth > this.nRows) debugger;
     const toBump = meep.player.bumpMeeple(meep, bumpDir)
     if (toBump) {
       const [bumpee] = meep.player.chooseMeepAndBumpDir(meep, bumpDir);
-      this.bumpAndCascade(bumpee, bumpDir)
+      this.bumpAndCascade(bumpee, bumpDir, depth + 1)
     }
   }
 
@@ -189,12 +190,12 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */
-  scoreForColor(meep: ColMeeple | undefined, cb: () => void) {
-    if (!meep) { cb(); return 0 };
+  scoreForColor(meep: ColMeeple | undefined, cb?: () => void) {
+    if (!meep) { cb && cb(); return 0 };
     const faction = meep.faction as number; // by now, meeplesOnCard has resolved.
     const player = meep.player;
     const bidCard = player.coinBidButtons.find(cbb => cbb.state == CB.selected);
-    if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb(); return 0 };
+    if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return 0 };
     const colScore = player.meeples.filter(meep => (meep.faction == faction)).length;
     const cardScore = player.coinBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
