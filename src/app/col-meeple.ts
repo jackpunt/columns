@@ -254,22 +254,22 @@ export class ColSelButton extends CardButton {
   }
 }
 
-export class CoinBidButton extends CardButton {
+export class ColBidButton extends CardButton {
   // indices into ColCard.factionColors
   static coinFactions = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
 
-  override get plyrButtons(): CardButton[] { return this.player.coinBidButtons }
+  override get plyrButtons(): CardButton[] { return this.player.colBidButtons }
 
   /**
    *
-   * @param coinBid value: 1..4
+   * @param colBid value: 1..4
    * @param opts
    */
-  constructor(public coinBid = 0, opts: CardButtonOpts) {
-    super(`${coinBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `CoinBid-${this.player?.index ?? '?'}:${coinBid}`;
+  constructor(public colBid = 0, opts: CardButtonOpts) {
+    super(`${colBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
+    this.Aname = `ColBid-${this.player?.index ?? '?'}:${colBid}`;
     const { y, height, width } = this.getBounds()
-    this.addFactionColors(coinBid, width * .9, y + height * .33)
+    this.addFactionColors(colBid, width * .9, y + height * .33)
     this.label.y = (y + height * .18)
     this.border = 0;
     this.paint();
@@ -280,8 +280,8 @@ export class CoinBidButton extends CardButton {
   bidOnCol?: number; // debug or post-hoc analysis
   factions!: number[];
   facShape!: Shape;
-  addFactionColors(coinBid = 0, width = 20, y = 0) {
-    const factions = this.factions = CoinBidButton.coinFactions[coinBid];
+  addFactionColors(colBid = 0, width = 20, y = 0) {
+    const factions = this.factions = ColBidButton.coinFactions[colBid];
     const colors = factions.map(n => ColCard.factionColors[n])
     const facShape = this.facShape = new Shape(), n = colors.length, g = facShape.graphics;
     const d2 = width;
@@ -345,7 +345,7 @@ export class PrintColSelect extends ColSelButton {
   }
 }
 
-export class PrintBidValue extends CoinBidButton {
+export class PrintBidValue extends ColBidButton {
   static seqN = 1;
   static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
     return [[n, PrintBidValue, n, pid, rad]]

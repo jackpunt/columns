@@ -2,7 +2,7 @@ import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegra
 import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
-import { CardButton, CB, CoinBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
+import { CardButton, CB, ColBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { MarkerShape } from "./col-table";
 // import { GameModel } from "./game-model";
 import { arrayN, GamePlay, nFacs, type Faction } from "./game-play";
@@ -18,7 +18,7 @@ export interface IPlayer {
   score: number;
   color: string;
   meeples: ColMeeple[];
-  coinBidButtons: CoinBidButton[]; // { state?: string, factions: number[] }
+  colBidButtons: ColBidButton[]; // { state?: string, factions: number[] }
   clearButtons(): void; // reset CardButton: setState(CB.clear)
   selectCol(): void; // for xtraCol
   collectBid(): void;
@@ -95,7 +95,7 @@ export class Player extends PlayerLib implements IPlayer {
 
   // 2 score counters (advancing on track)
   // [AvailGreen, ChoosenYellow, UsedRed-disabled]
-  // 4 CoinBid cards (shrink to buttons, disable when played)
+  // 4 ColBid cards (shrink to buttons, disable when played)
   // nc ColSelect cards (shrink to buttons)
   //
   override makePlayerBits(): void {
@@ -108,7 +108,7 @@ export class Player extends PlayerLib implements IPlayer {
     this.makeAutoButton();
   }
 
-  makeCardButtons(ncol = 4, ncoin = 4) {
+  makeCardButtons(ncol = 4, nbid = 4) {
     const opts = { visible: true, bgColor: this.color, player: this }
     const { width, height } = new ColSelButton(0, opts).getBounds(); // temp Button to getBounds()
     const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap;
@@ -127,7 +127,7 @@ export class Player extends PlayerLib implements IPlayer {
       return rv;
     }
     this.colSelButtons = makeButton(ColSelButton, ncol, 0) as ColSelButton[];
-    this.coinBidButtons = makeButton(CoinBidButton, ncoin, 1) as CoinBidButton[];
+    this.colBidButtons = makeButton(ColBidButton, nbid, 1) as ColBidButton[];
     const ymax = 2 * dy; // bottom edge of last row of buttons
     return ymax;
   }
@@ -148,11 +148,11 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   colSelButtons!: ColSelButton[];
-  coinBidButtons!: CoinBidButton[];
+  colBidButtons!: ColBidButton[];
   /** at start of round */
   clearButtons() {
-    this.colSelButtons.forEach(b => b.setState(CB.clear))
-    this.coinBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
+    this.colSelButtons.forEach(b => (b.setState(CB.clear)))
+    this.colBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
 
   // map col [1..n]
@@ -195,13 +195,13 @@ export class Player extends PlayerLib implements IPlayer {
     const col = this.xtraCol()
     this.clearButtons();
     this.colSelButtons[col - 1].select()
-    this.coinBidButtons[0].select(); // bid 1 to complete selection
+    this.colBidButtons[0].select(); // bid 1 to complete selection
   }
 
   /** during CollectBids (& chooseXtra) */
   isDoneSelecting() {
     return (
-      this.coinBidButtons.find(cb => cb.state === CB.selected) &&
+      this.colBidButtons.find(cb => cb.state === CB.selected) &&
       this.colSelButtons.find(cb => cb.state === CB.selected)
       )
   }
@@ -211,33 +211,31 @@ export class Player extends PlayerLib implements IPlayer {
    * @returns \{ plyr: this, bid: number }
    */
   bidOnCol(col: number) {
-    return this.colSelButtons[col - 1]?.state === CB.selected ? { plyr: this, bid: this.currentBid() } : undefined
+    return this.colSelButtons[col - 1]?.state === CB.selected ? { plyr: this, bid: this.currentBid } : undefined
   }
-  /** value of the current CB.selected CoinBidButton */
-  currentBid() {
-    return this.curBidCard.coinBid;
-  }
-  /** The current CB.selected CoinBidButton */
+  /** value of the current CB.selected ColBidButton */
+  get currentBid() { return this.curBidCard.colBid; }
+  /** The current CB.selected ColBidButton */
   get curBidCard() {
-    return this.coinBidButtons.find(b => (b.state === CB.selected)) as CoinBidButton;
+    return this.colBidButtons.find(b => (b.state === CB.selected)) as ColBidButton;
   }
 
   /** End of turn: mark Sel & Bid cards from CB.selected to CB.done */
   commitCards() {
     const csb = this.colSelButtons.find(b => b.state === CB.selected);
-    const cbb = this.coinBidButtons.find(b => b.state === CB.selected);
+    const cbb = this.colBidButtons.find(b => b.state === CB.selected);
     if (csb) { csb.setState(CB.done); };
     if (cbb) { cbb.setState(CB.done); cbb.bidOnCol = csb!?.colNum - 1 };
   }
 
   cancelBid(col: number, bid: number) {
     this.colSelButtons[col - 1].setState(CB.cancel);
-    this.coinBidButtons[bid - 1].setState(CB.cancel);
+    this.colBidButtons[bid - 1].setState(CB.cancel);
   }
 
   outBid(col: number, bid: number) {
     this.colSelButtons[col - 1].setState(CB.outbid);
-    this.coinBidButtons[bid - 1].setState(CB.outbid);
+    this.colBidButtons[bid - 1].setState(CB.outbid);
   }
 
   /** invoke gameState.cardDone = card when selecting */
@@ -249,14 +247,14 @@ export class Player extends PlayerLib implements IPlayer {
 
   saveCardStates() {
     const sels = this.colSelButtons.map(b => b.state as CardButtonState);
-    const bids = this.coinBidButtons.map(b => b.state as CardButtonState);
+    const bids = this.colBidButtons.map(b => b.state as CardButtonState);
     return { sels, bids }
   }
 
   parseCardStates(pStates: ReturnType<Player['saveCardStates']>) {
     const { sels, bids } = pStates
     sels.forEach((b, ndx) => this.colSelButtons[ndx].setState(b, false))
-    bids.forEach((b, ndx) => this.coinBidButtons[ndx].setState(b, false))
+    bids.forEach((b, ndx) => this.colBidButtons[ndx].setState(b, false))
     return
   }
   // ColMeeple is Tile with (isMeep==true); use MeepleShape as baseShape
@@ -326,7 +324,7 @@ export class Player extends PlayerLib implements IPlayer {
    * current support (meeps, markers, cards-inPlay) from each faction: [B, r, g, b, v]
    */
   factionTotals(markers = this.markers, inPlay = true) {
-    const cards = this.coinBidButtons.filter(b => b.inPlay(inPlay)) // false --> yet to play
+    const cards = this.colBidButtons.filter(b => b.inPlay(inPlay)) // false --> yet to play
     const factionTotals = ColCard.factionColors.slice(0, 5).map((color, faction) => 0
       + this.meepFactions[faction]
       + markers.reduce((pv, mrk) => pv + (mrk.faction == faction ? 1 : 0), 0)
@@ -387,7 +385,7 @@ export class Player extends PlayerLib implements IPlayer {
     const colSels = this.colSelButtons.filter(b => b.state == CB.clear)
     const rMaxes = this.meeples.filter(m => m.card.rank == rMax)
     const useBlack = (rMaxes.length > 0  // meeples on rMax
-      && this.coinBidButtons[3].state == CB.clear  // 4-bid is clear
+      && this.colBidButtons[3].state == CB.clear  // 4-bid is clear
       && rMaxes.filter(m => colSels.find(b => b.colNum == m.card.col)).length > 0
     )
     const factionTotals = this.factionTotals(allClkrs, false); // yet to play
@@ -516,7 +514,7 @@ export class PlayerB extends Player {
     const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
     const subPlyr = subGamePlay.allPlayers[this.index] as PlayerB;
     const colCards = this.colSelButtons.filter(c => c.state === CB.clear).map(c => subPlyr.colSelButtons[c.colNum - 1])
-    const bidCards = this.coinBidButtons.filter(b => b.state == CB.clear).map(b => subPlyr.coinBidButtons[b.coinBid - 1])
+    const bidCards = this.colBidButtons.filter(b => b.state == CB.clear).map(b => subPlyr.colBidButtons[b.colBid - 1])
     const scores = colCards.map(ccard =>
       bidCards.map(bcard => {
         // enable faction match, without triggering isDoneSelecting()
@@ -530,10 +528,10 @@ export class PlayerB extends Player {
       })
     )
     const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
-    const score0 = scoress[0].score
+    const score0 = scoress[0].score, scores5 = scoress.slice(0, 5);
     const scores0 = scoress.filter(({score}) => score == score0), slen= scores0.length;
-    const scc = scores0.map(({ccard, bcard, score}) => [ccard.colNum, bcard.coinBid, score])
-    const sc4 = scoress.slice(0, 5).map(({ccard, bcard, score}) => [ccard.colNum, bcard.coinBid, score])
+    const scc = scores0.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
+    const sc5 = scores5.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
     const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;
     if (scoress.length < 3) debugger;
     let ndx = 0;
@@ -542,16 +540,16 @@ export class PlayerB extends Player {
       : scoress[ndx = permute(ndxs)[Random.random(len)]];
     // const { ccard, bcard } = (slen >= 1) ? scores0[ndx] : scoress[ndx]
     // const colCard = this.colSelButtons[ccard.colNum - 1]
-    // const bidCard = this.coinBidButtons[bcard.coinBid - 1]
+    // const bidCard = this.colBidButtons[bcard.colBid - 1]
     const colCard = this.colSelButtons.find(b => b.colNum == ccard.colNum) as ColSelButton;
-    const bidCard = this.coinBidButtons.find(b => b.coinBid == bcard.coinBid) as CoinBidButton;
-    console.log(stime(this, `.collectBid_greedy: col=${colCard.colNum}, bid=${bidCard.coinBid}, meep=${meep}`))
+    const bidCard = this.colBidButtons.find(b => b.colBid == bcard.colBid) as ColBidButton;
+    console.log(stime(this, `.collectBid_greedy: ${colCard.colId}-${bidCard.colBid}, meep=${meep}`))
     colCard.onClick({}, this)
     bidCard.onClick({}, this)
     this.gamePlay.hexMap.update()
   }
   /** pretend ccard,bcard win, and advance on col */
-  pseudoWin(ccard: ColSelButton, bcard: CoinBidButton) {
+  pseudoWin(ccard: ColSelButton, bcard: ColBidButton) {
     const col = ccard.colNum
     const gamePlay = this.subGameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];

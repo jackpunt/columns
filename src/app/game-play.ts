@@ -194,10 +194,10 @@ export class GamePlay extends GamePlayLib {
     if (!meep) { cb && cb(); return 0 };
     const faction = meep.faction as number; // by now, meeplesOnCard has resolved.
     const player = meep.player;
-    const bidCard = player.coinBidButtons.find(cbb => cbb.state == CB.selected);
+    const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected);
     if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return 0 };
     const colScore = player.meeples.filter(meep => (meep.faction == faction)).length;
-    const cardScore = player.coinBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
+    const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
     this.logText(`Player-${player.index}: ${colScore}+${cardScore}+${trackScore} = ${score}`, `scoreForColor[${faction}]-${meep.toString()}`)
