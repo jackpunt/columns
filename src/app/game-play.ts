@@ -190,7 +190,7 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */
-  scoreForColor(meep: ColMeeple | undefined, cb?: () => void) {
+  scoreForColor(meep: ColMeeple | undefined, cb?: () => void, advMrk = true) {
     if (!meep) { cb && cb(); return 0 };
     const faction = meep.faction as number; // by now, meeplesOnCard has resolved.
     const player = meep.player;
@@ -200,8 +200,8 @@ export class GamePlay extends GamePlayLib {
     const cardScore = player.coinBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
-    this.logText(`Player-${player.index}: ${colScore}+${cardScore}+${trackScore} = ${score}`, `scoreForColor[${faction}]`)
-    player.advanceMarker(score, cb)
+    this.logText(`Player-${player.index}: ${colScore}+${cardScore}+${trackScore} = ${score}`, `scoreForColor[${faction}]-${meep.toString()}`)
+    if (advMrk) player.advanceMarker(score, cb)
     return score;
   }
 

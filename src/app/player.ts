@@ -263,14 +263,15 @@ export class Player extends PlayerLib implements IPlayer {
   /**
    * make ColMeeple, add to ColCard @ {column, rank}
    * @param hexMap
-   * @param column column
+   * @param colNum column
    * @param rank [0]
    * @param ext [''] mark name of xtraCol meeple
    */
-  makeMeeple(hexMap: HexMap2, column: number, rank = 0, ext = '') {
-    const meep = new ColMeeple(`Meep-${this.index}:${column}${ext}`, this)
+  makeMeeple(hexMap: HexMap2, colNum: number, rank = 0, ext = '') {
+    const colId = ColSelButton.colNames[colNum]
+    const meep = new ColMeeple(`Meep-${this.index}:${colId}${ext}`, this)
     meep.paint(this.color);
-    const card = hexMap.getCard(rank, column);
+    const card = hexMap.getCard(rank, colNum);
     card.addMeep(meep); // makeMeeple
     this.gamePlay.table.makeDragable(meep);
     return meep;
@@ -420,17 +421,10 @@ export class Player extends PlayerLib implements IPlayer {
   bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2)) {
     const dir0 = dir || 1;  // (dir0 == 0) IFF advance/winner
     const card = meep.card.nextCard(dir0);   // should NOT bump from black, but...
-    const open = card.openCells;
-    const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
-    const bidFacs = this.curBidCard.factions;
-    const bestFacs = card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
-    const bidFac = bestFacs.find(fac => bidFacs.includes(fac));
-    const cardFacs = card.factions;
-    const cellNdx = (open.length == 1) ? open[0]
-      //   2 open slots  || no matching bid     || 2 equally valueable slots
-      : (open.length > 1 || bidFac == undefined || factionTotals[cardFacs[0]] === factionTotals[cardFacs[1]])
-        ? this.chooseDualCellToEnter(card, factionTotals, bestFacs)
-        : cardFacs.indexOf(bidFac);
+    const open = card.openCells, ol = open.length, cardFacs = card.factions;
+    const cellNdx = (ol > 0 && (ol == 1 || ol < cardFacs.length))
+      ? open[0] // take the open slot (or next slot of Black card)
+      : this.chooseCellToEnter(card)
     const toBump = card.addMeep(meep, cellNdx); // place in chosen cellNdx
     return toBump;
   }
@@ -439,16 +433,21 @@ export class Player extends PlayerLib implements IPlayer {
   chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2) {
     const other = meep.card.otherMeepInCell(meep) as ColMeeple;
     const bumpDir = (dir !== 0) ? dir : 1; // TODO: more consideration
-    return [meep, bumpDir] as [ColMeeple, 1 | -1 | -2];
+    const bumpee = (meep.card.rank == 4) ? other : meep;
+    return [bumpee, bumpDir] as [ColMeeple, 1 | -1 | -2];
   }
 
   /** same or equivalent factions, both empty or both occupied */
-  chooseDualCellToEnter(card: ColCard, factionTotals: number[], bestFacs: Faction[]) {
-    const open = card.openCells
-    // Black card, take next open slot;
-    if (open.length > 0 && open.length < card.factions.length) return open[0];
+  chooseCellToEnter(card: ColCard) {
+    const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
+    const bestFacs = card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
+    // if (meep !== gamePlay.winnerMeep) dubious to consider bidFac..
+    const bidFacs = this.curBidCard?.factions ?? [];
+    const bidFac = bestFacs.find(fac => bidFacs.includes(fac));
+    const bf0 = bidFac ?? bestFacs[0], cardFacs = card.factions
     // if equal value take the left slot TODO: do better
-    return card.factions.indexOf(bestFacs[0]);
+    return arrayN(cardFacs.length).find(ndx => cardFacs[ndx] == bf0) ?? 0;
+    // return cardFacs.includes(bf0) ? cardFacs.indexOf(bf0) : 0;
   }
 
   /** count of meeples on each Faction [B, r, g, b, v] */
@@ -523,23 +522,36 @@ export class PlayerB extends Player {
         // enable faction match, without triggering isDoneSelecting()
         ccard.setState(CB.selected);
         bcard.setState(CB.selected);
-        const score = this.pseudoWin(ccard, bcard, subGamePlay); // advance in ccard.col
+        const score = this.pseudoWin(ccard, bcard); // advance in ccard.col
+        const meep = subGamePlay.gameState.winnerMeep?.toString();
         ccard.setState(CB.clear);
         bcard.setState(CB.clear);
-        return { ccard, bcard, score }
+        return { ccard, bcard, score, meep }
       })
     )
     const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
-    const { ccard, bcard } = scoress[0]
-    const colCard = this.colSelButtons[ccard.colNum - 1]
-    const bidCard = this.coinBidButtons[bcard.coinBid - 1]
-    console.log(stime(this, `.collectBid_sg: col=${colCard.colNum}, bid=${bidCard.coinBid}`))
+    const score0 = scoress[0].score
+    const scores0 = scoress.filter(({score}) => score == score0), slen= scores0.length;
+    const scc = scores0.map(({ccard, bcard, score}) => [ccard.colNum, bcard.coinBid, score])
+    const sc4 = scoress.slice(0, 5).map(({ccard, bcard, score}) => [ccard.colNum, bcard.coinBid, score])
+    const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;
+    if (scoress.length < 3) debugger;
+    let ndx = 0;
+    const { ccard, bcard, score, meep } = (slen >= 1)
+      ? scores0[ndx = Random.random(scores0.length)]
+      : scoress[ndx = permute(ndxs)[Random.random(len)]];
+    // const { ccard, bcard } = (slen >= 1) ? scores0[ndx] : scoress[ndx]
+    // const colCard = this.colSelButtons[ccard.colNum - 1]
+    // const bidCard = this.coinBidButtons[bcard.coinBid - 1]
+    const colCard = this.colSelButtons.find(b => b.colNum == ccard.colNum) as ColSelButton;
+    const bidCard = this.coinBidButtons.find(b => b.coinBid == bcard.coinBid) as CoinBidButton;
+    console.log(stime(this, `.collectBid_greedy: col=${colCard.colNum}, bid=${bidCard.coinBid}, meep=${meep}`))
     colCard.onClick({}, this)
     bidCard.onClick({}, this)
     this.gamePlay.hexMap.update()
   }
   /** pretend ccard,bcard win, and advance on col */
-  pseudoWin(ccard: ColSelButton, bcard: CoinBidButton, subGamePlay: GamePlay) {
+  pseudoWin(ccard: ColSelButton, bcard: CoinBidButton) {
     const col = ccard.colNum
     const gamePlay = this.subGameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
@@ -549,8 +561,9 @@ export class PlayerB extends Player {
     // player meepsInCol:
     const meepsInCol = gamePlay.meepsInCol(col, plyr);
     const meep = this.meepleToAdvance(meepsInCol);
+    gamePlay.gameState.winnerMeep = meep;
     gamePlay.advanceMeeple(meep)
-    const score = subGamePlay.scoreForColor(meep)
+    const score = gamePlay.scoreForColor(meep, undefined, false);
     fromCardNdx.sort((a, b) => a[1].rank - b[1].rank); // increasing rank (for up-bumps)
     fromCardNdx.forEach(([meep, card, rank, ndx]) => card.addMeep(meep, ndx)); // back to original slots
     return score

@@ -154,7 +154,7 @@ export class GameState extends GameStateLib {
         if (!meep) { this.phase('ResolveWinner', col + 1); return }
         this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
-        this.table.logText(`${meep} in col ${['0','A','B','C','D'][col]}`, `BumpAndCascade`);
+        this.table.logText(`${meep} in col ${meep.card.colId}`, `BumpAndCascade`);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color);
         const bumpDone = () => setTimeout(() => this.done(), TP.flipDwell); // HACK: winner does it all
         this.gamePlay.advanceMeeple(meep, bumpDone); // advance; bump & cascade -> bumpDone

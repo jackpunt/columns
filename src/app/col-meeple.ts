@@ -239,13 +239,16 @@ export class ColSelButton extends CardButton {
   override get plyrButtons(): CardButton[] { return this.player.colSelButtons }
 
   constructor(public colNum = 0, opts: CardButtonOpts) {
-    super(`${ColSelButton.colNames[colNum]}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `ColSel-${this.player?.index ?? '?'}:${colNum}`;
+    const colId = ColSelButton.colNames[colNum];
+    super(`${colId}`, opts); // rectShape = RectShape(borders); label = disp = Text
+    this.Aname = `ColSel-${this.player?.index ?? '?'}:${colId}`;
+    this.colId = colId;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
     this.border = 0;
     this.paint();
   }
+  colId!: string
   override onClick(evt: any, plyr: Player) {
     super.onClick(evt, plyr)
   }

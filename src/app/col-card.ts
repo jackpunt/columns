@@ -44,6 +44,7 @@ export class ColCard extends Tile {
   _rank?: number; // set on first access; ASSERT cards don't move
   get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row - 1)) }
   get col() { return this.hex.col + 1 }
+  get colId() { return ColSelButton.colNames[this.col] }
 
   /**
    * @param dir 1: up, -1: down, -2: down-2
@@ -230,10 +231,10 @@ export class BlackCard extends ColCard {
     super(Aname, 0) // initial factions[] for painting color
     this.factions = arrayN(this.maxCells, i => 0) as Faction[];
     const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
-    const colName = ColSelButton.colNames[colNum];
-    const colId = new CenterText(`${seqLim > 0 ? colName : ''}`, Math.round(this.radius * fs), C.WHITE,)
-    colId.y = colId.y = this.radius * (.5 - .48 * fs)
-    this.addChildAt(colId, 1); // under meepCont
+    const colId = ColSelButton.colNames[colNum];
+    const label = new CenterText(`${seqLim > 0 ? colId : ''}`, Math.round(this.radius * fs), C.WHITE,)
+    label.y = label.y = this.radius * (.5 - .48 * fs)
+    this.addChildAt(label, 1); // under meepCont
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {
