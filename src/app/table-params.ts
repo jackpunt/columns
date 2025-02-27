@@ -44,4 +44,5 @@ export class TP extends TPLib {
   static afSCF = [3, 2, 2]; // nShapes, nColors, nFills
   static nElts = 6;     // number of ScoreTrack elements
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
+  static onePerRank = true;
 }

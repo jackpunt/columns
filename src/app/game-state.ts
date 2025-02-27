@@ -188,7 +188,7 @@ export class GameState extends GameStateLib {
       rowScores: [],
       start: () => {
         // score for rank:
-        const rowScores = this.gamePlay.scoreForRow(), nRows = this.gamePlay.nRows;
+        const rowScores = this.gamePlay.scoreForRank(), nRows = this.gamePlay.nRows;
         this.state.rowScores = rowScores; // for AutoPlayer to consider
         const advanceNextScore = (row: number) => {
           const rank = nRows - 1 - row;

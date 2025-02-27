@@ -583,7 +583,7 @@ export class PlayerB extends Player {
     const scorec = gamePlay.scoreForColor(meep, undefined, false)
     const pRank = (fromCardNdx.find(([smeep]) => smeep == meep) as [ColMeeple, ColCard, number])[1].rank;
     const rank = meep.card.rank, maxRank = gamePlay.nRows;
-    const score = scorec + (rank < maxRank ? (rank - pRank) : 0);  // boost for rank, maybe also delta-rank
+    const score = scorec + (TP.onePerRank ? 0 : (rank < maxRank) ? (rank - pRank) : 0);  // boost for rank, maybe also delta-rank
     fromCardNdx.sort(([am, ac], [bm, bc]) => ac.rank - bc.rank); // increasing rank (for up-bumps)
     fromCardNdx.forEach(([meep, card, ndx]) => card.addMeep(meep, ndx)); // back to original slots
     return score

@@ -206,7 +206,7 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
-  scoreForRow() {
+  scoreForRank() {
     const nRows = this.nRows, nCols = this.nCols, mRank = nRows - 1;
     const playerByRow = arrayN(nRows - 1).map(row => {
       return arrayN(nCols, 0).map(col => {
@@ -218,8 +218,10 @@ export class GamePlay extends GamePlayLib {
       const rank = (row == 0) ? 0 : nRows - 1 - row;
       return plyrsOnRow.map(plyr => {
         const allPlyr0 = plyrsOnRow.filter(pf => pf == plyr)
-        return { plyr: plyr, score: allPlyr0.length * rank }
+        const score = rank * (TP.onePerRank ? 1 : allPlyr0.length)
+        return { plyr, score }
       }).filter((por, n, ary) => !ary.slice(0, n).find(elt => elt.plyr == por.plyr))
+      // filter to first instance of plyr on row... pro'ly could be simpler.
     })
   }
 
