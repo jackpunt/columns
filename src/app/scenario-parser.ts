@@ -8,7 +8,7 @@ import { TP } from "./table-params";
 // rowElt.length = nCols
 type RowElt = { fac: Faction[], meeps?: number[] }[];
 
-type SetupEltR = ReturnType<ScenarioParser["addStateElements"]>// & SetupEltLib;
+type SetupEltR = ReturnType<ScenarioParser["addStateElements"]> & SetupEltLib;
 export type SetupElt = Partial<SetupEltR>
 
 interface StartElt extends SetupElt, SetupEltLib {

@@ -397,8 +397,8 @@ export class Player extends PlayerLib implements IPlayer {
     const clicker = (maxes.length > 0)
       ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
       : allClkrs[0];     // lowest mrkr of the most present faction
-    if (!clicker) debugger;
-    clicker.onClick()
+    if (!clicker) debugger; // Player maxed out
+    clicker?.onClick()
   }
 
   /** choose and return one of the indicated meeples */
@@ -505,9 +505,12 @@ export class PlayerB extends Player {
     const gameSetup = this.gamePlay.gameSetup;
     const state0 = gameSetup.startupScenario;
     const scene0 = { start: state0 }
-    const stateInfo = this.gamePlay.scenarioParser.saveState();
+    // const stateInfo = this.gamePlay.scenarioParser.saveState();
+    const qParams = gameSetup.qParams;
+    const setupElt = state0;
+    setupElt.Aname = `${this.Aname}-subGame`;
     // game with no canvas for Stage:
-    const subGame = this.subGameSetup = new PlayerGameSetup(gameSetup, stateInfo);
+    const subGame = this.subGameSetup = new PlayerGameSetup(gameSetup, setupElt);
     // subGame.startup(stateInfo);
     return subGame
   }
@@ -532,7 +535,10 @@ export class PlayerB extends Player {
         // enable faction match, without triggering isDoneSelecting()
         ccard.setState(CB.selected);
         bcard.setState(CB.selected);
-        const score = this.pseudoWin(ccard, bcard); // advance in ccard.col
+        let score = this.pseudoWin(ccard, bcard); // advance in ccard.col
+        if (subGamePlay.turnNumber > 0 && this.score < 3) {
+          if (bcard.colBid == 4) { score = -1; }  // marker: include in scores0
+        }
         const meep = subGamePlay.gameState.winnerMeep?.toString();
         ccard.setState(CB.clear);
         bcard.setState(CB.clear);
@@ -540,10 +546,10 @@ export class PlayerB extends Player {
       })
     )
     const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
-    const score0 = scoress[0].score, scores5 = scoress.slice(0, 5);
-    const scores0 = scoress.filter(({score}) => score == score0), slen= scores0.length;
+    const score0 = scoress[0].score
+    const scores0 = scoress.filter(({score}) => (score == score0) || (score == -1)), slen= scores0.length;
     const scc = scores0.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
-    const sc5 = scores5.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
+    const sc5 = scoress.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
     const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;
     if (scoress.length < 3) debugger;
     let ndx = 0;

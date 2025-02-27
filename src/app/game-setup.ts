@@ -121,8 +121,8 @@ export class PlayerGameSetup extends GameSetup {
   /**
    * @param gs the original/actual running GameSetup, GameState, Players, Table, etc
    */
-  constructor(public gs: GameSetup, scenario: Scenario = {}) {
-    super(undefined, gs.qParams)
+  constructor(public gs: GameSetup, scenario: Scenario = gs.qParams) {
+    super(undefined, scenario)
     ;(this as any).logWriter = gs.logWriter;
   }
   override initialize(canvasId: string): void {
