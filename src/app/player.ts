@@ -1,4 +1,4 @@
-import { C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
+import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
@@ -428,11 +428,21 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /** choose meep to bump; if winning-bidder (dir == 0) also choose bumpDir  */
-  chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2) {
+  chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2): [ColMeeple, 1 | -1 | -2] {
     const other = meep.card.otherMeepInCell(meep) as ColMeeple;
     const bumpDir = (dir !== 0) ? dir : 1; // TODO: more consideration
+    // if other is mine && card.fac.includes(bidFac) -> bump other
+    if (other.player == this) {
+      const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
+      const bestFacs = meep.card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
+      const bidFacs = this.curBidCard?.factions ?? [];
+      const bestBid = bestFacs.find(fac => bidFacs.includes(fac));
+      const sw = bestBid && meep.card.factions.includes(bestBid)
+      if (!!sw || meep.card.factions.find(fac => bidFacs.includes(fac)))
+        return [other, bumpDir]
+    }
     const bumpee = (meep.card.rank == 4) ? other : meep;
-    return [bumpee, bumpDir] as [ColMeeple, 1 | -1 | -2];
+    return [bumpee, bumpDir];
   }
 
   /** same or equivalent factions, both empty or both occupied */
@@ -444,7 +454,9 @@ export class Player extends PlayerLib implements IPlayer {
     const bidFac = bestFacs.find(fac => bidFacs.includes(fac));
     const bf0 = bidFac ?? bestFacs[0], cardFacs = card.factions
     // if equal value take the left slot TODO: do better
-    return arrayN(cardFacs.length).find(ndx => cardFacs[ndx] == bf0) ?? 0;
+    const ndx = arrayN(cardFacs.length).find(ndx => cardFacs[ndx] == bf0) ?? 0;
+    if (card.openCells.length == 1 && ndx !== card.openCells[0]) debugger;
+    return ndx
     // return cardFacs.includes(bf0) ? cardFacs.indexOf(bf0) : 0;
   }
 
@@ -543,7 +555,8 @@ export class PlayerB extends Player {
     // const bidCard = this.colBidButtons[bcard.colBid - 1]
     const colCard = this.colSelButtons.find(b => b.colNum == ccard.colNum) as ColSelButton;
     const bidCard = this.colBidButtons.find(b => b.colBid == bcard.colBid) as ColBidButton;
-    console.log(stime(this, `.collectBid_greedy: ${colCard.colId}-${bidCard.colBid}, meep=${meep}`))
+    const plyrId = AT.ansiText(['red', 'bold'], this.Aname)
+    console.log(stime(this, `.collectBid_greedy: ${plyrId} ${colCard.colId}-${bidCard.colBid}, meep=${meep}`))
     colCard.onClick({}, this)
     bidCard.onClick({}, this)
     this.gamePlay.hexMap.update()
@@ -555,15 +568,18 @@ export class PlayerB extends Player {
     const plyr = gamePlay.allPlayers[this.index];
     // save original locations:
     const allMeepsInCol = gamePlay.allMeeples.filter(meep => meep.card.col == col);
-    const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.card.rank, meep.cellNdx] as [ColMeeple, ColCard, number, number])
+    const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
     // player meepsInCol:
     const meepsInCol = gamePlay.meepsInCol(col, plyr);
     const meep = this.meepleToAdvance(meepsInCol);
     gamePlay.gameState.winnerMeep = meep;
     gamePlay.advanceMeeple(meep)
-    const score = gamePlay.scoreForColor(meep, undefined, false);
-    fromCardNdx.sort((a, b) => a[1].rank - b[1].rank); // increasing rank (for up-bumps)
-    fromCardNdx.forEach(([meep, card, rank, ndx]) => card.addMeep(meep, ndx)); // back to original slots
+    const scorec = gamePlay.scoreForColor(meep, undefined, false)
+    const pRank = (fromCardNdx.find(([smeep]) => smeep == meep) as [ColMeeple, ColCard, number])[1].rank;
+    const rank = meep.card.rank, maxRank = gamePlay.nRows;
+    const score = scorec + (rank < maxRank ? (rank - pRank) : 0);  // boost for rank, maybe also delta-rank
+    fromCardNdx.sort(([am, ac], [bm, bc]) => ac.rank - bc.rank); // increasing rank (for up-bumps)
+    fromCardNdx.forEach(([meep, card, ndx]) => card.addMeep(meep, ndx)); // back to original slots
     return score
   }
   scoreLayout() {

@@ -200,7 +200,7 @@ export class GamePlay extends GamePlayLib {
     const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
-    this.logText(`Player-${player.index}: ${colScore}+${cardScore}+${trackScore} = ${score}`, `scoreForColor[${faction}]-${meep.toString()}`)
+    this.logText(`${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`, `scoreForColor[${faction}]-${meep.toString()}`)
     if (advMrk) player.advanceMarker(score, cb)
     return score;
   }

@@ -118,7 +118,7 @@ export class HexMap2 extends HexMap<OrthoHex2> {
   }
   getCard(rank: number, col: number) {
     // ASSERT: minRow = 0; maxRow = nRows-1
-    return this[this.maxRow as number - rank][col-1].card;
+    return this[this.maxRow as number - rank][col - 1].card;
   }
   /** the Mark to display on cardMarkhexes */
   cardMark: Paintable

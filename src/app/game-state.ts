@@ -31,7 +31,7 @@ export class GameState extends GameStateLib {
   override get table() { return super.table as Table }
   get turnOfRound() { return 1 + this.gamePlay.turnNumber % GS.tpr}
   get roundNumber() { return 1 + Math.floor(this.gamePlay.turnNumber / GS.tpr) }
-
+  get turnId() { return this.roundNumber + this.turnOfRound / 10 }
   override saveState(): any[] {
     return [this.state.Aname] as [string];
   }
@@ -118,8 +118,7 @@ export class GameState extends GameStateLib {
     },
     CollectBids: {
       start: () => {
-        const round = this.roundNumber, turn = this.turnOfRound
-        this.doneButton(`Make Bids ${round}.${turn}`, C.YELLOW)!.activate()
+        this.doneButton(`Make Bids ${this.turnId}`, C.YELLOW)!.activate()
         this.gamePlay.allPlayers.forEach(plyr => plyr.collectBid()); // cb --> cardDone
       },
       done: (ok = false) => {
@@ -177,7 +176,7 @@ export class GameState extends GameStateLib {
     EndTurn: {
       start: () => {
         const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)
-        this.table.logText(`EndTurn ${this.roundNumber}.${this.turnOfRound} scores: ${scores}`, )
+        this.table.logText(`EndTurn ${this.turnId} scores: ${scores}`, )
         this.gamePlay.allPlayers.forEach(plyr => plyr.commitCards())
         this.gamePlay.setNextPlayer();  // advance turnNumber & turnOfRound
         const endOfRound = (this.turnOfRound == 1)
@@ -206,7 +205,7 @@ export class GameState extends GameStateLib {
       },
       done: () => {
         const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)
-        this.table.logText(`EndRound ${this.roundNumber-1} scores: ${scores}`, )
+        this.table.logText(`EndRound ${this.roundNumber - 1} scores: ${scores}`,)
         this.phase(this.gamePlay.isEndOfGame() ? 'EndGame' : 'BeginRound');
       }
     },

@@ -64,15 +64,16 @@ export class ColCard extends Tile {
   get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
   get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
-  /** for each meep on this card, include the cell it is in. ASSERT: each meep has unique cellNdx */
-  get cellsInUse() {
-    return this.meepsOnCard.map(meep => meep.cellNdx as number).sort((a, b) => a - b)
-  }
   get maxCells() { return 1 }
-  /** complement of cellsInUse */
+  /** all cellNdx with a meep */
+  get cellsInUse() {
+    const meeps = this.meepsOnCard;
+    return arrayN(this.maxCells).filter(ndx => meeps.find(meep => meep.cellNdx == ndx))
+  }
+  /** all cellNdx with no meep */
   get openCells() {
-    const inUse = this.cellsInUse;
-    return arrayN(this.maxCells).filter(i => !inUse.includes(i))
+    const meeps = this.meepsOnCard;
+    return arrayN(this.maxCells).filter(ndx => !meeps.find(meep => meep.cellNdx == ndx))
   }
   otherMeepInCell(meep: ColMeeple, cellNdx = meep.cellNdx) {
     return this.meepsOnCard.find(m => (m !== meep) && (m.cellNdx == cellNdx))

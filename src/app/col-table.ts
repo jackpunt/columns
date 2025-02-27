@@ -124,6 +124,10 @@ export class ColTable extends Table {
     this.gamePlay.gameState.start();   // gamePlay.phase(startPhase); enable GUI to drive game
   }
 
+  override logCurPlayer(plyr: Player, tn = this.gamePlay.gameState.turnId) {
+    super.logCurPlayer(plyr, tn)
+  }
+
   override layoutTurnlog(rowy?: number, colx?: number): void {
     const row2 = rowy ?? Math.min(-.5, this.nRows - 7.5) + 3.5;
     const col2 = colx ?? (-1.8 - this.nCols * .5) - 4.5;
