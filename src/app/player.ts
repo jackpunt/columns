@@ -82,21 +82,6 @@ export class Player extends PlayerLib implements IPlayer {
   // only invoked on the newly curPlayer!
   override newTurn() {
     // nothing to do... until 'Move' action.
-    // this.ships.forEach(ship => ship.newTurn());
-    // return;
-  }
-
-  /** if Planner is not running, maybe start it; else wait for GUI */ // TODO: move Table.dragger to HumanPlanner
-  override playerMove(useRobo = this.useRobo, incb = 0) {
-    let running = this.plannerRunning
-    // feedback for KeyMove:
-
-    TP.log > 0 && console.log(stime(this, `(${this.plyrId}).playerMove(${useRobo}): useRobo=${this.useRobo}, running=${running}`))
-    if (running) return
-    if (useRobo || this.useRobo) {
-      // continue any semi-auto moves
-    }
-    return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
 
   // 2 score counters (advancing on track)
@@ -105,7 +90,7 @@ export class Player extends PlayerLib implements IPlayer {
   // nc ColSelect cards (shrink to buttons)
   //
   override makePlayerBits(): void {
-    super.makePlayerBits()
+    // super.makePlayerBits()
     if (this.index >= 6) {
       this.gamePlay.table.dragger.makeDragable(this.panel)
     }
@@ -409,7 +394,7 @@ export class Player extends PlayerLib implements IPlayer {
 
   /** choose and return one of the indicated meeples */
   meepleToAdvance(meeps: ColMeeple[], colMeep?: (meep?: ColMeeple) => void) {
-    // TODO: GUI: set dropFunc -> colMeep(meep)
+    // TODO: GUI: set dropFunc -> colMeep(meep); so each player does their own D&D
     const meep = meeps.sort((a, b) => a.card.rank - b.card.rank)[0];
     if (colMeep) colMeep(meep)
     return meep;
@@ -610,6 +595,12 @@ export class PlayerB extends Player {
     const [bumpee, dir1] = super.chooseMeepAndBumpDir(meep, dir)
     const other = meep.card.otherMeepInCell(meep) as ColMeeple;
     return [bumpee, dir1];
+  }
+  // TODO examine intermediate stop/bump cards/cells
+  bumpDown(meep: ColMeeple, dir: 0 | 1 | -1 | -2) {
+    const card0 = meep.card, card1 = card0.nextCard(1)
+    let cardn = meep.card, cards = [cardn];
+    while (cardn.rank) {}
   }
 
   override bumpMeeple(meep: ColMeeple, dir0?: (0 | 1 | -1 | -2), cb?: () => void) {

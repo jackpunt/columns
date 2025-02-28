@@ -69,9 +69,8 @@ export class ScenarioParser extends SPLib {
     this.gamePlay.hexMap.update();
   }
 
-  // TODO: parameterize with savedState (vs permute)
   placeCardsOnMap(layout?: RowElt[]) {
-    const gp = this.gamePlay, nr = gp.nRows, nCards = (nr - 2) * gp.nCols;
+    const gp = this.gamePlay
     const black = BlackCard.allBlack;
     const pCards = ColCard.allCols.slice();
     const dCards = DualCard.allDuals.slice();
@@ -79,7 +78,7 @@ export class ScenarioParser extends SPLib {
     const blackN = black.filter((card, n) => n < gp.nCols);  // rowN; rank0
     if (layout) {
       layout.forEach((rowElt, row) => {
-        const black = row == 0 ? black0 : blackN;
+        const black = (row == 0) ? black0 : blackN;
         rowElt.forEach(({ fac }, col) => {
           const cards = (fac.length > 2) ? black : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
@@ -92,26 +91,28 @@ export class ScenarioParser extends SPLib {
         })
       })
       return;
-    }
+    } else {
+      const nr = gp.nRows, nCards = (nr - 2) * gp.nCols;
+      // new/random layout:
+      permute(pCards)
+      permute(dCards)
+      const nDual = Math.round(nCards * TP.rDuals), nPlain = nCards - nDual;
+      const duals = dCards.slice(0, nDual)
+      const plain = pCards.slice(0, nPlain)
+      const cards = plain.concat(duals);
+      permute(cards);
 
-    permute(pCards)
-    permute(dCards)
-    const nDual = Math.round(nCards * TP.rDuals), nPlain = nCards - nDual;
-    const duals = dCards.slice(0, nDual)
-    const plain = pCards.slice(0, nPlain)
-    const cards = plain.concat(duals);
-    permute(cards);
-
-    const rank0 = nr - 1;
-    this.gamePlay.hexMap.forEachHex(hex => {
-      const row = hex.row;
-      const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
-      card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
-      hex.legalMark.doGraphicsDual(card)
+      const rank0 = nr - 1;
+      this.gamePlay.hexMap.forEachHex(hex => {
+        const row = hex.row;
+        const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
+        card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
+        hex.legalMark.doGraphicsDual(card)
+        return;
+      })
+      this.gamePlay.gameSetup.update()
       return;
-    })
-    this.gamePlay.gameSetup.update()
-    return;
+    }
   }
 
   placeMeeplesOnMap(layout?: RowElt[]) {

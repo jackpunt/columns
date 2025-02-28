@@ -15,19 +15,6 @@ export interface Scenario extends Scenario0 {
   nPlayers?: number;
 };
 
-type PublicInterface<T> = { [K in keyof T]: T[K] };
-declare global {
-  interface Math {
-    sum(...ary: number[]): number;
-    // because 'Date' is not a class, it's tricky to define Date.stime
-    // but it's easy to attach it to Math:
-    stime: (typeof stime) & PublicInterface<typeof stime>;
-  }
-}
-// TODO: move to common-lib:
-Math.sum = (...ary: number[]) => ary.reduce((pv, cv) => pv + cv, 0);
-Math.stime = stime; // can use Math.stime() in js/debugger
-
 /** initialize & reset & startup the application/game. */
 export class GameSetup extends GameSetupLib {
   declare table: ColTable;
@@ -92,7 +79,7 @@ export class GameSetup extends GameSetupLib {
   }
 
   override makeTable(): ColTable {
-    return new ColTable(this.stage); // TODO: update makeStage()
+    return new ColTable(this.stage);
   }
 
   override makeGamePlay(scenario: Scenario): GamePlay {
@@ -130,7 +117,6 @@ export class PlayerGameSetup extends GameSetup {
     this.stage = makeStage(canvasId, false);
   }
   override makeLogWriter() { return {} as LogWriter; }
-  // TODO: override makePlayer() to provide a no-GUI auto-Player
 
   override loadImagesThenStartup(scenario: Scenario = this.qParams): void {
     // do NOT create new loader:
