@@ -522,6 +522,7 @@ export class PlayerB extends Player {
     const subPlyr = subGamePlay.allPlayers[this.index] as PlayerB;
     const colCards = this.colSelButtons.filter(c => c.state === CB.clear).map(c => subPlyr.colSelButtons[c.colNum - 1])
     const bidCards = this.colBidButtons.filter(b => b.state == CB.clear).map(b => subPlyr.colBidButtons[b.colBid - 1])
+    const scores2: any[] = []
     const scores = colCards.map(ccard =>
       bidCards.map(bcard => {
         // enable faction match, without triggering isDoneSelecting()
@@ -531,14 +532,16 @@ export class PlayerB extends Player {
         if (subGamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
         }
-        const meep = subGamePlay.gameState.winnerMeep?.toString();
+        const meep = subGamePlay.gameState.winnerMeep?.toString(); // end location?
+        const rv = { ccard, bcard, score, meep, scoreStr }
+        if ([2, 3].includes(bcard.colBid)) { scores2.push(rv); }
         ccard.setState(CB.clear);
         bcard.setState(CB.clear);
-        return { ccard, bcard, score, meep, scoreStr }
+        return rv
       })
-    )
+    ).flat().concat(scores2)
     // Sort and select { ccard, bcard } based on score:
-    const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
+    const scoress = scores.sort((a, b) => b.score - a.score);// descending
     const score0 = scoress[0].score
     const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;
     const scc = scores0.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
@@ -564,7 +567,7 @@ export class PlayerB extends Player {
     const col = ccard.colNum
     const gamePlay = this.subGameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
-    const rankScore0 = plyr.rankScoreNow;
+    const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
     // save original locations:
     const allMeepsInCol = plyr.cardsInCol(col).map(card => card.meepsOnCard).flat()
     const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
@@ -574,7 +577,7 @@ export class PlayerB extends Player {
     gamePlay.gameState.winnerMeep = meep;
     const bumpDir = gamePlay.advanceMeeple(meep)
     const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
-    const rankDiff = (plyr.rankScoreNow - rankScore0); // TODO: delta vs leader
+    const rankDiff = Math.round((plyr.rankScoreNow - rankScore0) * perTurn);
     const rd = Math.max(0, rankDiff); // TODO: per turnOfRound
     const score = scorec + rd;
     // restore meeps to original locations:
