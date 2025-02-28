@@ -108,7 +108,7 @@ export class HexMap2 extends HexMap<OrthoHex2> {
   }
   getCard(rank: number, col: number) {
     // ASSERT: minRow = 0; maxRow = nRows-1
-    return this[this.maxRow as number - rank][col - 1].card;
+    return this[this.maxRow as number - rank][col].card;
   }
   /** the Mark to display on cardMarkhexes */
   cardMark: Paintable
@@ -124,8 +124,14 @@ export class HexMap2 extends HexMap<OrthoHex2> {
 
   // override to makeRect
   override makeAllHexes(nh = TP.nHexes, mh = TP.mHexes, rc0: RC) {
+    const col = 1, district = 0, hexAry = [] as OrthoHex2[];
     // nh: rows, mh: cols
-    return this.makeRect(nh, mh, false, false); // ignore return value hexary: Hex[]
+    for (let row = 0; row < nh; row++ ) {
+      this.addLineOfHex(mh, row, col, district, hexAry, 1)
+    }
+    this.setDistrictAndPaint(hexAry)
+    return hexAry;
+    // return this.makeRect(nh, mh, false, false); // ignore return value hexary: Hex[]
   }
   // working with GameSetup to color the 'HexShape' with a district per row:
   override paintDistrict(hex2Ary: IHex2[], district = 0, cColor?: string) {

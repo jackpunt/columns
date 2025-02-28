@@ -187,12 +187,12 @@ export class GamePlay extends GamePlayLib {
   }
 
   cardsInRow(row: number) {
-    // arrayN(this.nCols, 1).map(col => this.hexMap.getCard(this.nRows - 1 - row, col + 1))
-    return arrayN(this.nCols).map(col => this.hexMap[row][col].card);
+    // arrayN(this.nCols, 1).map(col => this.hexMap.getCard(this.nRows - 1 - row, col))
+    return arrayN(this.nCols, 1).map(col => this.hexMap[row][col].card);
   }
   cardsInCol(col: number, noBlack = true) {
     const [rn, ro] = noBlack ? [2, 1] : [0, 0];
-    return arrayN(this.nRows - rn, ro).map(row => this.hexMap[row][col - 1].card);
+    return arrayN(this.nRows - rn, ro).map(row => this.hexMap[row][col].card);
   }
 
   /** move meeple from bumpLoc to center of cell;

@@ -150,7 +150,7 @@ export class GameState extends GameStateLib {
       start: (col: number, meep?: ColMeeple) => {
         this.state.col = col;
         if (!this.winnerMeep) this.winnerMeep = meep; // maybe undefined
-        if (!meep) { this.phase('ResolveWinner', col + 1); return }
+        if (!meep) { this.phase('ResolveWinner', 1 + col); return }
         this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
         this.table.logText(`${meep} in col ${meep.card.colId}`, `BumpAndCascade`);
@@ -169,7 +169,7 @@ export class GameState extends GameStateLib {
         }
         // update faction counters for each Player:
         this.gamePlay.allPlayers.forEach(plyr => plyr.setFactionCounters())
-        const nextCol = () => setTimeout(() => this.phase('ResolveWinner', col + 1), TP.flipDwell);
+        const nextCol = () => setTimeout(() => this.phase('ResolveWinner', 1 + col), TP.flipDwell);
         this.gamePlay.scoreForColor(this.winnerMeep, nextCol);
       }
     },

@@ -85,7 +85,7 @@ export class ScenarioParser extends SPLib {
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           removeEltFromArray(card, cards);
-          const hex = this.gamePlay.hexMap[row][col];
+          const hex = this.gamePlay.hexMap[row][col + 1];
           card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
           hex.legalMark.doGraphicsDual(card)
         })

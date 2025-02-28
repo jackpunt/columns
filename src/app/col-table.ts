@@ -56,7 +56,7 @@ export class ColTable extends Table {
 
     const { nh: nr, mh: nc } = this.hexMap.getSize();
     const rC = (nr - 1) / 2;
-    const cC = (nc - 1) / 2;
+    const cC = (nc + 1) / 2;
     const coff = (nc / 2) + (this.panelWidth / 2) + .2;
     const ph = (TP.numPlayers > 4) ? this.panelHeight + .2 : (this.panelHeight + .2) / 2
     // Left of map (dir: +1), Right of map (dir: -1)
