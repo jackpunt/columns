@@ -63,8 +63,22 @@ export class ColCard extends Tile {
   /** when openCells[0] is undefined: */
   get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
-  get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
   get maxCells() { return 1 }
+  get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
+  /** meepsOnCard aligned with cellNdx */
+  get meepsAtNdx() {
+    const cardMeeps = this.meepsOnCard;
+    return arrayN(this.maxCells)
+      .map(ndx => cardMeeps.find(meep => meep.cellNdx == ndx))
+  }
+
+  get meepStr() {
+    return this.meepsAtNdx
+      .map(meep => meep ? `${meep.player.index}` : `-`)
+      .join(' ')
+      .padStart(2).padEnd(3)
+  }
+
   /** all cellNdx with a meep */
   get cellsInUse() {
     const meeps = this.meepsOnCard;
@@ -96,7 +110,7 @@ export class ColCard extends Tile {
     const toBump = !!this.otherMeepInCell(meep, cellNdx);
     const locXY = toBump ? this.bumpLoc : this.meepleLoc(cellNdx); // meepleLoc IFF cellNdx supplied and cell is empty
     this.meepCont.addChild(meep);
-    meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex;
+    meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex; // no collisions, but fromHex
     meep.card = this;
     meep.cellNdx = cellNdx; // undefined if no openCell
     // toBump -> undefined; BumpAndCascade -> meeplesToCell will addMeep() and resolve
@@ -236,6 +250,13 @@ export class BlackCard extends ColCard {
     const label = new CenterText(`${seqLim > 0 ? colId : ''}`, Math.round(this.radius * fs), C.WHITE,)
     label.y = label.y = this.radius * (.5 - .48 * fs)
     this.addChildAt(label, 1); // under meepCont
+  }
+
+  override get meepStr() {
+    return this.meepsAtNdx.slice(0, 3)
+      .map(meep => meep ? `${meep.player.index}` : `-`)
+      .join('')
+      .padStart(2).padEnd(3)
   }
 
   override meepleLoc(ndx = this.openCells[0]): XY {

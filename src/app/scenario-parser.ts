@@ -1,5 +1,5 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
-import { ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
+import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
 import { BlackCard, ColCard, DualCard } from "./col-card";
 import { arrayN, type Faction, type GamePlay } from "./game-play";
 import { Player } from "./player";
@@ -115,11 +115,12 @@ export class ScenarioParser extends SPLib {
   }
 
   placeMeeplesOnMap(layout?: RowElt[]) {
-    const hexMap = this.gamePlay.hexMap, [nrows, ncols] = hexMap.nRowCol;
-    const allPlayers = this.gamePlay.allPlayers;
-    this.gamePlay.allMeeples.length = 0; // discard initial/default meeples
+    const gamePlay = this.gamePlay;
+    const hexMap = gamePlay.hexMap, [nrows, ncols] = hexMap.nRowCol;
+    const allPlayers = gamePlay.allPlayers;
+    gamePlay.allMeeples.length = 0; // discard initial/default meeples
     if (layout) {
-      Tile.gamePlay = this.gamePlay; // so Meeples can find their GamePlay
+      Tile.gamePlay = gamePlay; // so Meeples can find their GamePlay
       layout.forEach((rowElt, row) => {
         rowElt.forEach(({ meeps }, col) => {
           meeps?.forEach(pid => {
@@ -128,16 +129,15 @@ export class ScenarioParser extends SPLib {
           })
         })
       })
-      return;
     } else {
       // StartElt has no layout: place one each on rank 0
       allPlayers.forEach(player => {
         arrayN(ncols).forEach(col => {
-          (player as Player).makeMeeple(hexMap, 1 + col, 0); // rank = 0
+          player.makeMeeple(hexMap, 1 + col, 0); // rank = 0
         })
       })
-      return;
     }
+    // console.log(stime(this, `.placeMeeplesOnMap: layout=${!!layout}\n`), gamePlay.mapString)
   }
   // override to declare return type:
   override saveState(gamePlay?: GamePlay0, logWriter?: LogWriter | false): SetupElt {

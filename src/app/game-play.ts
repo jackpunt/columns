@@ -44,6 +44,12 @@ export class GamePlay extends GamePlayLib {
     return new ScenarioParser(hexMap, this)
   }
 
+  get mapString() {
+    return arrayN(this.nRows)
+      .map(row => this.cardsInRow(row).map(card => card.meepStr).join(' | '))
+      .join('\n ')
+  }
+
   /** all the cards and the meeples on them. ordered [row=0..nrows-1][column=0..ncols-1] */
   getLayout(): CardContent[][] {
     const gp = this, hexMap = gp.hexMap;
@@ -93,14 +99,15 @@ export class GamePlay extends GamePlayLib {
   override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {
     const plyrs = this.allPlayers, max = this.table.scoreTrack.maxValue;
+    const r0cards = this.cardsInRow(0)
     // end if any player has both markers on slot 54:
     const win1 = plyrs.find(plyr => !plyr.scoreCounters.find(mrkr => mrkr.value < max));
     if (win1) return true;
     // end if each top-black is occupied
-    const win2 = (!this.hexMap[0].find(hex => hex.card.meepsOnCard.length == 0))
+    const win2 = !r0cards.find(card => card.meepsOnCard.length == 0)
     if (win2) return true;
     //  end if one top-Black has all players
-    const win3 = !this.hexMap[0].find(hex => plyrs.find(plyr => !hex.card.meepsOnCard.find(meep => meep.player == plyr)))
+    const win3 = r0cards.find(card => !plyrs.find(plyr => !card.meepsOnCard.find(meep => meep.player == plyr)))
     if (win3) return true;
     return false;
   }
@@ -162,11 +169,12 @@ export class GamePlay extends GamePlayLib {
   advanceMeeple(meep: ColMeeple, cb?: () => void) {
     const player = meep.player, dir0: (0) = 0;
     const toBump = player.bumpMeeple(meep, dir0); // loop until no more bumps
+    const [bumpee, bumpDir] = toBump ? meep.player.chooseMeepAndBumpDir(meep, dir0) : [meep, 0 as (1 | -1 | -2)];
     if (toBump) {
-      const [bumpee, bumpDir] = meep.player.chooseMeepAndBumpDir(meep, dir0);
       this.bumpAndCascade(bumpee, bumpDir);
     }
     if (cb) cb(); // only for the original, outer-most, winning-bidder
+    return bumpDir; // when called by pseudoWin()
   }
 
   bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2, depth = 0) {
@@ -178,12 +186,20 @@ export class GamePlay extends GamePlayLib {
     }
   }
 
+  cardsInRow(row: number) {
+    // arrayN(this.nCols, 1).map(col => this.hexMap.getCard(this.nRows - 1 - row, col + 1))
+    return arrayN(this.nCols).map(col => this.hexMap[row][col].card);
+  }
+  cardsInCol(col: number, noBlack = true) {
+    const [rn, ro] = noBlack ? [2, 1] : [0, 0];
+    return arrayN(this.nRows - rn, ro).map(row => this.hexMap[row][col - 1].card);
+  }
+
   /** move meeple from bumpLoc to center of cell;
    * @returns a meep that needs to bump.
    */
   meeplesToCell(col: number) {
-    // arrayN(this.nRows - 2, 1).map(row => console.log(`row,col = [${row}][${col}]`, this.hexMap[row][col]));
-    const cards = arrayN(this.nRows - 2, 1).map(row => this.hexMap[row][col - 1].card);
+    const cards = this.cardsInCol(col)
     const meeps = cards.map(card => card.atBumpLoc()).filter(meep => !!meep)
     const bumps = meeps.filter(meep => meep.card.addMeep(meep)); // re-center
     return bumps[0]
@@ -208,21 +224,24 @@ export class GamePlay extends GamePlayLib {
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
   scoreForRank() {
     const nRows = this.nRows, nCols = this.nCols, mRank = nRows - 1;
-    const playerByRow = arrayN(nRows - 1).map(row => {
-      return arrayN(nCols, 0).map(col => {
-        const cardRC = this.hexMap.getCard(mRank - row, col + 1);
-        return cardRC.meepsOnCard.map(meep => meep.player)
-      }).flat()
-    })
-    return playerByRow.map((plyrsOnRow, row) => {
-      const rank = (row == 0) ? 0 : nRows - 1 - row;
-      return plyrsOnRow.map(plyr => {
-        const allPlyr0 = plyrsOnRow.filter(pf => pf == plyr)
-        const score = rank * (TP.onePerRank ? 1 : allPlyr0.length)
-        return { plyr, score }
-      }).filter((por, n, ary) => !ary.slice(0, n).find(elt => elt.plyr == por.plyr))
-      // filter to first instance of plyr on row... pro'ly could be simpler.
-    })
+    const playersInRow = arrayN(nRows - 1).map(row =>
+      this.cardsInRow(row).map(card => card.meepsOnCard.map(meep => meep.player))
+        .flat().filter((plyr, n, ary) => !ary.slice(0, n).find(lp => lp == plyr))
+      // retain first occurence of player on row
+    )
+    return playersInRow.map((plyrsInRow, row) =>
+      plyrsInRow.map(plyr =>
+        ({ plyr, score: this.playerScoreForRow(plyr, row) }))
+    )
+  }
+
+  /** score for presence of player on the given rank */
+  playerScoreForRow(plyr: Player, row: number) {
+    const meeps = this.cardsInRow(row)
+      .map(card => card.meepsOnCard
+        .filter(meep => meep.player == plyr)).flat()
+    const rank = this.nRows - 1 - row;
+    return (rank == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, meeps.length) : meeps.length);
   }
 
   resetPlayerCards() {

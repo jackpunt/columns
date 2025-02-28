@@ -64,6 +64,12 @@ export class Player extends PlayerLib implements IPlayer {
     super(index, gamePlay);
   }
 
+  /** Sum of this player's scoreForRow */
+  get rankScoreNow() {
+    const gamePlay = this.gamePlay;
+    return Math.sum(...arrayN(gamePlay.nRows - 1).map(row => gamePlay.playerScoreForRow(this, row)))
+  }
+
   /**
    * Before start each new game.
    *
@@ -527,6 +533,7 @@ export class PlayerB extends Player {
     // sync subGame with realGame
     this.subGameSetup.syncGame(); PlayerGameSetup
     const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
+    console.log(stime(this, ` - ${this.Aname}`), '\n', subGamePlay.mapString)
     const subPlyr = subGamePlay.allPlayers[this.index] as PlayerB;
     const colCards = this.colSelButtons.filter(c => c.state === CB.clear).map(c => subPlyr.colSelButtons[c.colNum - 1])
     const bidCards = this.colBidButtons.filter(b => b.state == CB.clear).map(b => subPlyr.colBidButtons[b.colBid - 1])
@@ -536,7 +543,7 @@ export class PlayerB extends Player {
         ccard.setState(CB.selected);
         bcard.setState(CB.selected);
         let score = this.pseudoWin(ccard, bcard); // advance in ccard.col
-        if (subGamePlay.turnNumber > 0 && this.score < 3) {
+        if (subGamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -1; }  // marker: include in scores0
         }
         const meep = subGamePlay.gameState.winnerMeep?.toString();
@@ -567,29 +574,42 @@ export class PlayerB extends Player {
     bidCard.onClick({}, this)
     this.gamePlay.hexMap.update()
   }
+
   /** pretend ccard,bcard win, and advance on col */
   pseudoWin(ccard: ColSelButton, bcard: ColBidButton) {
     const col = ccard.colNum
     const gamePlay = this.subGameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
+    const rankScore0 = plyr.rankScoreNow;
     // save original locations:
-    const allMeepsInCol = gamePlay.allMeeples.filter(meep => meep.card.col == col);
+    const allMeepsInCol = plyr.cardsInCol(col).map(card => card.meepsOnCard).flat()
     const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
     // player meepsInCol:
     const meepsInCol = gamePlay.meepsInCol(col, plyr);
-    const meep = this.meepleToAdvance(meepsInCol);
+    const meep = plyr.meepleToAdvance(meepsInCol);
     gamePlay.gameState.winnerMeep = meep;
-    gamePlay.advanceMeeple(meep)
+    const bumpDir = gamePlay.advanceMeeple(meep)
     const scorec = gamePlay.scoreForColor(meep, undefined, false)
-    const pRank = (fromCardNdx.find(([smeep]) => smeep == meep) as [ColMeeple, ColCard, number])[1].rank;
-    const rank = meep.card.rank, maxRank = gamePlay.nRows;
-    const score = scorec + (TP.onePerRank ? 0 : (rank < maxRank) ? (rank - pRank) : 0);  // boost for rank, maybe also delta-rank
+    const score = scorec + (plyr.rankScoreNow - rankScore0); // TODO: delta vs leader
+    // restore meeps to original locations:
     fromCardNdx.sort(([am, ac], [bm, bc]) => ac.rank - bc.rank); // increasing rank (for up-bumps)
     fromCardNdx.forEach(([meep, card, ndx]) => card.addMeep(meep, ndx)); // back to original slots
     return score
   }
-  scoreLayout() {
 
+  override chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2): [ColMeeple, 1 | -1 | -2] {
+    // TODO: consider bumping other if meep is on colBid faction
+    // try each dir/bumpee combo to maximise colorScore & rankScore
+    // looking ahead/comparing with this.rankScoreNow
+    // autoPlayer needs it own version of bumpAndCascade
+    // happily, pseudoWin will rest all the dudes in the column
+    //
+    // our 'model' of other player is base class Player?
+    // pro'ly subGameSetup will instantiate the same class
+    // TODO: set Player.params on each instance 'randomly'
+    const [bumpee, dir1] = super.chooseMeepAndBumpDir(meep, dir)
+    const other = meep.card.otherMeepInCell(meep) as ColMeeple;
+    return [bumpee, dir1];
   }
 
   override bumpMeeple(meep: ColMeeple, dir0?: (0 | 1 | -1 | -2), cb?: () => void) {

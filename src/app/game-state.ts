@@ -191,6 +191,7 @@ export class GameState extends GameStateLib {
         const rowScores = this.gamePlay.scoreForRank(), nRows = this.gamePlay.nRows;
         this.state.rowScores = rowScores; // for AutoPlayer to consider
         const advanceNextScore = (row: number) => {
+          if (this.gamePlay.isEndOfGame()) { this.done(true); return }
           const rank = nRows - 1 - row;
           this.state.row = row;           // for AutoPlayer to consider
           if (rank < 1) { this.done(); return } // no score for rank0; DONE
@@ -203,16 +204,19 @@ export class GameState extends GameStateLib {
         }
         advanceNextScore(0)
       },
-      done: () => {
-        const scores = this.gamePlay.allPlayers.map(plyr => plyr.score)
-        this.table.logText(`EndRound ${this.roundNumber - 1} scores: ${scores}`,)
-        this.phase(this.gamePlay.isEndOfGame() ? 'EndGame' : 'BeginRound');
+      done: (eog = this.gamePlay.isEndOfGame()) => {
+        this.logScores();
+        this.phase(eog ? 'EndGame' : 'BeginRound');
       }
     },
     EndGame: {
       start: () => {
         this.gamePlay.saveGame();
-        const winp = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score )[0]
+        this.logScores('EndGame');
+        const playersByscore = this.gamePlay.allPlayers.slice();
+        playersByscore.sort((a, b) => b.rankScoreNow - a.rankScoreNow); // tie breaker
+        playersByscore.sort((a, b) => b.score - a.score )
+        const winp = playersByscore[0]
         this.gamePlay.logWriterLine0('finish', { 'winner': winp.index, 'winColor': winp.color })
         this.doneButton(`End of Game!\n(click for new game)`, winp.color)
       },
@@ -220,5 +224,9 @@ export class GameState extends GameStateLib {
         this.gamePlay.gameSetup.restart({});
       }
     }
+  }
+  logScores(label = 'EndRound') {
+    const scores = this.gamePlay.allPlayers.map(plyr => plyr.score);
+    this.table.logText(`${label} ${this.turnId} scores: ${scores}`,)
   }
 }
