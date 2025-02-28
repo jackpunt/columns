@@ -151,7 +151,7 @@ export class ScenarioParser extends SPLib {
     const pStates = this.gamePlay.getPlayerState();
     const scores = this.gamePlay.allPlayers.map(plyr => plyr.markers.map(m => [m.value, m.track] as [v: number, t: number]))
     const layout = this.gamePlay.getLayout();
-    return { turn, scores, time, gameState, pStates, layout, }
+    return { turn, time, scores, gameState, pStates, layout, }
   }
 
 }

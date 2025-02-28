@@ -529,7 +529,7 @@ export class PlayerB extends Player {
         bcard.setState(CB.selected);
         let score = this.pseudoWin(ccard, bcard); // advance in ccard.col
         if (subGamePlay.turnNumber > 0 && this.score < 2) {
-          if (bcard.colBid == 4) { score = -1; }  // marker: include in scores0
+          if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
         }
         const meep = subGamePlay.gameState.winnerMeep?.toString();
         ccard.setState(CB.clear);
@@ -539,7 +539,7 @@ export class PlayerB extends Player {
     )
     const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
     const score0 = scoress[0].score
-    const scores0 = scoress.filter(({score}) => (score == score0) || (score == -1)), slen= scores0.length;
+    const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;
     const scc = scores0.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
     const sc5 = scoress.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
     const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;

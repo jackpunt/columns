@@ -1,6 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { makeStage } from '@thegraid/easeljs-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect, type LogWriter } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -109,8 +109,9 @@ export class PlayerGameSetup extends GameSetup {
    * @param gs the original/actual running GameSetup, GameState, Players, Table, etc
    */
   constructor(public gs: GameSetup, scenario: Scenario = gs.qParams) {
-    super(undefined, scenario)
-    ;(this as any).logWriter = gs.logWriter;
+    super(undefined, scenario);
+    // makeLogWriter is invoked by super, *before* gs is available, so overwrite here:
+    (this as any).logWriter = new PlayerLogWriter(gs.logWriter);
   }
   override initialize(canvasId: string): void {
     console.log(stime(this, `-------------------      GameSetup     ----------------`))
@@ -130,5 +131,15 @@ export class PlayerGameSetup extends GameSetup {
     const stateInfo = gamePlay.scenarioParser.saveState();
     // push into this subGame:
     this.gamePlay.scenarioParser.parseScenario(stateInfo); // parse into this game
+  }
+}
+
+class PlayerLogWriter extends LogWriter {
+  constructor(public gsLogwriter: LogWriter) {
+    super()
+    this.writeLine()
+  }
+  override writeLine(text?: string): void {
+    // if (!text?.startsWith('// ')) this.gsLogwriter.writeLine(text);
   }
 }
