@@ -67,7 +67,7 @@ export class Player extends PlayerLib implements IPlayer {
   /** Sum of this player's scoreForRow */
   get rankScoreNow() {
     const gamePlay = this.gamePlay;
-    return Math.sum(...arrayN(gamePlay.nRows - 1).map(row => gamePlay.playerScoreForRow(this, row)))
+    return Math.sum(...arrayN(gamePlay.nRows - 2, 1).map(row => gamePlay.playerScoreForRow(this, row)))
   }
 
   /**
@@ -216,7 +216,7 @@ export class Player extends PlayerLib implements IPlayer {
     const csb = this.colSelButtons.find(b => b.state === CB.selected);
     const cbb = this.colBidButtons.find(b => b.state === CB.selected);
     if (csb) { csb.setState(CB.done); };
-    if (cbb) { cbb.setState(CB.done); cbb.bidOnCol = csb!?.colNum - 1 };
+    if (cbb) { cbb.setState(CB.done); cbb.bidOnCol = csb!?.colNum };
   }
 
   cancelBid(col: number, bid: number) {
@@ -527,41 +527,40 @@ export class PlayerB extends Player {
         // enable faction match, without triggering isDoneSelecting()
         ccard.setState(CB.selected);
         bcard.setState(CB.selected);
-        let score = this.pseudoWin(ccard, bcard); // advance in ccard.col
+        let [score, scoreStr] = this.pseudoWin(ccard, bcard); // advance in ccard.col
         if (subGamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
         }
         const meep = subGamePlay.gameState.winnerMeep?.toString();
         ccard.setState(CB.clear);
         bcard.setState(CB.clear);
-        return { ccard, bcard, score, meep }
+        return { ccard, bcard, score, meep, scoreStr }
       })
     )
+    // Sort and select { ccard, bcard } based on score:
     const scoress = scores.flat().sort((a, b) => b.score - a.score);// descending
     const score0 = scoress[0].score
     const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;
-    const scc = scores0.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
-    const sc5 = scoress.map(({ ccard, bcard, score, meep }) => [ccard.colId, bcard.colBid, score, meep])
+    const scc = scores0.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
+    const sc5 = scoress.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
     const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;
     if (scoress.length < 3) debugger;
     let ndx = 0;
     const { ccard, bcard, score, meep } = (slen >= 1)
       ? scores0[ndx = Random.random(scores0.length)]
       : scoress[ndx = permute(ndxs)[Random.random(len)]];
-    // const { ccard, bcard } = (slen >= 1) ? scores0[ndx] : scoress[ndx]
-    // const colCard = this.colSelButtons[ccard.colNum - 1]
-    // const bidCard = this.colBidButtons[bcard.colBid - 1]
     const colCard = this.colSelButtons.find(b => b.colNum == ccard.colNum) as ColSelButton;
     const bidCard = this.colBidButtons.find(b => b.colBid == bcard.colBid) as ColBidButton;
     const plyrId = AT.ansiText(['red', 'bold'], this.Aname)
-    console.log(stime(this, `.collectBid_greedy: ${plyrId} ${colCard.colId}-${bidCard.colBid}, meep=${meep}`))
+    const ndxStr = AT.ansiText([slen == 1 ? 'red' : 'blue', 'bold'], `${ndx}/${slen}`)
+    console.log(stime(this, `.collectBid_greedy: ${plyrId} [${ndxStr}] ${colCard.colId}-${bidCard.colBid} => ${score0} meep=${meep}\n`), scc, sc5)
     colCard.onClick({}, this)
     bidCard.onClick({}, this)
     this.gamePlay.hexMap.update()
   }
 
   /** pretend ccard,bcard win, and advance on col */
-  pseudoWin(ccard: ColSelButton, bcard: ColBidButton) {
+  pseudoWin(ccard: ColSelButton, bcard: ColBidButton): [score: number, str: string] {
     const col = ccard.colNum
     const gamePlay = this.subGameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
@@ -574,14 +573,17 @@ export class PlayerB extends Player {
     const meep = plyr.meepleToAdvance(meepsInCol);
     gamePlay.gameState.winnerMeep = meep;
     const bumpDir = gamePlay.advanceMeeple(meep)
-    const scorec = gamePlay.scoreForColor(meep, undefined, false)
-    const score = scorec + (plyr.rankScoreNow - rankScore0); // TODO: delta vs leader
+    const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
+    const rankDiff = (plyr.rankScoreNow - rankScore0); // TODO: delta vs leader
+    const rd = Math.max(0, rankDiff); // TODO: per turnOfRound
+    const score = scorec + rd;
     // restore meeps to original locations:
     fromCardNdx.sort(([am, ac], [bm, bc]) => ac.rank - bc.rank); // increasing rank (for up-bumps)
     fromCardNdx.forEach(([meep, card, ndx]) => card.addMeep(meep, ndx)); // back to original slots
-    return score
+    return [score, `${scoreStr} +${rd}`]
   }
 
+  // advanceMeeple will need to decide who/how to bump:
   override chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2): [ColMeeple, 1 | -1 | -2] {
     // TODO: consider bumping other if meep is on colBid faction
     // try each dir/bumpee combo to maximise colorScore & rankScore
@@ -596,11 +598,16 @@ export class PlayerB extends Player {
     const other = meep.card.otherMeepInCell(meep) as ColMeeple;
     return [bumpee, dir1];
   }
-  // TODO examine intermediate stop/bump cards/cells
-  bumpDown(meep: ColMeeple, dir: 0 | 1 | -1 | -2) {
-    const card0 = meep.card, card1 = card0.nextCard(1)
-    let cardn = meep.card, cards = [cardn];
-    while (cardn.rank) {}
+  // TODO winnerMeep: examine intermediate stop/bump cards/cells
+  /** cards on which we could choose to stop our bumping meeple */
+  bumpStops(meep: ColMeeple, dir: 1 | -1 | -2) {
+    if (dir == -2) dir = -1;
+    let cardn = meep.card, cards = [cardn]; // [].push(cardn)
+    do {
+      cardn = cardn.nextCard(dir)
+      cards.push(cardn)
+    } while ((dir == 1) ? cardn.openCells.length == 0 : (cardn.rank == 0 || cardn.cellsInUse.length == 0))
+    return cards;
   }
 
   override bumpMeeple(meep: ColMeeple, dir0?: (0 | 1 | -1 | -2), cb?: () => void) {

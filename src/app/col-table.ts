@@ -120,7 +120,8 @@ export class ColTable extends Table {
   }
 
   override startGame() {
-    super.startGame();                 // allTiles.makeDragable(); setNextPlayer()
+    this.scaleCont.addChild(this.overlayCont); // now at top of the list.
+    this.gamePlay.setNextPlayer(this.gamePlay.turnNumber > 0 ? this.gamePlay.turnNumber : 0);
     this.gamePlay.gameState.start();   // gamePlay.phase(startPhase); enable GUI to drive game
   }
 

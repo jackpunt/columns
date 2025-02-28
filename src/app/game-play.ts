@@ -206,19 +206,20 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */
-  scoreForColor(meep: ColMeeple | undefined, cb?: () => void, advMrk = true) {
-    if (!meep) { cb && cb(); return 0 };
+  scoreForColor(meep: ColMeeple | undefined, cb?: () => void, advMrk = true): [score: number, str: string] {
+    if (!meep) { cb && cb(); return [0, '!meep'] };
     const faction = meep.faction as number; // by now, meeplesOnCard has resolved.
     const player = meep.player;
     const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected);
-    if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return 0 };
+    if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return [0, 'noBid'] };
     const colScore = player.meeples.filter(meep => (meep.faction == faction)).length;
     const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
-    this.logText(`${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`, `scoreForColor[${faction}]-${meep.toString()}`)
+    const scoreStr = `${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`;
+    this.logText(scoreStr, `scoreForColor[${faction}]-${meep.toString()}`)
     if (advMrk) player.advanceMarker(score, cb)
-    return score;
+    return [score, scoreStr];
   }
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
