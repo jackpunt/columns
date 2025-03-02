@@ -249,9 +249,6 @@ export class ColSelButton extends CardButton {
     this.paint();
   }
   colId!: string
-  override onClick(evt: any, plyr: Player) {
-    super.onClick(evt, plyr)
-  }
 }
 
 export class ColBidButton extends CardButton {
@@ -274,9 +271,7 @@ export class ColBidButton extends CardButton {
     this.border = 0;
     this.paint();
   }
-  override onClick(evt: any, plyr: Player) {
-    super.onClick(evt, plyr)
-  }
+
   bidOnCol?: number; // debug or post-hoc analysis
   factions!: number[];
   facShape!: Shape;

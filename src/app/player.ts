@@ -96,40 +96,45 @@ export class Player extends PlayerLib implements IPlayer {
     }
     const ymax = this.makeCardButtons(TP.mHexes);  // number of columns
     this.setupCounters(ymax);
-    this.makeAutoButton();
+    const autoBut = this.autoButton = this.makeAutoButton(1, 'A');
+    autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
+    const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
+    redoBut.on(S.click, () => this.selectBid(), this); // select alt bid
   }
 
   makeCardButtons(ncol = 4, nbid = 4) {
     const opts = { visible: true, bgColor: this.color, player: this }
     const { width, height } = new ColSelButton(0, opts).getBounds(); // temp Button to getBounds()
     const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap;
-    const dy = height + gap;
-    const makeButton = (claz: Constructor<CardButton>, num: number, row = 0) => {
+    const dy = height + gap, panel = this.panel;
+    const makeButton = function<T extends CardButton> (claz: Constructor<T>, num: number, row = 0) {
       const x0 = (width / 2) + (wide - (num * dx - gap2)) / 2;
       const y0 = (height / 2) + gap;
-      const rv: CardButton[] = [];
-      for (let ndx = 0; ndx < num; ndx++) {
+      return arrayN(num).map(ndx => {
         const button = new claz(ndx + 1, opts)
         button.x = x0 + dx * ndx;
         button.y = y0 + dy * row;
-        this.panel.addChild(button);
-        rv.push(button)
-      }
-      return rv;
+        panel.addChild(button);
+        return button
+      })
     }
-    this.colSelButtons = makeButton(ColSelButton, ncol, 0) as ColSelButton[];
-    this.colBidButtons = makeButton(ColBidButton, nbid, 1) as ColBidButton[];
+    this.colSelButtons = makeButton(ColSelButton, ncol, 0);
+    this.colBidButtons = makeButton(ColBidButton, nbid, 1);
     const ymax = 2 * dy; // bottom edge of last row of buttons
     return ymax;
   }
-  makeAutoButton() {
+  makeAutoButton(n = 1, label = 'A') {
     const { high } = this.panel.metrics, fs = TP.hexRad / 2;
-    const autoBut = this.autoButton = new UtilButton('A', { visible: true, active: true, border: .1, fontSize: fs })
-    autoBut.x = 0 + fs * .5; autoBut.y = high - fs * .6;
+    const autoBut = new UtilButton(label, { visible: true, active: true, border: .1, fontSize: fs })
+    autoBut.dy1 = -.1; autoBut.setBounds(undefined, 0, 0, 0);
+    autoBut.paint(undefined, true);
+    // if (autoBut.cacheID) { autoBut.updateCache() } else { autoBut.setCacheID() }
+    autoBut.x = (fs * .5) + 0 * fs; autoBut.y = (high - fs * .55) - n * fs * 1.2;
     this.panel.addChild(autoBut)
-    autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
+    return autoBut
   }
   autoButton!: UtilButton;
+  redoButton!: UtilButton;
 
   /** true: player auto-selects play; false: player uses GUI  */
   setAutoPlay(v = !this.useRobo) {
@@ -138,8 +143,11 @@ export class Player extends PlayerLib implements IPlayer {
     this.autoButton.stage?.update();
   }
 
+  // pro-forma so PlayerB can override
+  selectBid() { }
   colSelButtons!: ColSelButton[];
   colBidButtons!: ColBidButton[];
+
   /** at start of round */
   clearButtons() {
     this.colSelButtons.forEach(b => (b.setState(CB.clear)))
@@ -512,27 +520,22 @@ export class PlayerB extends Player {
     this.collectBid_simpleGreedy(); // this.gameState.cardDone = ccard & bcard
   }
 
-  // find top 4 apparent best moves (A1, A2, ..., D3, D4); choose one.
-  // metric is immediate points scored
-  collectBid_simpleGreedy() {
-    // sync subGame with realGame
-    this.subGameSetup.syncGame(); PlayerGameSetup
-    const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
-    console.log(stime(this, ` - ${this.Aname}`), '\n', subGamePlay.mapString)
+  /** play all the cards, return list with each result */
+  collectScores(subGamePlay: GamePlay) {
     const subPlyr = subGamePlay.allPlayers[this.index] as PlayerB;
     const colCards = this.colSelButtons.filter(c => c.state === CB.clear).map(c => subPlyr.colSelButtons[c.colNum - 1])
     const bidCards = this.colBidButtons.filter(b => b.state == CB.clear).map(b => subPlyr.colBidButtons[b.colBid - 1])
+    const bidCard1 = subPlyr.colBidButtons[0]
     const scores2: any[] = []
     const scores = colCards.map(ccard =>
       bidCards.map(bcard => {
         // enable faction match, without triggering isDoneSelecting()
         ccard.setState(CB.selected);
         bcard.setState(CB.selected);
-        let [score, scoreStr] = this.pseudoWin(ccard, bcard); // advance in ccard.col
+        let [score, scoreStr, meep] = this.pseudoWin(ccard, bcard); // advance in ccard.col
         if (subGamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
         }
-        const meep = subGamePlay.gameState.winnerMeep?.toString(); // end location?
         const rv = { ccard, bcard, score, meep, scoreStr }
         if ([2, 3].includes(bcard.colBid)) { scores2.push(rv); }
         ccard.setState(CB.clear);
@@ -540,30 +543,60 @@ export class PlayerB extends Player {
         return rv
       })
     ).flat().concat(scores2)
+    return scores;
+  }
+  latestScores!: ReturnType<PlayerB['collectScores']>
+
+  // Score each choice (A1, A2, ..., D3, D4); sort, choose one of the best.
+  // metric is immediate points scored (plus a bit for rank)
+  collectBid_simpleGreedy() {
+    // sync subGame with realGame
+    this.subGameSetup.syncGame(); PlayerGameSetup
+    const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
+    console.log(stime(this, ` - ${this.Aname}`), '\n', subGamePlay.mapString)
+    const scores = this.latestScores = this.collectScores(subGamePlay)
+    this.selectBid(scores)
+  }
+
+  override selectBid(scores = this.latestScores) {
+    // deselect prevous bid
+    this.colSelButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
+    this.colBidButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
     // Sort and select { ccard, bcard } based on score:
     const scoress = scores.sort((a, b) => b.score - a.score);// descending
     const score0 = scoress[0].score
     const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;
+    // copy the results:
     const scc = scores0.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
     const sc5 = scoress.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
-    const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;
     if (scoress.length < 3) debugger;
-    let ndx = 0;
-    const { ccard, bcard, score, meep } = (slen >= 1)
-      ? scores0[ndx = Random.random(scores0.length)]
-      : scoress[ndx = permute(ndxs)[Random.random(len)]];
+    // choose a col/bid pair:
+    const { ccard, bcard, score, meep, ndx } = (slen >= 1)
+      ? this.uniformChoice(scores0)
+      : this.fuzzyChoice(scoress);
+    // translate to *this* player:
     const colCard = this.colSelButtons.find(b => b.colNum == ccard.colNum) as ColSelButton;
     const bidCard = this.colBidButtons.find(b => b.colBid == bcard.colBid) as ColBidButton;
     const plyrId = AT.ansiText(['red', 'bold'], this.Aname)
     const ndxStr = AT.ansiText([slen == 1 ? 'red' : 'blue', 'bold'], `${ndx}/${slen}`)
     console.log(stime(this, `.collectBid_greedy: ${plyrId} [${ndxStr}] ${colCard.colId}-${bidCard.colBid} => ${score0} meep=${meep}\n`), scc, sc5)
-    colCard.onClick({}, this)
-    bidCard.onClick({}, this)
+    colCard.select()
+    bidCard.select()
     this.gamePlay.hexMap.update()
   }
 
+  uniformChoice(scores: ReturnType<PlayerB['collectScores']>) {
+    const ndx = Random.random(scores.length);
+    return { ...scores[ndx], ndx }
+  }
+  fuzzyChoice(scores: ReturnType<PlayerB['collectScores']>) {
+    const ndxs = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3], len = ndxs.length;
+    const ndx = permute(ndxs)[Random.random(len)]
+    return { ...scores[ndx], ndx };
+  }
+
   /** pretend ccard,bcard win, and advance on col */
-  pseudoWin(ccard: ColSelButton, bcard: ColBidButton): [score: number, str: string] {
+  pseudoWin(ccard: ColSelButton, bcard: ColBidButton): [score: number, str: string, meepStr: string] {
     const col = ccard.colNum
     const gamePlay = this.subGameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
@@ -575,7 +608,7 @@ export class PlayerB extends Player {
     const meepsInCol = gamePlay.meepsInCol(col, plyr);
     const meep = plyr.meepleToAdvance(meepsInCol);
     gamePlay.gameState.winnerMeep = meep;
-    const bumpDir = gamePlay.advanceMeeple(meep)
+    const bumpDir = gamePlay.advanceMeeple(meep), meepStr = meep.toString();
     const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
     const rankDiff = Math.round((plyr.rankScoreNow - rankScore0) * perTurn);
     const rd = Math.max(0, rankDiff); // TODO: per turnOfRound
@@ -583,7 +616,7 @@ export class PlayerB extends Player {
     // restore meeps to original locations:
     fromCardNdx.sort(([am, ac], [bm, bc]) => ac.rank - bc.rank); // increasing rank (for up-bumps)
     fromCardNdx.forEach(([meep, card, ndx]) => card.addMeep(meep, ndx)); // back to original slots
-    return [score, `${scoreStr} +${rd}`]
+    return [score, `${scoreStr} +${rd}`, meepStr]
   }
 
   // advanceMeeple will need to decide who/how to bump:
