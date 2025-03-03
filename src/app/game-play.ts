@@ -167,22 +167,29 @@ export class GamePlay extends GamePlayLib {
    * @param cb callback when bump & cascade is complete
    */
   advanceMeeple(meep: ColMeeple, cb?: () => void) {
-    const player = meep.player, dir0: (0) = 0;
-    const toBump = player.bumpMeeple(meep, dir0); // loop until no more bumps
-    const [bumpee, bumpDir] = toBump ? meep.player.chooseMeepAndBumpDir(meep, dir0) : [meep, 0 as (1 | -1 | -2)];
+    // addMeep to next card, choose bumpDir
+    const card = meep.card.nextCard(1), nCells = card.factions.length;
+    const open = card.openCells, nOpen = open.length;
+    const { bumpDir, ndx } = (nCells == 2) && (nOpen == 2 || nOpen == 0)
+      ? meep.player.chooseCellForAdvance(meep, card)
+      : { ndx: open[0], bumpDir: 1 as 1 | -1 } // take the [first] open slot
+    const toBump = card.addMeep(meep, ndx)
     if (toBump) {
-      this.bumpAndCascade(bumpee, bumpDir);
+      const [bumpee, ndx] = meep.player.chooseMeep_Cell(meep, bumpDir);
+      this.bumpAndCascade(bumpee, bumpDir, ndx);
     }
     if (cb) cb(); // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
   }
 
-  bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2, depth = 0) {
+  bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2, ndx: number, depth = 0) {
+    const cascadeDir = (bumpDir == -2) ? -1 : bumpDir;
     if (depth > this.nRows) debugger;
-    const toBump = meep.player.bumpMeeple(meep, bumpDir)
+    const card = meep.card.nextCard(bumpDir);
+    const toBump = card.addMeep(meep, ndx)
     if (toBump) {
-      const [bumpee] = meep.player.chooseMeepAndBumpDir(meep, bumpDir);
-      this.bumpAndCascade(bumpee, bumpDir, depth + 1)
+      const [bumpee, ndx] = meep.player.chooseMeep_Cell(meep, cascadeDir);
+      this.bumpAndCascade(bumpee, cascadeDir, ndx, depth + 1)
     }
   }
 

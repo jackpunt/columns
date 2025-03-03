@@ -26,8 +26,7 @@ export interface IPlayer {
   bidOnCol(col: number): PlyrBid | undefined;
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
-  /** @param dir 0: advance, 1: up, -1, -2: down */
-  bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2), cb?: () => void): boolean;
+  chooseMeep_Cell(meep: ColMeeple, bumpDir: -2 | -1 | 1): [ColMeeple, ndx: number]
   commitCards(): void;
 }
 
@@ -408,41 +407,66 @@ export class Player extends PlayerLib implements IPlayer {
     return meep;
   }
 
-  /** this player moves meep, and invokes bumpee.bumpMeeple.
-   * invoke cb() when bump cascade if done (no bumpee, or bump to black)
-   *
-   * @param meep the meep that need to find a home
-   * @param dir the direction for this bump (0 for initial/winningBidder: up & then choose bumpDir)
-   * @returns true if bump cascades
-   */
-  bumpMeeple(meep: ColMeeple, dir: (0 | 1 | -1 | -2)) {
-    const dir0 = dir || 1;  // (dir0 == 0) IFF advance/winner
-    const card = meep.card.nextCard(dir0);   // should NOT bump from black, but...
-    const open = card.openCells, ol = open.length, cardFacs = card.factions;
-    const cellNdx = (ol > 0 && (ol == 1 || ol < cardFacs.length))
-      ? open[0] // take the open slot (or next slot of Black card)
-      : this.chooseCellToEnter(card)
-    const toBump = card.addMeep(meep, cellNdx); // place in chosen cellNdx
-    return toBump;
+  bestFacs(card: ColCard) {
+    const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
+    const bestFacs = card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
+    return bestFacs
   }
 
-  /** choose meep to bump; if winning-bidder (dir == 0) also choose bumpDir  */
-  chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2): [ColMeeple, 1 | -1 | -2] {
-    const other = meep.card.otherMeepInCell(meep) as ColMeeple;
-    const bumpDir = (dir !== 0) ? dir : 1; // TODO: more consideration
-    // if other is mine && card.fac.includes(bidFac) -> bump other
-    if (other.player == this) {
-      const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
-      const bestFacs = meep.card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
-      const bidFacs = this.curBidCard?.factions ?? [];
-      const bestBid = bestFacs.find(fac => bidFacs.includes(fac));
-      const sw = bestBid && meep.card.factions.includes(bestBid)
-      if (!!sw || meep.card.factions.find(fac => bidFacs.includes(fac)))
-        return [other, bumpDir]
-    }
-    const bumpee = (meep.card.rank == 4) ? other : meep;
-    return [bumpee, bumpDir];
+  readonly bumpDirs = [-2, -1, 1] as const;
+  /** advance meep to card (dir = 1); choose bumpDir for other bumps */
+  chooseCellForAdvance(meep: ColMeeple, card: ColCard) {
+    const rv = this.bumpDirs.map(dir => this.bestBumpInDir(meep, card, dir)).sort((a, b) => b.score - a.score)[0]
+    const { bumpDir, ndx } = rv
+    return { bumpDir, ndx }
   }
+  /** put meep on card, optimize cell and meepToBump */
+  bestBumpInDir(meep: ColMeeple, card: ColCard, dir: -2 | -1 | 1) {
+    // TODO: search tree of {dir, ndx} over cascades (if any)
+    const score = 2, ndx = 0;
+    return { ndx, bumpDir: dir, meep, score }
+  }
+
+  /**
+   * meep and other are in same cell, one of them must be bumped.
+   *
+   * choose which to bump also choose bumpDir
+   */
+  chooseMeep_Cell(meep: ColMeeple, bumpDir: -2 | -1 | 1): [ColMeeple, ndx: number] {
+    const card0 = meep.card, other = card0.otherMeepInCell(meep) as ColMeeple;
+    const card2 = card0.nextCard(bumpDir)
+    // if other is mine && isOk then bump other
+    if (other.player == this) {
+      const bestFacs = this.bestFacs(card0)
+      const bidFacs = this.curBidCard?.factions ?? [];
+      const isOk = !!bestFacs.find(fac => bidFacs.includes(fac)); // card has best fac & best bid
+      // meep.card is good/ok to land, secure that landing and bump our co-agent;
+      if (isOk) {
+        return this.chooseCellForBumpee(other, bumpDir, card2)
+      }
+    }
+    // TODO: ndx for OTHER player
+    const ndx = (card2.factions.length !== 2) ? 0 : this.chooseCellToEnter(card2);
+    if (bumpDir < 0) return [other, ndx];
+    if (card2.hex.row === 0) return [other, 0];
+    // TODO: integrate chooseCellToEnter & chooseCellForBumpee
+    // Pro'ly using bestBumpInDir()
+    const bumpee = (meep.card.rank == 4) ? other : meep;
+    return this.chooseCellForBumpee(bumpee, bumpDir, card2)
+  }
+
+  /** bumpee is being bumped in dir to card: choose cellNdx */
+  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: 1 | -1 | -2, card: ColCard): [ColMeeple, ndx: number] {
+    // TODO:
+    // bumpDir=1
+    // bumpee is ours: hit something so we can re-bump, or bestBid so we can stay;
+    // bumpee not ours: hit black or empty to limit cascade
+    // else bumpDir == -1 | -2
+    // bumpee is ours: try hit bestFacs, else hit something to rebump
+    // bumpee not ours: hit something so others re-bump [or not if we are lower in chain]
+    return [bumpee, 0]
+  }
+
 
   /** same or equivalent factions, both empty or both occupied */
   chooseCellToEnter(card: ColCard) {
@@ -620,7 +644,7 @@ export class PlayerB extends Player {
   }
 
   // advanceMeeple will need to decide who/how to bump:
-  override chooseMeepAndBumpDir(meep: ColMeeple, dir: 0 | 1 | -1 | -2): [ColMeeple, 1 | -1 | -2] {
+  override chooseMeep_Cell(meep: ColMeeple, dir: 1 | -1): [ColMeeple, ndx: number] {
     // TODO: consider bumping other if meep is on colBid faction
     // try each dir/bumpee combo to maximise colorScore & rankScore
     // looking ahead/comparing with this.rankScoreNow
@@ -630,10 +654,19 @@ export class PlayerB extends Player {
     // our 'model' of other player is base class Player?
     // pro'ly subGameSetup will instantiate the same class
     // TODO: set Player.params on each instance 'randomly'
-    const [bumpee, dir1] = super.chooseMeepAndBumpDir(meep, dir)
-    const other = meep.card.otherMeepInCell(meep) as ColMeeple;
-    return [bumpee, dir1];
+    const card = meep.card, other = card.otherMeepInCell(meep) as ColMeeple;
+    if (dir == -1) {
+      return [other, 0]; // TODO: pick cell...
+    }
+    // const bumpDir = (dir !== 0) ? dir : 1; // TODO: consider each direction
+    const bumpStops = this.bumpStops(meep, dir || 1)
+    const bestFacs = this.bestFacs(card);
+
+    const bumpee = (meep.card.rank == 4) ? other : meep;
+
+    return [bumpee, 0];
   }
+
   // TODO winnerMeep: examine intermediate stop/bump cards/cells
   /** cards on which we could choose to stop our bumping meeple */
   bumpStops(meep: ColMeeple, dir: 1 | -1 | -2) {
@@ -644,9 +677,5 @@ export class PlayerB extends Player {
       cards.push(cardn)
     } while ((dir == 1) ? cardn.openCells.length == 0 : (cardn.rank == 0 || cardn.cellsInUse.length == 0))
     return cards;
-  }
-
-  override bumpMeeple(meep: ColMeeple, dir0?: (0 | 1 | -1 | -2), cb?: () => void) {
-    return super.bumpMeeple(meep, dir0 ?? 1)
   }
 }

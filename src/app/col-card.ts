@@ -267,6 +267,11 @@ export class BlackCard extends ColCard {
   }
 
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
+
+  // ignore given cellNdx, dump in first empty cell
+  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY): boolean {
+    return super.addMeep(meep, this.openCells[0], xy)
+  }
 }
 
 export class PrintCol extends ColCard {
