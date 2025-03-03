@@ -53,7 +53,7 @@ export class GameState extends GameStateLib {
     if (this.allDone) {
       this.table.doneButton.paint(C.lightgreen);
       this.gamePlay.hexMap.update();
-      if (this.autoDone) this.done(true); // CollectBids / SelectCol is done
+      if (this.autoDone) setTimeout(() => this.done(true), 4); // CollectBids / SelectCol is done
     } else {
       this.table.doneButton.paint(C.YELLOW);
       this.gamePlay.hexMap.update();
@@ -113,7 +113,7 @@ export class GameState extends GameStateLib {
     BeginTurn: {
       start: () => {
         this.gamePlay.saveGame();
-        this.phase('CollectBids');
+        setTimeout(() => this.phase('CollectBids'), 0);
       }
     },
     CollectBids: {

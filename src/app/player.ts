@@ -499,6 +499,12 @@ export class Player extends PlayerLib implements IPlayer {
 
 export class PlayerB extends Player {
 
+  override newGame(gamePlay: GamePlay, url?: string): void {
+    super.newGame; //(gamePlay, url)
+    // autoPlay for top-level GUI-enabled PlayerB:
+    if (!!gamePlay.table.stage.canvas) this.setAutoPlay(true)
+  }
+
   dualsInCol(col: number) {
     const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
     return cards.filter(card => card.factions.length > 1)
@@ -517,9 +523,7 @@ export class PlayerB extends Player {
     super.setAutoPlay(v);
     if (this.useRobo && !this.subGameSetup) this.subGameSetup = this.makeSubGame();
     if (this.gamePlay.isPhase('CollectBids')) {
-    setTimeout(() => {
-        this.collectBid();
-    }, 100);
+      setTimeout(() => this.collectBid(), 10);
     }
   }
 

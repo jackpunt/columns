@@ -76,22 +76,6 @@ export class ColTable extends Table {
     super.toggleText(vis);
   }
 
-  makeSourceAtRowCol<T extends Tile>(ms: (hex: Hex2) => TileSource<T>,
-    name = 'tileSource', row = 1, col = 1, counterXY?: Partial<XY>,
-    hexC = this.hexC,
-  ) {
-    const hex = this.newHex2(row, col, name, hexC) as IHex2;
-    this.setToRowCol(hex.cont, row, col); // on hexCont!??
-    const source = ms(hex);
-    source.permuteAvailable();
-    const { x: dx, y: dy } = { ... { x: .5, y: .5 }, ...counterXY }
-    const { x, y, width, height } = hex.cont.getBounds()
-    source.counter.x = hex.cont.x + (x + dx * width);
-    source.counter.y = hex.cont.y + (y + dy * height);
-    hex.distText.y = 0;
-    return source;
-  }
-
   override layoutTable2() {
     this.initialVis = false;
     this.addDoneButton().activate(true);

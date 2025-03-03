@@ -30,7 +30,7 @@ export class GameSetup extends GameSetupLib {
   override initialize(canvasId: string): void {
     // for hexmarket to bringup their own menus:
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
-    console.log(stime(this, `------------------------ GameSetup ---------------------------`))
+    console.log(stime(this, `---------------------   GameSetup.initialize  ----------------`))
     super.initialize(canvasId)
     return;
   }
@@ -114,7 +114,7 @@ export class PlayerGameSetup extends GameSetup {
     (this as any).logWriter = new PlayerLogWriter(gs.logWriter);
   }
   override initialize(canvasId: string): void {
-    console.log(stime(this, `-------------------      GameSetup     ----------------`))
+    console.log(stime(this, `---------------    PlayerGameSetup: ${canvasId ?? 'robo'} ------------`))
     this.stage = makeStage(canvasId, false);
   }
   override makeLogWriter() { return {} as LogWriter; }
