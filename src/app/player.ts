@@ -26,7 +26,7 @@ export interface IPlayer {
   bidOnCol(col: number): PlyrBid | undefined;
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
-  chooseMeep_Cell(meep: ColMeeple, bumpDir: -2 | -1 | 1): [ColMeeple, ndx: number]
+  chooseBumpee_Ndx(meep: ColMeeple, bumpDir: -1 | 1): [ColMeeple, ndx: number]
   commitCards(): void;
 }
 
@@ -414,8 +414,8 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   readonly bumpDirs = [-2, -1, 1] as const;
-  /** advance meep to card (dir = 1); choose bumpDir for other bumps */
-  chooseCellForAdvance(meep: ColMeeple, card: ColCard) {
+  /** meep will Advance (dir=1) to card; select a cellNdx & bumpDir for any bumps */
+  selectNdx_BumpDir(meep: ColMeeple, card: ColCard) {
     const rv = this.bumpDirs.map(dir => this.bestBumpInDir(meep, card, dir)).sort((a, b) => b.score - a.score)[0]
     const { bumpDir, ndx } = rv
     return { bumpDir, ndx }
@@ -432,7 +432,7 @@ export class Player extends PlayerLib implements IPlayer {
    *
    * choose which to bump also choose bumpDir
    */
-  chooseMeep_Cell(meep: ColMeeple, bumpDir: -2 | -1 | 1): [ColMeeple, ndx: number] {
+  chooseBumpee_Ndx(meep: ColMeeple, bumpDir: -1 | 1): [ColMeeple, ndx: number] {
     const card0 = meep.card, other = card0.otherMeepInCell(meep) as ColMeeple;
     const card2 = card0.nextCard(bumpDir)
     // if other is mine && isOk then bump other
@@ -644,7 +644,7 @@ export class PlayerB extends Player {
   }
 
   // advanceMeeple will need to decide who/how to bump:
-  override chooseMeep_Cell(meep: ColMeeple, dir: 1 | -1): [ColMeeple, ndx: number] {
+  override chooseBumpee_Ndx(meep: ColMeeple, dir: 1 | -1): [ColMeeple, ndx: number] {
     // TODO: consider bumping other if meep is on colBid faction
     // try each dir/bumpee combo to maximise colorScore & rankScore
     // looking ahead/comparing with this.rankScoreNow

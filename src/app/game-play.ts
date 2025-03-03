@@ -9,6 +9,7 @@ import type { HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { ScenarioParser } from "./scenario-parser";
 import { TP } from "./table-params";
+import type { ColCard } from "./col-card";
 
 /** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
 export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
@@ -162,34 +163,31 @@ export class GamePlay extends GamePlayLib {
 
 
   /**
-   * advance (dir = 0); then bump & cascade.
+   * Advance (dir = 1); then bump & cascade.
    * @param meep
    * @param cb callback when bump & cascade is complete
    */
   advanceMeeple(meep: ColMeeple, cb?: () => void) {
     // addMeep to next card, choose bumpDir
-    const card = meep.card.nextCard(1), nCells = card.factions.length;
-    const open = card.openCells, nOpen = open.length;
-    const { bumpDir, ndx } = (nCells == 2) && (nOpen == 2 || nOpen == 0)
-      ? meep.player.chooseCellForAdvance(meep, card)
+    const advCard = meep.card.nextCard(1), open = advCard.openCells;
+    const nCells = advCard.factions.length, nOpen = open.length;
+    const { bumpDir, ndx } = (nCells == 2) && (nOpen != 1)
+      ? meep.player.selectNdx_BumpDir(meep, advCard)
       : { ndx: open[0], bumpDir: 1 as 1 | -1 } // take the [first] open slot
-    const toBump = card.addMeep(meep, ndx)
-    if (toBump) {
-      const [bumpee, ndx] = meep.player.chooseMeep_Cell(meep, bumpDir);
-      this.bumpAndCascade(bumpee, bumpDir, ndx);
-    }
+    this.bumpAndCascade(meep, advCard, ndx, bumpDir)
     if (cb) cb(); // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
   }
 
-  bumpAndCascade(meep: ColMeeple, bumpDir: 1 | -1 | -2, ndx: number, depth = 0) {
-    const cascadeDir = (bumpDir == -2) ? -1 : bumpDir;
+  /** add meep to (card,ndx); any bump goes to bumpDir */
+  bumpAndCascade(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: 1 | -1 | -2, depth = 0) {
     if (depth > this.nRows) debugger;
-    const card = meep.card.nextCard(bumpDir);
     const toBump = card.addMeep(meep, ndx)
     if (toBump) {
-      const [bumpee, ndx] = meep.player.chooseMeep_Cell(meep, cascadeDir);
-      this.bumpAndCascade(bumpee, cascadeDir, ndx, depth + 1)
+      const nextCard = card.nextCard(bumpDir)
+      const cascDir = (bumpDir == -2) ? -1 : bumpDir;
+      const [bumpee, ndx] = meep.player.chooseBumpee_Ndx(meep, cascDir);
+      this.bumpAndCascade(bumpee, nextCard, ndx, cascDir, depth + 1);
     }
   }
 
