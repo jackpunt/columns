@@ -145,6 +145,12 @@ export class ColTable extends Table {
     return nLegal;
   }
 
+  override makeGUIs(scale?: number, cx?: number, cy?: number, dy?: number): void {
+    // this.guisToMake = [this.makeParamGUI]
+    if (!this.stage.canvas) return;
+    super.makeGUIs(scale, cx, cy);
+  }
+
   override makeParamGUI(parent: Container, x = 0, y = 0) {
     const gui = new ParamGUI(TP, { textAlign: 'right' });
     gui.name = gui.Aname = 'ParamGUI';
