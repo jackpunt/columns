@@ -5,6 +5,7 @@ import { Meeple, Player as PlayerLib, Table, Tile, type DragContext, type Hex1, 
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import { ColTable } from "./col-table";
+import type { Faction } from "./game-play";
 import type { GameState } from "./game-state";
 import { MeepleShape } from "./meeple-shape";
 import { OrthoHex2 } from "./ortho-hex";
@@ -28,7 +29,7 @@ export class ColMeeple extends Meeple {
   /** ColCard on which this meeple is placed */
   card!: ColCard;
   /** faction of cell (of card) meeple is in/on. */
-  faction?: number;
+  faction?: Faction;
   override makeShape(): Paintable {
     const x = TP.hexRad / 2, y = x * (5 / 3);
     return new MeepleShape(this.player?.color ?? 'pink', { x, y })
@@ -331,7 +332,7 @@ export class PrintColSelect extends ColSelButton {
   constructor(seqLim: number, pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = seqLim > 0 ? 1 : 0;
-    const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
+    const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = player.color;
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)
     this.addSideNum();
@@ -349,7 +350,7 @@ export class PrintBidValue extends ColBidButton {
   constructor(seqLim: number, pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
-    const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid)
+    const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = player.color;
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)
 

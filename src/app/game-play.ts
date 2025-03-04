@@ -1,12 +1,12 @@
 import { json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib } from "@thegraid/hexlib";
-import { CB, ColMeeple } from "./col-meeple";
+import { CB, type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
-import { GameSetup } from "./game-setup";
+import type { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
 import type { HexMap2 } from "./ortho-hex";
-import { Player } from "./player";
+import type { Player } from "./player";
 import { ScenarioParser } from "./scenario-parser";
 import { TP } from "./table-params";
 import type { ColCard } from "./col-card";
@@ -47,7 +47,8 @@ export class GamePlay extends GamePlayLib {
 
   get mapString() {
     return arrayN(this.nRows)
-      .map(row => this.cardsInRow(row).map(card => card.meepStr).join(' | '))
+      .map(row => this.cardsInRow(row).map(card => card?.meepStr).join(' | '))
+      .concat(this.cardsInRow(this.nRows - 1).map(card => `${`${card.cellsInUse.length}`.padEnd(3)}`).join(' | '))
       .join('\n ')
   }
 
@@ -80,8 +81,7 @@ export class GamePlay extends GamePlayLib {
     const gp = this, hexMap = gp.hexMap;
     const time = stime.fs();
     const n = gp.allPlayers.length;
-    // colorName shows in player.Aname:
-    const playerColors = gp.allPlayers.map(plyr => Player.colorName(plyr.color)); // canonical color
+    const playerColors = gp.allPlayers.map(plyr => plyr.cname); // canonical color
     const turn = Math.max(0, gp.turnNumber);
     const tableElts = gp.table.saveState();
     const layout = this.getLayout()
@@ -95,7 +95,7 @@ export class GamePlay extends GamePlayLib {
     const line03 = line02.replace(/^{/, '{\n')
     const line0 = line03.replace(/}$/, '\n}')
     console.log(`-------------------- ${line0}`)
-    this.logWriter.writeLine(`{${key}: ${line0}},`)
+    this.logWriter?.writeLine(`{${key}: ${line0}},`)
   }
   override logNextPlayer(from: string): void {  } // no log
   override isEndOfGame(): boolean {
@@ -213,7 +213,7 @@ export class GamePlay extends GamePlayLib {
   /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */
   scoreForColor(meep: ColMeeple | undefined, cb?: () => void, advMrk = true): [score: number, str: string] {
     if (!meep) { cb && cb(); return [0, '!meep'] };
-    const faction = meep.faction as number; // by now, meeplesOnCard has resolved.
+    const faction = meep.faction as Faction; // by now, meeplesOnCard has resolved.
     const player = meep.player;
     const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected);
     if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return [0, 'noBid'] };
@@ -222,7 +222,8 @@ export class GamePlay extends GamePlayLib {
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
     const scoreStr = `${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`;
-    this.logText(scoreStr, `scoreForColor[${faction}]-${meep.toString()}`)
+    const anno = (this.table.stage.canvas) ? '' : 'R ';
+    this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
     if (advMrk) player.advanceMarker(score, cb)
     return [score, scoreStr];
   }

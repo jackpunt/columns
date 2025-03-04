@@ -1,8 +1,9 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
 import { BlackCard, ColCard, DualCard } from "./col-card";
+import type { ColTable } from "./col-table";
 import { arrayN, type Faction, type GamePlay } from "./game-play";
-import { Player } from "./player";
+import type { HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // rowElt.length = nCols
@@ -21,9 +22,16 @@ interface StartElt extends SetupElt, SetupEltLib {
 export class ScenarioParser extends SPLib {
   declare gamePlay: GamePlay;
 
+  table: ColTable;
+  constructor(map: HexMap2, gamePlay: GamePlay) {
+    super(map, gamePlay)
+    this.table = gamePlay.table; // for stime.anno
+  }
+
   // from gameSetup.parseScenario:
   override parseScenario(setup: SetupElt & { start?: StartElt }) {
     console.log(stime(this, `.parseScenario: newState =`), setup);
+    Tile.gamePlay = this.gamePlay;
     if (setup.start) {
       const { n: nPlayers, trackSegs } = (setup.start as StartElt)
       TP.numPlayers = nPlayers;
@@ -121,7 +129,6 @@ export class ScenarioParser extends SPLib {
     const allPlayers = gamePlay.allPlayers;
     gamePlay.allMeeples.length = 0; // discard initial/default meeples
     if (layout) {
-      Tile.gamePlay = gamePlay; // so Meeples can find their GamePlay
       layout.forEach((rowElt, row) => {
         rowElt.forEach(({ meeps }, col) => {
           meeps?.forEach(pid => {

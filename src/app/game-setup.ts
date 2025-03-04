@@ -1,6 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { makeStage } from '@thegraid/easeljs-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Scenario as Scenario0, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { makeStage, type NamedObject } from '@thegraid/easeljs-lib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -112,17 +112,35 @@ export class PlayerGameSetup extends GameSetup {
     super(undefined, scenario);
     // makeLogWriter is invoked by super, *before* gs is available, so overwrite here:
     (this as any).logWriter = new PlayerLogWriter(gs.logWriter);
+    this.startup(this.qParams);
   }
   override initialize(canvasId: string): void {
     console.log(stime(this, `---------------    PlayerGameSetup: ${canvasId ?? 'robo'} ------------`))
     this.stage = makeStage(canvasId, false);
+    PlayerLib.logNewPlayer = (plyr: PlayerLib) => {
+      if (plyr.gamePlay.table.stage.canvas) {
+        console.log(stime(plyr, `.new:`), plyr.Aname, plyr);
+      }
+    }
   }
-  override makeLogWriter() { return {} as LogWriter; }
+  override makeLogWriter() { return undefined; }
 
   override loadImagesThenStartup(scenario: Scenario = this.qParams): void {
     // do NOT create new loader:
     const msImage = AliasLoader.loader.getImage('meeple-shape'); // just to show we can
-    setTimeout(() => this.startup(scenario), 0); // new task
+    // setTimeout(() => this.startup(scenario), 0); // new task
+    this.startup(scenario)
+  }
+
+  override makePlayer(ndx: number, gamePlay: GamePlay) {
+    const plyr = new PlayerB(ndx, gamePlay);
+    (plyr as NamedObject).Aname = `${plyr.Aname} R `;
+    return plyr;
+  }
+  override startGame(): void {
+    this.table.startGame();
+    this.gamePlay.gameState.start('Idle')
+    return; // try DO NOT START the GUI
   }
 
   syncGame() {
@@ -134,8 +152,9 @@ export class PlayerGameSetup extends GameSetup {
   }
 }
 
+/** maybe log selected lines... */
 class PlayerLogWriter extends LogWriter {
-  constructor(public gsLogwriter: LogWriter) {
+  constructor(public gsLogwriter?: LogWriter) {
     super()
     this.writeLine()
   }

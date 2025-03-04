@@ -106,7 +106,6 @@ export class ColTable extends Table {
   override startGame() {
     this.scaleCont.addChild(this.overlayCont); // now at top of the list.
     this.gamePlay.setNextPlayer(this.gamePlay.turnNumber > 0 ? this.gamePlay.turnNumber : 0);
-    this.gamePlay.gameState.start();   // gamePlay.phase(startPhase); enable GUI to drive game
   }
 
   override logCurPlayer(plyr: Player, tn = this.gamePlay.gameState.turnId) {

@@ -1,11 +1,10 @@
 import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib } from "@thegraid/hexlib";
+import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib, Tile } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, ColBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
-import type { MarkerShape } from "./col-table";
-// import { GameModel } from "./game-model";
-import { arrayN, GamePlay, nFacs, type Faction } from "./game-play";
+import type { ColTable, MarkerShape } from "./col-table";
+import { arrayN, GamePlay, nFacs } from "./game-play";
 import { PlayerGameSetup } from "./game-setup";
 import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
@@ -30,7 +29,6 @@ export interface IPlayer {
   commitCards(): void;
 }
 
-export type PlayerColor = string;
 export class Player extends PlayerLib implements IPlayer {
   static initialCoins = 400;
   // set our multi-player colors; we don't use the TP.colorScheme
@@ -38,29 +36,26 @@ export class Player extends PlayerLib implements IPlayer {
   static {
     PlayerLib.colorScheme = {
       brown: '#784600', // #663300
-      pink: '#FF33CC',
-      orange: '#FF9900',
-      green: '#66CC00',
-      grey: '#5c5c5c',
+      pink: '#FF33CC',  // #FF33CC
+      orange: '#FF9900',// #FF9900
+      green: '#66CC00', // #66CC00
+      grey: '#5c5c5c',  // #5c5c5c
       yellow: 'yellow',
       tan: 'tan',
-      purple: '#ab47bc',
+      purple: '#ab47bc',// #ab47bc
       blue: 'lightblue',
-      white: 'white'
+      white: 'white',
     }
   }
-
-  // declare static allPlayers: Player[];
-
-  override get color(): PlayerColor { return super.color as PlayerColor; }
-  override set color(c: PlayerColor) { super.color = c; }
 
   override get meeples() { return super.meeples as ColMeeple[]; }
 
   declare gamePlay: GamePlay;
 
+  table: ColTable;
   constructor(index: number, gamePlay: GamePlay) {
     super(index, gamePlay);
+    this.table = gamePlay.table; // for stime.anno
   }
 
   /** Sum of this player's scoreForRow */
@@ -264,6 +259,7 @@ export class Player extends PlayerLib implements IPlayer {
    * @param ext [''] mark name of xtraCol meeple
    */
   makeMeeple(hexMap: HexMap2, colNum: number, rank = 0, ext = '') {
+    Tile.gamePlay = this.gamePlay; // so Meeples can find their GamePlay
     const colId = ColSelButton.colNames[colNum]
     const meep = new ColMeeple(`Meep-${this.index}:${colId}${ext}`, this)
     meep.paint(this.color);
@@ -501,8 +497,11 @@ export class PlayerB extends Player {
 
   override newGame(gamePlay: GamePlay, url?: string): void {
     super.newGame; //(gamePlay, url)
-    // autoPlay for top-level GUI-enabled PlayerB:
-    if (!!gamePlay.table.stage.canvas) this.setAutoPlay(true)
+    // setAutoPlay() for top-level GUI-enabled PlayerB:
+    if (!!gamePlay.table.stage.canvas) {
+      console.log(stime(this, `.newGame[${this.index}] ${this.Aname}`))
+      setTimeout(() => this.setAutoPlay(true), 10)
+    }
   }
 
   dualsInCol(col: number) {
@@ -521,7 +520,8 @@ export class PlayerB extends Player {
 
   override setAutoPlay(v?: boolean): void {
     super.setAutoPlay(v);
-    if (this.useRobo && !this.subGameSetup) this.subGameSetup = this.makeSubGame();
+    if (!this.useRobo) return;
+    if (!this.subGameSetup) this.subGameSetup = this.makeSubGame();
     if (this.gamePlay.isPhase('CollectBids')) {
       setTimeout(() => this.collectBid(), 10);
     }
@@ -581,7 +581,7 @@ export class PlayerB extends Player {
     // sync subGame with realGame
     this.subGameSetup.syncGame(); PlayerGameSetup
     const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
-    console.log(stime(this, ` - ${this.Aname}`), '\n', subGamePlay.mapString)
+    // console.log(stime(this, `.simpleGreedy - ${this.Aname} \n`), subGamePlay.mapString)
     const scores = this.latestScores = this.collectScores(subGamePlay)
     this.selectBid(scores)
   }
@@ -634,7 +634,7 @@ export class PlayerB extends Player {
     const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
     // player meepsInCol:
     const meepsInCol = gamePlay.meepsInCol(col, plyr);
-    const meep = plyr.meepleToAdvance(meepsInCol);
+    const meep = plyr.meepleToAdvance(meepsInCol); // choose lowest rank [TODO-each]
     gamePlay.gameState.winnerMeep = meep;
     const bumpDir = gamePlay.advanceMeeple(meep), meepStr = meep.toString();
     const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)

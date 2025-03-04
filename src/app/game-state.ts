@@ -1,4 +1,4 @@
-import { C } from "@thegraid/common-lib";
+import { C, stime } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
 import { type CardButton, type ColMeeple } from "./col-meeple";
@@ -32,6 +32,17 @@ export class GameState extends GameStateLib {
   get turnOfRound() { return 1 + this.gamePlay.turnNumber % GS.tpr}
   get roundNumber() { return 1 + Math.floor(this.gamePlay.turnNumber / GS.tpr) }
   get turnId() { return this.roundNumber + this.turnOfRound / 10 }
+
+  override start(startPhase?: string, startArgs?: any[]): void {
+    super.start(startPhase, startArgs);
+  }
+
+  override phase(phase: string, ...args: any[]): void {
+    const M = this.table.stage.canvas ? 'M' : 'P';
+    const robos = this.gamePlay.allPlayers.map(p => p.useRobo ? 'R' : M).join('-')
+    console.log(stime(this, `.phase: robos = ${robos} ${this.state?.Aname ?? 'Initialize'}`))
+    super.phase(phase, ...args)
+  }
   override saveState(): any[] {
     return [this.state.Aname] as [string];
   }
@@ -50,7 +61,9 @@ export class GameState extends GameStateLib {
   get cardDone() { return this._cardDone; }
   set cardDone(v) { // BidCard or CoinCard selected [not committed]; "maybeDone"
     this._cardDone = v;    // most recent selection, pro'ly not useful
+    // console.log(stime(this, `.cardDone: ${v?.Aname} ${v?.player.Aname} \n`), this.gamePlay.mapString);
     if (this.allDone) {
+      // console.log(stime(this, `.cardDone.allDone: \n`), this.gamePlay.mapString);
       this.table.doneButton.paint(C.lightgreen);
       this.gamePlay.hexMap.update();
       if (this.autoDone) setTimeout(() => this.done(true), 4); // CollectBids / SelectCol is done
@@ -74,6 +87,11 @@ export class GameState extends GameStateLib {
 
   /** States for 'Columns' (Knives-Out, Ambition, '"利刃出击"' '"利刃出鞘"') */
   override readonly states: { [index: string]: Phase } = {
+    Idle: {
+      start: () => {
+        return; // Don't start anything, PlayerB will drive the state
+      }
+    },
     SelectCol: {
       start: () => {
         if (this.gamePlay.allPlayers[0].meeples.length > this.nCols) {
@@ -97,6 +115,7 @@ export class GameState extends GameStateLib {
             plyr.makeMeeple(this.gamePlay.hexMap, xtraCol, undefined, '*');
             plyr.clearButtons();
           })
+          // console.log(stime(this, `.SelectCol.done: \n`), this.gamePlay.mapString);
           this.phase('BeginRound');
         }
       }
@@ -107,18 +126,21 @@ export class GameState extends GameStateLib {
     BeginRound: {
       start: () => {
         this.gamePlay.resetPlayerCards();
+        // console.log(stime(this, `.BeginRound.start: \n`), this.gamePlay.mapString);
         this.phase('BeginTurn'); // do first turn of round
       }
     },
     BeginTurn: {
       start: () => {
         this.gamePlay.saveGame();
+        console.log(stime(this, `.BeginTurn.start: \n`), this.gamePlay.mapString);
         setTimeout(() => this.phase('CollectBids'), 0);
       }
     },
     CollectBids: {
       start: () => {
         this.doneButton(`Make Bids ${this.turnId}`, C.YELLOW)!.activate()
+        // console.log(stime(this, `.CollectBids.start: \n`), this.gamePlay.mapString);
         this.gamePlay.allPlayers.forEach(plyr => plyr.collectBid()); // cb --> cardDone
       },
       done: (ok = false) => {
@@ -128,6 +150,7 @@ export class GameState extends GameStateLib {
             () => this.state.start());
           return;
         }
+        // console.log(stime(this, `.CollectBids.done: \n`), this.gamePlay.mapString);
         if (this.allDone || ok) this.phase('ResolveWinner');
       }
     },
