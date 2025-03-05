@@ -9,7 +9,7 @@ import type { HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { ScenarioParser } from "./scenario-parser";
 import { TP } from "./table-params";
-import type { ColCard } from "./col-card";
+import type { BlackCard, ColCard, DualCard } from "./col-card";
 
 /** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
 export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
@@ -23,9 +23,14 @@ export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
 
 export type CardContent = { fac: Faction[], meeps?: number[] };
 export class GamePlay extends GamePlayLib {
+  allCols: ColCard[] = [];
+  allDuals: DualCard[] = [];
+  allBlack: BlackCard[] = [];
+
   constructor (gameSetup: GameSetup, scenario: Scenario) {
     super(gameSetup, scenario);
   }
+
   override readonly gameState: GameState = new GameState(this);
   declare gameSetup: GameSetup;
   declare hexMap: HexMap2;
@@ -92,9 +97,9 @@ export class GamePlay extends GamePlayLib {
     const line00 = json(line, true); // machine readable starting conditions
     const line01 = line00.replace(/\],(layout)/g, '],\n$1')
     const line02 = line01.replace(/\],(\[)/g, '],\n        $1')
-    const line03 = line02.replace(/^{/, '{\n')
+    const line03 = line02.replace(/^{/, '{ ')
     const line0 = line03.replace(/}$/, '\n}')
-    console.log(`-------------------- ${line0}`)
+    console.log(stime(this, `.logWriterLine0: --------------------\n ${line0}`))
     this.logWriter?.writeLine(`{${key}: ${line0}},`)
   }
   override logNextPlayer(from: string): void {  } // no log
@@ -171,16 +176,17 @@ export class GamePlay extends GamePlayLib {
     // addMeep to next card, choose bumpDir
     const advCard = meep.card.nextCard(1), open = advCard.openCells;
     const nCells = advCard.factions.length, nOpen = open.length;
+    const bumpDirs = (TP.allBumpsDown ? [-1, -2] : [-1, -2, 1]) as (-1 | -2 | 1)[];
     const { bumpDir, ndx } = (nCells == 2) && (nOpen != 1)
-      ? meep.player.selectNdx_BumpDir(meep, advCard)
-      : { ndx: open[0], bumpDir: 1 as 1 | -1 } // take the [first] open slot
+      ? meep.player.selectNdx_BumpDir(meep, advCard, bumpDirs)
+      : { ndx: open[0] ?? 0, bumpDir: -2 as (1 | -1 | -2) } // take the [first] open slot
     this.bumpAndCascade(meep, advCard, ndx, bumpDir)
     if (cb) cb(); // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
   }
 
   /** add meep to (card,ndx); any bump goes to bumpDir */
-  bumpAndCascade(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: 1 | -1 | -2, depth = 0) {
+  bumpAndCascade(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: (1 | -1 | -2), depth = 0) {
     if (depth > this.nRows) debugger;
     const toBump = card.addMeep(meep, ndx)
     if (toBump) {
@@ -251,12 +257,6 @@ export class GamePlay extends GamePlayLib {
     return (rank == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, meeps.length) : meeps.length);
   }
 
-  resetPlayerCards() {
-    this.allPlayers.forEach(plyr => {
-      plyr.clearButtons()
-    })
-  }
-
   brake = false; // for debugger
   /** for conditional breakpoints while dragging; inject into any object. */
   toggleBrake() {
@@ -269,7 +269,7 @@ export class GamePlay extends GamePlayLib {
   override bindKeys(): void {
     super.bindKeys();
     const table = this.table;
-    KeyBinder.keyBinder.setKey('S-s', () => { this.saveGame() })
+    KeyBinder.keyBinder.setKey('M-s', () => this.showGameSave());
     KeyBinder.keyBinder.setKey('C-d', () => this.toggleBrake());
     KeyBinder.keyBinder.setKey('M-c', () => {
       const tp=TP, tpl=TPLib

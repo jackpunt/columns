@@ -26,7 +26,7 @@ export interface IPlayer {
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
   chooseBumpee_Ndx(meep: ColMeeple, bumpDir: -1 | 1): [ColMeeple, ndx: number]
-  commitCards(): void;
+  doneifyCards(): void;
 }
 
 export class Player extends PlayerLib implements IPlayer {
@@ -187,6 +187,7 @@ export class Player extends PlayerLib implements IPlayer {
   selectCol() {
     const col = this.xtraCol()
     this.clearButtons();
+    console.log(stime(this, `.selectCol: ${this.Aname} - ${col}`));
     this.colSelButtons[col - 1].select()
     this.colBidButtons[0].select(); // bid 1 to complete selection
   }
@@ -214,7 +215,7 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /** End of turn: mark Sel & Bid cards from CB.selected to CB.done */
-  commitCards() {
+  doneifyCards() {
     const csb = this.colSelButtons.find(b => b.state === CB.selected);
     const cbb = this.colBidButtons.find(b => b.state === CB.selected);
     if (csb) { csb.setState(CB.done); };
@@ -342,7 +343,7 @@ export class Player extends PlayerLib implements IPlayer {
    */
   scoreCount(marker: MarkerShape) {
     const color = ColCard.factionColors[marker.faction];
-    this. scoreCounters[marker.index].setValue(marker.value, color);
+    this.scoreCounters[marker.index].setValue(marker.value, color);
     this.score = Math.sum(...this.scoreCounters.map(ctr => ctr.value))
   }
 
@@ -409,15 +410,15 @@ export class Player extends PlayerLib implements IPlayer {
     return bestFacs
   }
 
-  readonly bumpDirs = [-2, -1, 1] as const;
+  readonly bumpDirs = [-2, -1, 1] as (-1 | -2 | 1)[];
   /** meep will Advance (dir=1) to card; select a cellNdx & bumpDir for any bumps */
-  selectNdx_BumpDir(meep: ColMeeple, card: ColCard) {
-    const rv = this.bumpDirs.map(dir => this.bestBumpInDir(meep, card, dir)).sort((a, b) => b.score - a.score)[0]
+  selectNdx_BumpDir(meep: ColMeeple, card: ColCard, dirs = this.bumpDirs) {
+    const rv = dirs.map(dir => this.bestBumpInDir(meep, card, dir)).sort((a, b) => b.score - a.score)[0]
     const { bumpDir, ndx } = rv
     return { bumpDir, ndx }
   }
   /** put meep on card, optimize cell and meepToBump */
-  bestBumpInDir(meep: ColMeeple, card: ColCard, dir: -2 | -1 | 1) {
+  bestBumpInDir(meep: ColMeeple, card: ColCard, dir: (-2 | -1 | 1)) {
     // TODO: search tree of {dir, ndx} over cascades (if any)
     const score = 2, ndx = 0;
     return { ndx, bumpDir: dir, meep, score }
@@ -452,7 +453,7 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /** bumpee is being bumped in dir to card: choose cellNdx */
-  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: 1 | -1 | -2, card: ColCard): [ColMeeple, ndx: number] {
+  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: (1 | -1 | -2), card: ColCard): [ColMeeple, ndx: number] {
     // TODO:
     // bumpDir=1
     // bumpee is ours: hit something so we can re-bump, or bestBid so we can stay;
@@ -557,9 +558,9 @@ export class PlayerB extends Player {
     const scores2: any[] = []
     const scores = colCards.map(ccard =>
       bidCards.map(bcard => {
-        // enable faction match, without triggering isDoneSelecting()
-        ccard.setState(CB.selected);
-        bcard.setState(CB.selected);
+        // mark 'selected' for scoreForColor; no other players -> never gamePlay.allDone()
+        ccard.setState(CB.selected, false);
+        bcard.setState(CB.selected, false);
         let [score, scoreStr, meep] = this.pseudoWin(ccard, bcard); // advance in ccard.col
         if (subGamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
@@ -582,6 +583,9 @@ export class PlayerB extends Player {
     this.subGameSetup.syncGame(); PlayerGameSetup
     const subGamePlay = this.subGameSetup.gamePlay; GamePlay;
     // console.log(stime(this, `.simpleGreedy - ${this.Aname} \n`), subGamePlay.mapString)
+    // clear prior selections when restarting from saved state:
+    this.colSelButtons.forEach(but => but.state == CB.selected && but.setState(CB.clear))
+    this.colBidButtons.forEach(but => but.state == CB.selected && but.setState(CB.clear))
     const scores = this.latestScores = this.collectScores(subGamePlay)
     this.selectBid(scores)
   }
@@ -597,7 +601,7 @@ export class PlayerB extends Player {
     // copy the results:
     const scc = scores0.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
     const sc5 = scoress.map(({ ccard, bcard, score, meep, scoreStr }) => [ccard.colId, bcard.colBid, score, meep, scoreStr])
-    if (scoress.length < 3) debugger;
+    // if (scoress.length < 3) debugger;
     // choose a col/bid pair:
     const { ccard, bcard, score, meep, ndx } = (slen >= 1)
       ? this.uniformChoice(scores0)
@@ -610,7 +614,7 @@ export class PlayerB extends Player {
     console.log(stime(this, `.collectBid_greedy: ${plyrId} [${ndxStr}] ${colCard.colId}-${bidCard.colBid} => ${score0} meep=${meep}\n`), scc, sc5)
     colCard.select()
     bidCard.select()
-    this.gamePlay.hexMap.update()
+    this.gamePlay.table.stage.update()
   }
 
   uniformChoice(scores: ReturnType<PlayerB['collectScores']>) {
@@ -673,7 +677,7 @@ export class PlayerB extends Player {
 
   // TODO winnerMeep: examine intermediate stop/bump cards/cells
   /** cards on which we could choose to stop our bumping meeple */
-  bumpStops(meep: ColMeeple, dir: 1 | -1 | -2) {
+  bumpStops(meep: ColMeeple, dir: (1 | -1 | -2)) {
     if (dir == -2) dir = -1;
     let cardn = meep.card, cards = [cardn]; // [].push(cardn)
     do {

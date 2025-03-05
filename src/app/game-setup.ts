@@ -21,6 +21,9 @@ export class GameSetup extends GameSetupLib {
   declare gamePlay: GamePlay;
   declare scenarioParser: ScenarioParser;
   declare startupScenario: SetupElt;
+
+  /** current/most-recent GameSetup running with a canvasId. */
+  static gameSetup: GameSetup;
   constructor(canvasId?: string, qParam?: Params) {
     super(canvasId, qParam)
   }
@@ -28,6 +31,7 @@ export class GameSetup extends GameSetupLib {
   tileExporter = new TileExporter(); // enable 'Make Pages' buttons
 
   override initialize(canvasId: string): void {
+    if (canvasId) GameSetup.gameSetup = this;
     // for hexmarket to bringup their own menus:
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     console.log(stime(this, `---------------------   GameSetup.initialize  ----------------`))
@@ -115,11 +119,12 @@ export class PlayerGameSetup extends GameSetup {
     this.startup(this.qParams);
   }
   override initialize(canvasId: string): void {
-    console.log(stime(this, `---------------    PlayerGameSetup: ${canvasId ?? 'robo'} ------------`))
+    const Aname = this.qParams['Aname']
+    console.log(stime(this, `------- new PlayerGameSetup: ${Aname} ${canvasId ?? 'robo'} --------`))
     this.stage = makeStage(canvasId, false);
     PlayerLib.logNewPlayer = (plyr: PlayerLib) => {
       if (plyr.gamePlay.table.stage.canvas) {
-        console.log(stime(plyr, `.new:`), plyr.Aname, plyr);
+        console.log(stime(plyr, `.new:`), plyr.Aname);
       }
     }
   }

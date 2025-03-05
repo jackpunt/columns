@@ -36,4 +36,6 @@ export class TP extends TPLib {
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
   /** [true] scoreForRank scores at most 1 meep per player on each rank */
   static onePerRank = true;
+  /** when advance: always bump down (by 2) */
+  static allBumpsDown = true;
 }

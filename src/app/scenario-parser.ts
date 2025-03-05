@@ -45,45 +45,58 @@ export class ScenarioParser extends SPLib {
     }
 
     const { scores, turn, pStates, layout, gameState } = setup;
-    const map = this.map, gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
+    const gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
+    const isGUI = gamePlay.gameState.isGUI
+    const n = allPlayers.length, ns = scores?.length, np = pStates?.length;
+    if ((ns && ns !== n) || (np && np !== n)) {
+      alert(`game-state mismatch: nPlayers=${n}, nScores=${ns}, pStates=${np}`)
+      debugger; // TODO launch new gameSetup with n = ???
+    }
     const turnSet = (turn !== undefined); // indicates a Saved Scenario: assign & place everything
     if (turnSet) {
       gamePlay.turnNumber = turn;
-      table.logText(`turn = ${turn}`, `parseScenario`);
+      table.logText(`turn = ${turn}`, `${isGUI ? ' C ' : ' R '}parseScenario`);
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     // layout or undefined:
     {
-      ColCard.makeAllCards(TP.nHexes, TP.mHexes, ); // populate ColCard.cardByName
       this.placeCardsOnMap(layout);
       this.placeMeeplesOnMap(layout);
     }
     if (pStates) {
       pStates.forEach((ps, ndx)=> gamePlay.allPlayers[ndx].parseCardStates(ps));
     }
-    // [v, i, v, i]
+    // [[v, i], [v, i]][]
     if (scores) {
       scores.forEach((viviAry, pid) => {
         const plyr = allPlayers[pid];
         const markers = plyr.markers, counters = plyr.scoreCounters;
+        counters.forEach(ctr => ctr.setValue(0));
         if (!markers[0] || !markers[1]) debugger;
         viviAry.forEach(([value, index], i) => markers[i].setValue(value, index))
+        markers.forEach(marker => plyr.scoreCount(marker))
       })
     }
 
     if (gameState) {
       this.gamePlay.gameState.parseState(gameState);
     }
-    this.gamePlay.hexMap.update();
+    this.gamePlay.table.stage.update();
   }
 
+  makeAllCards(nr = 1, nc = 1) { return ColCard.makeAllCards(nr, nc); }
+
   placeCardsOnMap(layout?: RowElt[]) {
-    const gp = this.gamePlay
-    const black = BlackCard.allBlack;
-    const pCards = ColCard.allCols.slice();
-    const dCards = DualCard.allDuals.slice();
-    const black0 = black.filter((card, n) => n >= gp.nCols); // row0; rankN
-    const blackN = black.filter((card, n) => n < gp.nCols);  // rowN; rank0
+    const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
+    const { allBlack, allCols, allDuals } = this.makeAllCards(nr, nc,);
+    gamePlay.allBlack = allBlack;
+    gamePlay.allCols = allCols;
+    gamePlay.allDuals = allDuals;
+    const black = allBlack;
+    const pCards = allCols.slice();
+    const dCards = allDuals.slice();
+    const black0 = black.filter((card, n) => n >= nc); // row0; rankN
+    const blackN = black.filter((card, n) => n < nc);  // rowN; rank0
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
@@ -100,7 +113,7 @@ export class ScenarioParser extends SPLib {
       })
       return;
     } else {
-      const nr = gp.nRows, nCards = (nr - 2) * gp.nCols;
+      const nr = gamePlay.nRows, nCards = (nr - 2) * gamePlay.nCols;
       // new/random layout:
       permute(pCards)
       permute(dCards)
@@ -125,7 +138,7 @@ export class ScenarioParser extends SPLib {
 
   placeMeeplesOnMap(layout?: RowElt[]) {
     const gamePlay = this.gamePlay;
-    const hexMap = gamePlay.hexMap, [nrows, ncols] = hexMap.nRowCol;
+    const hexMap = gamePlay.hexMap, nrows = gamePlay.nRows, ncols = gamePlay.nCols;
     const allPlayers = gamePlay.allPlayers;
     gamePlay.allMeeples.length = 0; // discard initial/default meeples
     if (layout) {
