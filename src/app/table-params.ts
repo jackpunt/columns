@@ -38,4 +38,5 @@ export class TP extends TPLib {
   static onePerRank = true;
   /** when advance: always bump down (by 2) */
   static allBumpsDown = true;
+  static bumpUpRow1 = true;
 }

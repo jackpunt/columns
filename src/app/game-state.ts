@@ -111,8 +111,10 @@ export class GameState extends GameStateLib {
         if (this.allDone || ok) {
           this.gamePlay.allPlayers.forEach(plyr => {
             const xtraCol = plyr.isDoneSelecting()?.colNum ?? 1;
-            plyr.makeMeeple(this.gamePlay.hexMap, xtraCol, undefined, '*');
-            plyr.clearButtons();
+            const meep = plyr.makeMeeple(xtraCol, '*');
+            const card = this.gamePlay.hexMap.getCard(0, xtraCol); // black card
+            card.addMeep(meep, 0);
+            // plyr.clearButtons();
           })
           // console.log(stime(this, `.SelectCol.done: \n`), this.gamePlay.mapString);
           this.phase('BeginRound');

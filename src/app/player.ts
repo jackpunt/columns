@@ -12,7 +12,7 @@ import { TP } from "./table-params";
 type PlyrBid = { plyr: Player; bid: number; }
 /** interface from GamePlay/GameState to Player */
 export interface IPlayer {
-  makeMeeple(map: HexMap<OrthoHex>, col: number, rank?: number, ext?: string): ColMeeple;
+  makeMeeple(col: number, ext?: string): ColMeeple;
   panel: PlayerPanel;
   score: number;
   color: string;
@@ -259,13 +259,11 @@ export class Player extends PlayerLib implements IPlayer {
    * @param rank [0]
    * @param ext [''] mark name of xtraCol meeple
    */
-  makeMeeple(hexMap: HexMap2, colNum: number, rank = 0, ext = '') {
+  makeMeeple(colNum: number, ext = '') {
     Tile.gamePlay = this.gamePlay; // so Meeples can find their GamePlay
     const colId = ColSelButton.colNames[colNum]
     const meep = new ColMeeple(`Meep-${this.index}:${colId}${ext}`, this)
     meep.paint(this.color);
-    const card = hexMap.getCard(rank, colNum);
-    card.addMeep(meep); // makeMeeple
     this.gamePlay.table.makeDragable(meep);
     return meep;
   }
@@ -630,7 +628,10 @@ export class PlayerB extends Player {
     this.colSelButtons.forEach(but => but.state == CB.selected && but.setState(CB.clear))
     this.colBidButtons.forEach(but => but.state == CB.selected && but.setState(CB.clear))
     const scores = this.latestScores = this.collectScores(subGamePlay)
-    this.selectBid(scores)
+    const [col, bid] = this.selectBid(scores)
+    if (this.gamePlay.gameState.turnOfRound == 1 && bid == 1) {
+      this.selectBid(scores); // try again
+    }
   }
   // black in row-[0..1] only if no other bid will score.
   filterBlackBids(scores = this.latestScores) {
@@ -664,6 +665,7 @@ export class PlayerB extends Player {
     colCard.select()
     bidCard.select()
     this.gamePlay.table.stage.update()
+    return [colCard.colNum, bidCard.colBid]
   }
 
   uniformChoice(scores: ReturnType<PlayerB['collectScores']>) {

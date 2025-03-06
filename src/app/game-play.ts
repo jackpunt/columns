@@ -65,7 +65,7 @@ export class GamePlay extends GamePlayLib {
       arrayN(gp.nCols, 1).map(col => {
         const card = hexMap.getCard(rank, col);
         const fac = card.factions;
-        const meeps0 = card.meepsOnCard.map(meep => meep.player.index)
+        const meeps0 = card.meepsAtNdx.map(meep => meep?.player.index ?? -1)
         const meeps = meeps0.length > 0 ? meeps0 : undefined;
         return ({ fac, meeps })
       })
@@ -176,10 +176,11 @@ export class GamePlay extends GamePlayLib {
     // addMeep to next card, choose bumpDir
     const advCard = meep.card.nextCard(1), open = advCard.openCells;
     const nCells = advCard.factions.length, nOpen = open.length;
-    const bumpDirs = (TP.allBumpsDown ? [-1, -2] : [-1, -2, 1]) as (-1 | -2 | 1)[];
+    const mustBumpUp = TP.bumpUpRow1 && (advCard.hex.row == 1);
+    const bumpDirs = (mustBumpUp ? [1] : TP.allBumpsDown ? [-2, -1] : [-2, -1, 1]) as (-2 | -1 | 1)[];
     const { bumpDir, ndx } = (nCells == 2) && (nOpen != 1)
       ? meep.player.selectNdx_BumpDir(meep, advCard, bumpDirs)
-      : { ndx: open[0] ?? 0, bumpDir: -2 as (1 | -1 | -2) } // take the [first] open slot
+      : { ndx: open[0] ?? 0, bumpDir: bumpDirs[0] as (-2 | -1 | 1) } // take the [first] open slot
     this.bumpAndCascade(meep, advCard, ndx, bumpDir)
     if (cb) cb(); // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
@@ -237,6 +238,7 @@ export class GamePlay extends GamePlayLib {
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
   scoreForRank() {
     const nRows = this.nRows, nCols = this.nCols, mRank = nRows - 1;
+    // include top row (so ndx == row), but score = 0;
     const playersInRow = arrayN(nRows - 1).map(row =>
       this.cardsInRow(row).map(card => card.meepsOnCard.map(meep => meep.player))
         .flat().filter((plyr, n, ary) => !ary.slice(0, n).find(lp => lp == plyr))
@@ -254,7 +256,7 @@ export class GamePlay extends GamePlayLib {
       .map(card => card.meepsOnCard
         .filter(meep => meep.player == plyr)).flat()
     const rank = this.nRows - 1 - row;
-    return (rank == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, meeps.length) : meeps.length);
+    return (row == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, meeps.length) : meeps.length);
   }
 
   brake = false; // for debugger
