@@ -1,10 +1,10 @@
 import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib, Tile } from "@thegraid/hexlib";
+import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib, Tile, NC } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, ColBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { ColTable, MarkerShape } from "./col-table";
-import { arrayN, GamePlay, nFacs } from "./game-play";
+import { arrayN, GamePlay, nFacs, type Faction } from "./game-play";
 import { PlayerGameSetup } from "./game-setup";
 import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
@@ -320,7 +320,8 @@ export class Player extends PlayerLib implements IPlayer {
    */
   factionTotals(markers = this.markers, inPlay = true) {
     const cards = this.colBidButtons.filter(b => b.inPlay(inPlay)) // false --> yet to play
-    const factionTotals = ColCard.factionColors.slice(0, 5).map((color, faction) => 0
+    const nFacs = ColCard.factionColors.length - 1; // exclude white faction
+    const factionTotals = (arrayN(nFacs) as Faction[]).map(faction => 0
       + this.meepFactions[faction]
       + markers.reduce((pv, mrk) => pv + (mrk.faction == faction ? 1 : 0), 0)
       + cards.reduce((pv, card) => pv + (card.factions.includes(faction) ? .5 : 0), 0)
@@ -407,7 +408,7 @@ export class Player extends PlayerLib implements IPlayer {
   bestFacs(card: ColCard) {
     const factionTotals = this.factionTotals(); // scoreMarkers & bids.inPlay
     const bestFacs = card.factions.slice().sort((a, b) => factionTotals[b] - factionTotals[a]); // descending
-    return bestFacs
+    return [bestFacs, factionTotals] as [Faction[], number[]];
   }
 
   readonly bumpDirs = [-2, -1, 1] as (-1 | -2 | 1)[];
@@ -420,34 +421,39 @@ export class Player extends PlayerLib implements IPlayer {
   /** put meep on card, optimize cell and meepToBump */
   bestBumpInDir(meep: ColMeeple, card: ColCard, dir: (-2 | -1 | 1)) {
     // TODO: search tree of {dir, ndx} over cascades (if any)
-    const score = 2, ndx = 0;
+    const [bndx, score] = this.bestNdxForMe(card), ndx = bndx ?? 0;
     return { ndx, bumpDir: dir, meep, score }
   }
 
+  /** ndx of cell that maximizes payoff from advance */
+  bestNdxForMe(card: ColCard) {
+    const [bestFacs, factionTotals] = this.bestFacs(card)
+    const bidFacs = this.curBidCard!?.factions;
+    const fac = bestFacs.find(fac => bidFacs.includes(fac));
+    const ndx = (fac !== undefined) ? card.factions.indexOf(fac) : undefined;
+    const val = (fac !== undefined) ? factionTotals[fac] : 0;
+    return [ndx, val] as [ndx: number | undefined, val: number]
+  }
+
   /**
-   * meep and other are in same cell, one of them must be bumped.
+   * From advance or bump, meep and other are in same cell, one of them must be bumped.
    *
-   * choose which to bump also choose bumpDir
+   * choose bumpee = [meep or other];
+   * choose cellNdx for the bumpee
    */
   chooseBumpee_Ndx(meep: ColMeeple, bumpDir: -1 | 1): [ColMeeple, ndx: number] {
-    const card0 = meep.card, other = card0.otherMeepInCell(meep) as ColMeeple;
+    const card0 = meep.card, other = card0.otherMeepInCell(meep)!;
     const card2 = card0.nextCard(bumpDir)
-    // if other is mine && isOk then bump other
+    // if other is mine && isOk then bump other (even if, esp if bumpDir == 1)
     if (other.player == this) {
-      const bestFacs = this.bestFacs(card0)
-      const bidFacs = this.curBidCard?.factions ?? [];
-      const isOk = !!bestFacs.find(fac => bidFacs.includes(fac)); // card has best fac & best bid
+      const [ndx, val] = this.bestNdxForMe(card0), isOk = (ndx !== undefined);
       // meep.card is good/ok to land, secure that landing and bump our co-agent;
       if (isOk) {
         return this.chooseCellForBumpee(other, bumpDir, card2)
       }
     }
-    // TODO: ndx for OTHER player
-    const ndx = (card2.factions.length !== 2) ? 0 : this.chooseCellToEnter(card2);
-    if (bumpDir < 0) return [other, ndx];
+    if (bumpDir < 0) return this.chooseCellForBumpee(other, bumpDir, card2)
     if (card2.hex.row === 0) return [other, 0];
-    // TODO: integrate chooseCellToEnter & chooseCellForBumpee
-    // Pro'ly using bestBumpInDir()
     const bumpee = (meep.card.rank == 4) ? other : meep;
     return this.chooseCellForBumpee(bumpee, bumpDir, card2)
   }
@@ -455,12 +461,49 @@ export class Player extends PlayerLib implements IPlayer {
   /** bumpee is being bumped in dir to card: choose cellNdx */
   chooseCellForBumpee(bumpee: ColMeeple, bumpDir: (1 | -1 | -2), card: ColCard): [ColMeeple, ndx: number] {
     // TODO:
-    // bumpDir=1
-    // bumpee is ours: hit something so we can re-bump, or bestBid so we can stay;
+    // if bumpDir == 1
+    // bumpee is ours: hit own-meep so we can re-bump, or bestBid so we can stay;
     // bumpee not ours: hit black or empty to limit cascade
     // else bumpDir == -1 | -2
     // bumpee is ours: try hit bestFacs, else hit something to rebump
     // bumpee not ours: hit something so others re-bump [or not if we are lower in chain]
+
+    // to Black card, it does not matter
+    if (card.factions[0] == 0) return [bumpee, 0];
+    const nCells = card.factions.length, rand = Random.random(nCells);
+    const card2 = card.nextCard(bumpDir), c2isBlk = card2.factions[0] = 0;
+    const meepAtNdx = card.meepsAtNdx; // entry for each cellNdx;
+    if (bumpDir == 1) {
+      if (bumpee.player == this) {
+        let ndx = c2isBlk
+          ? meepAtNdx.findIndex(meep => meep?.player && (meep?.player !== this)) // try hit our meep
+          : meepAtNdx.findIndex(meep => (meep?.player === this)) // try hit our meep
+        if (ndx < 0) ndx = c2isBlk
+          ? meepAtNdx.findIndex(meep => !meep) // take empty slot
+          : meepAtNdx.findIndex(meep => !!meep) // hit any other meep
+        if (ndx < 0) ndx = this.bestNdxForMe(card)[0] ?? rand;
+        return [bumpee, ndx]
+      } else {
+        let ndx = meepAtNdx.findIndex(meep => !meep) // take empty slot
+        if (ndx < 0) ndx = meepAtNdx.findIndex(meep => meep?.player == this) // try hit me
+        if (ndx < 0) ndx = rand;
+        return [bumpee, ndx]
+      }
+    } else {
+      if (bumpee.player == this) {
+        let ndx = this.bestNdxForMe(card)[0] ?? -1;
+        if (ndx < 0) ndx = meepAtNdx.findIndex(meep => meep?.player && meep.player !== this) // try hit other
+        if (ndx < 0) ndx = rand;
+        return [bumpee, ndx];
+      } else {
+        // TODO: if I have a meeple lower down, prefer to hit empty cell?
+        const meepAtNdx = card.meepsAtNdx; // entry for each cellNdx;
+        let ndx = meepAtNdx.findIndex(meep => meep?.player && (meep.player !== this)); // first index with a meep
+        if (ndx < 0) ndx = meepAtNdx.findIndex(meep => !!meep); // first index with a meep
+        if (ndx < 0) ndx = rand;
+        return [bumpee, ndx]
+      }
+    }
     return [bumpee, 0]
   }
 
@@ -589,12 +632,18 @@ export class PlayerB extends Player {
     const scores = this.latestScores = this.collectScores(subGamePlay)
     this.selectBid(scores)
   }
+  // black in row-[0..1] only if no other bid will score.
+  filterBlackBids(scores = this.latestScores) {
+    const altBids = scores.filter(({ bcard, score }) => score == -99 || (bcard.colBid !== 4 && score > 0))
+    return altBids.length > 0 ? altBids : scores;
+  }
 
   override selectBid(scores = this.latestScores) {
     // deselect prevous bid
     this.colSelButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
     this.colBidButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
     // Sort and select { ccard, bcard } based on score:
+    scores = this.filterBlackBids(scores);
     const scoress = scores.sort((a, b) => b.score - a.score);// descending
     const score0 = scoress[0].score
     const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;

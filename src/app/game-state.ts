@@ -158,13 +158,9 @@ export class GameState extends GameStateLib {
         this.winnerMeep = undefined;
         if (this.gamePlay.isEndOfGame()) { this.phase('EndGame'); return }
         if (col > this.nCols) { this.phase('EndTurn'); return }
-        const colMeep = (meep?: ColMeeple) => {
-          setTimeout(() => {
-            if (col > this.nCols) { debugger; return }; // zombie colMeep callback!
-            this.phase('BumpAndCascade', col, meep)
-          }, TP.flipDwell)
-        };
-        this.gamePlay.resolveWinner(col, colMeep)
+        this.gamePlay.resolveWinner(col, (meep?: ColMeeple) => {
+          setTimeout(() => this.phase('BumpAndCascade', col, meep), TP.flipDwell)
+        })
       }
     },
     BumpAndCascade: { // winner/bumpee's meep identified and moved: cascade

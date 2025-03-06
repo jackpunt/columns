@@ -254,7 +254,7 @@ export class ColSelButton extends CardButton {
 
 export class ColBidButton extends CardButton {
   // indices into ColCard.factionColors
-  static coinFactions = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
+  static coinFactions: Faction[][] = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
 
   override get plyrButtons(): CardButton[] { return this.player.colBidButtons }
 
@@ -274,7 +274,7 @@ export class ColBidButton extends CardButton {
   }
 
   bidOnCol?: number; // debug or post-hoc analysis
-  factions!: number[];
+  factions!: Faction[];
   facShape!: Shape;
   addFactionColors(colBid = 0, width = 20, y = 0) {
     const factions = this.factions = ColBidButton.coinFactions[colBid];
