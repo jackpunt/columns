@@ -1,12 +1,11 @@
 import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
-import { UtilButton } from "@thegraid/easeljs-lib";
-import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib, Tile, NC } from "@thegraid/hexlib";
+import { afterUpdate, UtilButton, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
+import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib, Tile, NC, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import { CardButton, CB, ColBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
 import type { ColTable, MarkerShape } from "./col-table";
 import { arrayN, GamePlay, nFacs, type Faction } from "./game-play";
 import { PlayerGameSetup } from "./game-setup";
-import { OrthoHex, type HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 type PlyrBid = { plyr: Player; bid: number; }
@@ -60,8 +59,9 @@ export class Player extends PlayerLib implements IPlayer {
 
   /** Sum of this player's scoreForRow */
   get rankScoreNow() {
-    const gamePlay = this.gamePlay;
-    return Math.sum(...arrayN(gamePlay.nRows - 2, 1).map(row => gamePlay.playerScoreForRow(this, row)))
+    const scores = this.gamePlay.scoreForRank(); // all players, each row;
+    const myScores = scores.map(s4row => s4row.filter(ps => ps.plyr == this).map(ps => ps.score)).flat()
+    return Math.sum(...myScores)
   }
 
   /**
@@ -90,6 +90,8 @@ export class Player extends PlayerLib implements IPlayer {
     }
     const ymax = this.makeCardButtons(TP.mHexes);  // number of columns
     this.setupCounters(ymax);
+    const manuBut = this.manuButton = this.makeAutoButton(2, 'M', { bgColor: 'lime', active: false }); // manual done
+    manuBut.on(S.click, () => this.manualDone(), this); // toggle useRobo
     const autoBut = this.autoButton = this.makeAutoButton(1, 'A');
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
     const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
@@ -117,9 +119,9 @@ export class Player extends PlayerLib implements IPlayer {
     const ymax = 2 * dy; // bottom edge of last row of buttons
     return ymax;
   }
-  makeAutoButton(n = 1, label = 'A') {
+  makeAutoButton(n = 1, label = 'A', opts: UtilButtonOptions & TextInRectOptions = {}) {
     const { high } = this.panel.metrics, fs = TP.hexRad / 2;
-    const autoBut = new UtilButton(label, { visible: true, active: true, border: .1, fontSize: fs })
+    const autoBut = new UtilButton(label, { active: true, border: .1, fontSize: fs, ...opts })
     autoBut.dy1 = -.1; autoBut.setBounds(undefined, 0, 0, 0);
     autoBut.paint(undefined, true);
     // if (autoBut.cacheID) { autoBut.updateCache() } else { autoBut.setCacheID() }
@@ -127,6 +129,7 @@ export class Player extends PlayerLib implements IPlayer {
     this.panel.addChild(autoBut)
     return autoBut
   }
+  manuButton!: UtilButton;
   autoButton!: UtilButton;
   redoButton!: UtilButton;
 
@@ -394,11 +397,45 @@ export class Player extends PlayerLib implements IPlayer {
     if (!clicker) debugger; // Player maxed out
     clicker?.onClick()
   }
+  manualDoneFunc!: () => void;
+  manualDone() {
+    this.manuButton.activate(false); // vis = false
+    this.manualDoneFunc()
+  }
+  adviseMeepleDrop(meep: ColMeeple, targetHex: IHex2, ctx: DragContext, xy: XY) {
+    if (!this.useRobo
+      && ctx.gameState.isPhase('ResolveWinner')
+      && this.colMeep
+      && this.meepsToAdvance.includes(meep)
+    ) {
+      // un-nudge the meeple and select meepleToAdvance
+      meep.fromHex.card.addMeep(meep); // put it back
+      const colMeep = this.colMeep;    // meeple to advance has stashed colMeep
+      this.colMeep = undefined; // one-shot
+      this.meepsToAdvance.forEach(m => m.highlight(false, false));
+      afterUpdate(meep, () => colMeep(meep), this, 10);
+      return true;  // tell dragFunc we have handled it
+    }
+    return false;   // not our problem
+  }
+  colMeep?: (meep: ColMeeple) => void;
+  meepsToAdvance!: ColMeeple[]
 
-  /** choose and return one of the indicated meeples */
+  /** sort meeps; choose and return one of the indicated meeples */
   meepleToAdvance(meeps: ColMeeple[], colMeep?: (meep?: ColMeeple) => void) {
     // TODO: GUI: set dropFunc -> colMeep(meep); so each player does their own D&D
-    const meep = meeps.sort((a, b) => a.card.rank - b.card.rank)[0];
+    if (!this.useRobo && colMeep) {   // subGame will have no colMeep & expects full-auto?
+      meeps.forEach(m => m.highlight(true, true)); // light them up!
+      this.meepsToAdvance = meeps;
+      this.colMeep = colMeep;
+      return;
+    }
+    meeps.sort((a, b) => a.card.rank - b.card.rank);
+    const meep = meeps.find(meep => {
+      const mr = meep.card.rank; // return lowest meep UNLESS it hits our own meep:
+      return !(meeps.length > 1 && TP.allBumpsDown &&
+        meeps.find(m => m.card.rank == mr + 1 && !m.card.meepsAtNdx.find(mi => mi?.player !== this)))
+    })! // ASSERT: the highest rank meeple will not bump another.
     if (colMeep) colMeep(meep)
     return meep;
   }
@@ -412,6 +449,9 @@ export class Player extends PlayerLib implements IPlayer {
   readonly bumpDirs = [-2, -1, 1] as (-1 | -2 | 1)[];
   /** meep will Advance (dir=1) to card; select a cellNdx & bumpDir for any bumps */
   selectNdx_BumpDir(meep: ColMeeple, card: ColCard, dirs = this.bumpDirs) {
+    if (!this.useRobo) {
+      // TODO use adviseDropMeeple
+    }
     const rv = dirs.map(dir => this.bestBumpInDir(meep, card, dir)).sort((a, b) => b.score - a.score)[0]
     const { bumpDir, ndx } = rv
     return { bumpDir, ndx }
@@ -540,7 +580,7 @@ export class PlayerB extends Player {
   override newGame(gamePlay: GamePlay, url?: string): void {
     super.newGame; //(gamePlay, url)
     // setAutoPlay() for top-level GUI-enabled PlayerB:
-    if (!!gamePlay.table.stage.canvas) {
+    if (!!gamePlay.table.stage.canvas && this.index > 0) {
       console.log(stime(this, `.newGame[${this.index}] ${this.Aname}`))
       setTimeout(() => this.setAutoPlay(true), 10)
     }
@@ -576,7 +616,7 @@ export class PlayerB extends Player {
     const scene0 = { start: state0 }
     // const stateInfo = this.gamePlay.scenarioParser.saveState();
     const qParams = gameSetup.qParams;
-    const setupElt = state0;
+    const setupElt = { ...state0, n: TP.numPlayers };
     setupElt.Aname = `${this.Aname}-subGame`;
     // game with no canvas for Stage:
     const subGame = this.subGameSetup = new PlayerGameSetup(gameSetup, setupElt);
@@ -689,7 +729,7 @@ export class PlayerB extends Player {
     const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
     // player meepsInCol:
     const meepsInCol = gamePlay.meepsInCol(col, plyr);
-    const meep = plyr.meepleToAdvance(meepsInCol); // choose lowest rank [TODO-each]
+    const meep = plyr.meepleToAdvance(meepsInCol)!; // choose lowest rank [TODO-each]
     gamePlay.gameState.winnerMeep = meep;
     const bumpDir = gamePlay.advanceMeeple(meep), meepStr = meep.toString();
     const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)

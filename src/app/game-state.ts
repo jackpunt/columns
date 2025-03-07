@@ -41,7 +41,7 @@ export class GameState extends GameStateLib {
   override phase(phase: string, ...args: any[]): void {
     const M = this.isGUI ? 'M' : 'P';
     const robos = this.gamePlay.allPlayers.map(p => p.useRobo ? 'R' : M).join('-')
-    console.log(stime(this, `.phase: robos = ${robos} ${this.state?.Aname ?? 'Initialize'}`))
+    // console.log(stime(this, `.phase: robos = ${robos} ${this.state?.Aname ?? 'Initialize'} -> ${phase}`), args)
     super.phase(phase, ...args)
   }
   override saveState(): any[] {
@@ -160,32 +160,39 @@ export class GameState extends GameStateLib {
         this.winnerMeep = undefined;
         if (this.gamePlay.isEndOfGame()) { this.phase('EndGame'); return }
         if (col > this.nCols) { this.phase('EndTurn'); return }
+        // calls player.meepleToAdvance(meeps, colMeep)
         this.gamePlay.resolveWinner(col, (meep?: ColMeeple) => {
-          setTimeout(() => this.phase('BumpAndCascade', col, meep), TP.flipDwell)
+          setTimeout(() => this.state.done!(col, meep), TP.flipDwell)
         })
+      },
+      done: (col: number, meep?: ColMeeple) => {
+        this.winnerMeep = meep;
+        if (meep) {
+          this.phase('BumpAndCascade', col, meep);
+        } else {
+          this.phase('MeepsToCol', col);
+        }
       }
     },
     BumpAndCascade: { // winner/bumpee's meep identified and moved: cascade
-      col: 1,
-      start: (col: number, meep?: ColMeeple) => {
-        this.state.col = col;
-        if (!this.winnerMeep) this.winnerMeep = meep; // maybe undefined
-        if (!meep) { this.phase('ResolveWinner', 1 + col); return }
+      start: (col: number, meep: ColMeeple) => {
         this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
         this.table.logText(`${meep} in col ${meep.card.colId}`, `BumpAndCascade`);
+        const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color, () => {
-          const bumpDone = () => setTimeout(() => this.done(), TP.flipDwell);
           this.gamePlay.advanceMeeple(meep, bumpDone); // advance; bump & cascade -> bumpDone
         });
       },
+    },
+    MeepsToCol: {
       // when bump and cascade has settled:
-      done: () => {
-        const col = this.state.col as number;
+      start: (col) => {
+        // const col = this.state.col as number;
         this.winnerMeep?.highlight(false);
         const fails = this.gamePlay.meeplesToCell(col)
         if (fails) {
-          afterUpdate(fails, () => this.state.start(col, fails), this, 10)
+          afterUpdate(fails, () => this.phase('BumpAndCascade',col, fails), this, 10)
           return;
         }
         // update faction counters for each Player:

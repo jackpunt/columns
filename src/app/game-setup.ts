@@ -95,8 +95,8 @@ export class GameSetup extends GameSetupLib {
   }
 
   override resetState(stateInfo: Scenario & HexAspect): void {
-    const n = stateInfo.nPlayers;   // convert {nPlayers: 3} --> {n: 3}
-    this.qParams = { ...this.qParams, n};  // qParams from ng is readonly
+    const n = stateInfo.nPlayers ?? `${TP.numPlayers}`;   // convert {nPlayers: 3} --> {n: 3}
+    this.qParams = { ...this.qParams, n };  // qParams from ng is readonly
     super.resetState(stateInfo);
   }
 

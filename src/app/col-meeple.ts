@@ -16,7 +16,8 @@ import { TP } from "./table-params";
 export class ColMeeple extends Meeple {
 
   declare player: Player;
-  declare baseShape: MeepleShapeLib & { highlight(l?: boolean): void };
+  declare baseShape: MeepleShapeLib & { highlight(l?: boolean, u?: boolean): void };
+  declare fromHex: OrthoHex2;
 
   constructor(Aname: string, player?: Player) {
     super(Aname, player)
@@ -39,14 +40,15 @@ export class ColMeeple extends Meeple {
     return `${super.toString()}#${this.cellNdx ?? '-'}`;
   }
 
-  highlight(lightup = true) {
-    this.baseShape.highlight(lightup);
+  highlight(lightup = true, update = true) {
+    this.baseShape.highlight(lightup, false); // set baseShape.visible = lightup
     this.updateCache()
+    if (update) this.stage?.update()
   }
 
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
     const state = ctx.gameState.state.Aname;
-    if (state !== 'BumpAndCascade' && ! ctx.lastShift)
+    if (!['BumpAndCascade', 'ResolveWinner'].includes(state!) && ! ctx.lastShift)
       return `Only move during Bump phase, not "${state}"`;
     const col = (ctx.gameState as GameState).gamePlay.colToMove;
     const colc = this.card.col;
@@ -66,11 +68,12 @@ export class ColMeeple extends Meeple {
   // hex.card.addMeep(this)
   override dropFunc(targetHex: IHex2, ctx: DragContext): void {
     if (targetHex instanceof OrthoHex2) {
-      const xy = this.parent.localToLocal(this.x, this.y, targetHex.card!.meepCont);
-      this.hex = targetHex; // record for later use as fromHex
-      targetHex.card?.addMeep(this, undefined, xy); // drop
+      const card = targetHex.card! // ASSERT: every hex has a card
+      const xy = this.parent.localToLocal(this.x, this.y, card.meepCont);
+      if (this.player.adviseMeepleDrop(this, targetHex, ctx, xy)) return
+      card.addMeep(this, undefined, xy); // drop
     } else {
-      super.dropFunc(targetHex, ctx);
+      super.dropFunc(targetHex, ctx);    // never
     }
   }
 }

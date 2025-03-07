@@ -145,12 +145,18 @@ export class GamePlay extends GamePlayLib {
   resolveWinner(col: number, colMeep: (meep?: ColMeeple) => void) {
     this.colToMove = col;
     const plyr = this.winningBidder(col);
-    const meepsInCol = this.meepsInCol(col, plyr);
-    if (plyr && meepsInCol.length > 0) {
-      plyr.meepleToAdvance(meepsInCol, colMeep); // will eventually invoke colMeep()
-    } else {
-      colMeep(undefined);
+    if (plyr) {
+      const meepsInCol = this.meepsInCol(col, plyr);
+      // in pyramid games, is possible to bid & win a column where you have no meeps!
+      if (meepsInCol.length > 1) {
+        plyr.meepleToAdvance(meepsInCol, colMeep); // will eventually invoke colMeep()
+      } else {
+        colMeep(meepsInCol[0]) //---> single candidate: use {meepsInCol[0]?.toString()}
+      }
+      return
     }
+    colMeep(undefined);
+    return
   }
 
   /**
@@ -159,10 +165,9 @@ export class GamePlay extends GamePlayLib {
    * @param player
    * @returns meeples of Player in column, suitable for winner.meep
    */
-  meepsInCol(col: number, player?: Player) {
-    // cannot advance meep in top row (or in other column)
-    const rv = player?.meeples.filter(meep => meep.card.col == col && meep.card.rank < this.nRows) ?? [];
-    return rv;
+  meepsInCol(col: number, player: Player) {
+    // cannot advance in another column (allowed to 'advance' from row == 0)
+    return player.meeples.filter(meep => meep.card.col == col);
     // TODO: alternative for Pyramid
   }
 
@@ -176,6 +181,7 @@ export class GamePlay extends GamePlayLib {
     // addMeep to next card, choose bumpDir
     const advCard = meep.card.nextCard(1), open = advCard.openCells;
     const nCells = advCard.factions.length, nOpen = open.length;
+    // TODO: enforce self-bump is UP (see Player.meepleToAdvance)
     const mustBumpUp = TP.bumpUpRow1 && (advCard.hex.row == 1);
     const bumpDirs = (mustBumpUp ? [1] : TP.allBumpsDown ? [-2, -1] : [-2, -1, 1]) as (-2 | -1 | 1)[];
     const { bumpDir, ndx } = (nCells == 2) && (nOpen != 1)
@@ -237,26 +243,28 @@ export class GamePlay extends GamePlayLib {
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
   scoreForRank() {
-    const nRows = this.nRows, nCols = this.nCols, mRank = nRows - 1;
+    const nRows = this.nRows, plyrScored = arrayN(this.allPlayers.length, i => 0)
     // include top row (so ndx == row), but score = 0;
     const playersInRow = arrayN(nRows - 1).map(row =>
       this.cardsInRow(row).map(card => card.meepsOnCard.map(meep => meep.player))
         .flat().filter((plyr, n, ary) => !ary.slice(0, n).find(lp => lp == plyr))
       // retain first occurence of player on row
     )
+    /** score for presence of player on the given row */
+    const scoreForRow = (plyr: Player, row: number) => {
+      const meeps = this.cardsInRow(row)
+        .map(card => card.meepsOnCard
+          .filter(meep => meep.player == plyr)).flat()
+      const rank = this.nRows - 1 - row, nMeeps = meeps.length;
+      const scored = plyrScored[plyr.index] > 0;
+      const score = (row == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, nMeeps) : nMeeps);
+      plyrScored[plyr.index] += score;  // becomes > 0 when plyr scores any row/meeple
+      return (TP.topRankOnly && scored) ? 0 : score;
+    }
     return playersInRow.map((plyrsInRow, row) =>
       plyrsInRow.map(plyr =>
-        ({ plyr, score: this.playerScoreForRow(plyr, row) }))
+        ({ plyr, score: scoreForRow(plyr, row) }))
     )
-  }
-
-  /** score for presence of player on the given rank */
-  playerScoreForRow(plyr: Player, row: number) {
-    const meeps = this.cardsInRow(row)
-      .map(card => card.meepsOnCard
-        .filter(meep => meep.player == plyr)).flat()
-    const rank = this.nRows - 1 - row;
-    return (row == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, meeps.length) : meeps.length);
   }
 
   brake = false; // for debugger
