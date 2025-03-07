@@ -1,6 +1,6 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
-import { BlackCard, ColCard, DualCard } from "./col-card";
+import { ColCard } from "./col-card";
 import type { ColTable } from "./col-table";
 import { arrayN, type Faction, type GamePlay } from "./game-play";
 import type { HexMap2 } from "./ortho-hex";
@@ -165,17 +165,18 @@ export class ScenarioParser extends SPLib {
     // console.log(stime(this, `.placeMeeplesOnMap: layout=${!!layout}\n`), gamePlay.mapString)
   }
   // override to declare return type:
-  override saveState(gamePlay?: GamePlay0, logWriter?: LogWriter | false): SetupElt {
-    return super.saveState(gamePlay, logWriter) as SetupElt; // because addStateElements
+  override saveState(logWriter?: LogWriter | false): SetupElt {
+    return super.saveState(logWriter) as SetupElt; // because addStateElements
   }
 
-  override addStateElements(setupElt: {time: string, turn: number}) {
+  override addStateElements(setupElt: { time: string, turn: number }) {
+    const gamePlay = this.gamePlay, turnId = gamePlay.turnId;
     const { time, turn } = setupElt;
-    const gameState = this.gamePlay.gameState.saveState();
-    const pStates = this.gamePlay.getPlayerState();
-    const scores = this.gamePlay.allPlayers.map(plyr => plyr.markers.map(m => [m.value, m.track] as [v: number, t: number]))
-    const layout = this.gamePlay.getLayout();
-    return { turn, time, scores, gameState, pStates, layout, }
+    const gameState = gamePlay.gameState.saveState();
+    const pStates = gamePlay.getPlayerState();
+    const scores = gamePlay.allPlayers.map(plyr => plyr.markers.map(m => [m.value, m.track] as [v: number, t: number]))
+    const layout = gamePlay.getLayout();
+    return { turn, turnId, time, scores, gameState, pStates, layout, }
   }
 
 }

@@ -48,7 +48,7 @@ export class ColMeeple extends Meeple {
 
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
     const state = ctx.gameState.state.Aname;
-    if (!['BumpAndCascade', 'ResolveWinner'].includes(state!) && ! ctx.lastShift)
+    if (!['AdvanceAndBump', 'ResolveWinner'].includes(state!) && ! ctx.lastShift)
       return `Only move during Bump phase, not "${state}"`;
     const col = (ctx.gameState as GameState).gamePlay.colToMove;
     const colc = this.card.col;
@@ -61,7 +61,7 @@ export class ColMeeple extends Meeple {
     if (!(toHex.col === this.hex!.col)) return false; // stay in same hex-column
     if (ctx.lastShift) return true;
     // if (toHex === this.fromHex) return true;
-    if (!(ctx.gameState.isPhase('BumpAndCascade'))) return false;
+    if (!(ctx.gameState.isPhase('AdvanceAndBump'))) return false;
     return true;
   }
 

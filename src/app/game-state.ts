@@ -133,7 +133,7 @@ export class GameState extends GameStateLib {
     },
     BeginTurn: {
       start: () => {
-        this.gamePlay.saveGame();
+        this.gamePlay.saveGame(); // --> gamePlay.scenarioParser.saveState(gamePlay)
         console.log(stime(this, `.BeginTurn.start: \n`), this.gamePlay.mapString);
         setTimeout(() => this.phase('CollectBids'), 0);
       }
@@ -168,17 +168,17 @@ export class GameState extends GameStateLib {
       done: (col: number, meep?: ColMeeple) => {
         this.winnerMeep = meep;
         if (meep) {
-          this.phase('BumpAndCascade', col, meep);
+          this.phase('AdvanceAndBump', col, meep);
         } else {
           this.phase('MeepsToCol', col);
         }
       }
     },
-    BumpAndCascade: { // winner/bumpee's meep identified and moved: cascade
+    AdvanceAndBump: { // winner/bumpee's meep identified and moved: cascade
       start: (col: number, meep: ColMeeple) => {
         this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
-        this.table.logText(`${meep} in col ${meep.card.colId}`, `BumpAndCascade`);
+        this.table.logText(`${meep} in col ${meep.card.colId}`, `AdvanceAndBump`);
         const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color, () => {
           this.gamePlay.advanceMeeple(meep, bumpDone); // advance; bump & cascade -> bumpDone
@@ -192,7 +192,7 @@ export class GameState extends GameStateLib {
         this.winnerMeep?.highlight(false);
         const fails = this.gamePlay.meeplesToCell(col)
         if (fails) {
-          afterUpdate(fails, () => this.phase('BumpAndCascade',col, fails), this, 10)
+          afterUpdate(fails, () => this.phase('AdvanceAndBump',col, fails), this, 10)
           return;
         }
         // update faction counters for each Player:
@@ -249,6 +249,7 @@ export class GameState extends GameStateLib {
         this.doneButton(`End of Game!\n(click for new game)`, winp.color)
       },
       done: () => {
+        this.gamePlay.logWriter?.showBacklog();
         this.gamePlay.gameSetup.restart({});
       }
     }

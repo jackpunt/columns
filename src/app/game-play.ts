@@ -58,6 +58,10 @@ export class GamePlay extends GamePlayLib {
       .join('\n ')
   }
 
+  override get turnId() {
+    return `${this.gameState.turnId}`; // turnId as string
+  }
+
   /** all the cards and the meeples on them. ordered [row=0..nrows-1][column=0..ncols-1] */
   getLayout(): CardContent[][] {
     const gp = this, hexMap = gp.hexMap;
@@ -177,6 +181,7 @@ export class GamePlay extends GamePlayLib {
    * Advance (dir = 1); then bump & cascade.
    * @param meep
    * @param cb callback when bump & cascade is complete
+   * @returns bumpDir used for this advance
    */
   advanceMeeple(meep: ColMeeple, cb?: () => void) {
     // addMeep to next card, choose bumpDir
@@ -189,7 +194,7 @@ export class GamePlay extends GamePlayLib {
       : { ndx: open[0] ?? 0, bumpDir: bumpDirs[0] as BumpDir } // take the [first] open slot
     // enforce (bumpDir = 1) when target cell contains same player's meep:
     const bumpDir = (advCard.meepsAtNdx[ndx]?.player == meep.player) ? 1 : bDir;
-    this.bumpAndCascade(meep, advCard, ndx, bumpDir)
+    this.AdvanceAndBump(meep, advCard, ndx, bumpDir)
     if (cb) cb();   // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
   }
@@ -200,14 +205,14 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** add meep to (card,ndx); any bump goes to bumpDir */
-  bumpAndCascade(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: BumpDir, depth = 0) {
+  AdvanceAndBump(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: BumpDir, depth = 0) {
     if (depth > this.nRows) debugger;
     const toBump = card.addMeep(meep, ndx)
     if (toBump) {
       const nextCard = card.nextCard(bumpDir)
       const cascDir = (bumpDir == -2) ? -1 : bumpDir;
       const [bumpee, ndx] = meep.player.chooseBumpee_Ndx(meep, cascDir);
-      this.bumpAndCascade(bumpee, nextCard, ndx, cascDir, depth + 1);
+      this.AdvanceAndBump(bumpee, nextCard, ndx, cascDir, depth + 1);
     }
   }
 

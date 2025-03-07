@@ -370,7 +370,7 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   autoAdvanceMarker(dScore: number) {
-    this.gamePlay.isPhase('BumpAndCascade')// 'EndRound' --> Score for Rank
+    this.gamePlay.isPhase('AdvanceAndBump')// 'EndRound' --> Score for Rank
     const rMax = this.gamePlay.nRows; // max Rank
     const { row, rowScores } = this.gamePlay.gameState.state; // TODO: plan ahead
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
@@ -747,7 +747,7 @@ export class PlayerB extends Player {
     // TODO: consider bumping other if meep is on colBid faction
     // try each dir/bumpee combo to maximise colorScore & rankScore
     // looking ahead/comparing with this.rankScoreNow
-    // autoPlayer needs it own version of bumpAndCascade
+    // autoPlayer needs it own version of AdvanceAndBump
     // happily, pseudoWin will rest all the dudes in the column
     //
     // our 'model' of other player is base class Player?

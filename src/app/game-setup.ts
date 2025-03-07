@@ -151,7 +151,7 @@ export class PlayerGameSetup extends GameSetup {
   syncGame() {
     // get state of real game:
     const gamePlay = this.gs.gamePlay
-    const stateInfo = gamePlay.scenarioParser.saveState();
+    const stateInfo = gamePlay.scenarioParser.saveState(false);
     // push into this subGame:
     this.gamePlay.scenarioParser.parseScenario(stateInfo); // parse into this game
   }
