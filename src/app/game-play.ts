@@ -14,6 +14,7 @@ import type { BlackCard, ColCard, DualCard } from "./col-card";
 /** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
 export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
 export const nFacs = 4;
+type BumpDir = (-2 | -1 | 1)
 
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
 export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
@@ -181,19 +182,25 @@ export class GamePlay extends GamePlayLib {
     // addMeep to next card, choose bumpDir
     const advCard = meep.card.nextCard(1), open = advCard.openCells;
     const nCells = advCard.factions.length, nOpen = open.length;
-    // TODO: enforce self-bump is UP (see Player.meepleToAdvance)
-    const mustBumpUp = TP.bumpUpRow1 && (advCard.hex.row == 1);
-    const bumpDirs = (mustBumpUp ? [1] : TP.allBumpsDown ? [-2, -1] : [-2, -1, 1]) as (-2 | -1 | 1)[];
-    const { bumpDir, ndx } = (nCells == 2) && (nOpen != 1)
+    const mustBumpUp = (TP.bumpUpRow1 && (advCard.hex.row == 1)) || this.mustBumpSelf(meep, advCard);
+    const bumpDirs = (mustBumpUp ? [1] : TP.allBumpsDown ? [-2, -1] : [-2, -1, 1]) as BumpDir[];
+    const { bumpDir: bDir, ndx } = (nCells == 2) && (nOpen != 1)
       ? meep.player.selectNdx_BumpDir(meep, advCard, bumpDirs)
-      : { ndx: open[0] ?? 0, bumpDir: bumpDirs[0] as (-2 | -1 | 1) } // take the [first] open slot
+      : { ndx: open[0] ?? 0, bumpDir: bumpDirs[0] as BumpDir } // take the [first] open slot
+    // enforce (bumpDir = 1) when target cell contains same player's meep:
+    const bumpDir = (advCard.meepsAtNdx[ndx]?.player == meep.player) ? 1 : bDir;
     this.bumpAndCascade(meep, advCard, ndx, bumpDir)
-    if (cb) cb(); // only for the original, outer-most, winning-bidder
+    if (cb) cb();   // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
+  }
+  /** if meep advances to nextCard(dir).ndx --> bumps their own meep */
+  mustBumpSelf(meep: ColMeeple, card: ColCard) {
+    const meeps = card.meepsOnCard, player = meep.player;
+    return (meeps.length == card.maxCells && !meeps.find(m => m.player !== player))
   }
 
   /** add meep to (card,ndx); any bump goes to bumpDir */
-  bumpAndCascade(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: (1 | -1 | -2), depth = 0) {
+  bumpAndCascade(meep: ColMeeple, card: ColCard, ndx: number, bumpDir: BumpDir, depth = 0) {
     if (depth > this.nRows) debugger;
     const toBump = card.addMeep(meep, ndx)
     if (toBump) {

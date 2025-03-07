@@ -431,13 +431,13 @@ export class Player extends PlayerLib implements IPlayer {
       return;
     }
     meeps.sort((a, b) => a.card.rank - b.card.rank);
-    const meep = meeps.find(meep => {
-      const mr = meep.card.rank; // return lowest meep UNLESS it hits our own meep:
-      return !(meeps.length > 1 && TP.allBumpsDown &&
-        meeps.find(m => m.card.rank == mr + 1 && !m.card.meepsAtNdx.find(mi => mi?.player !== this)))
-    })! // ASSERT: the highest rank meeple will not bump another.
+    const meep = this.meepToAdvanceAuto(meeps); // overrideable decision
     if (colMeep) colMeep(meep)
     return meep;
+  }
+  /** meeps is already sorted by increasing rank */
+  meepToAdvanceAuto(meeps: ColMeeple[]) {
+    return meeps[0];
   }
 
   bestFacs(card: ColCard) {
