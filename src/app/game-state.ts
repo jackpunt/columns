@@ -213,7 +213,6 @@ export class GameState extends GameStateLib {
     },
     EndRound: {
       row: 0,
-      rowScores: [],
       start: () => {
         // score for rank:
         const rowScores = this.gamePlay.scoreForRank(), nRows = this.gamePlay.nRows;
@@ -221,14 +220,13 @@ export class GameState extends GameStateLib {
         const advanceNextScore = (row: number) => {
           if (this.gamePlay.isEndOfGame()) { this.done(true); return }
           const rank = nRows - 1 - row;
-          this.state.row = row;           // for AutoPlayer to consider
           if (rank < 1) { this.done(); return } // no score for rank0; DONE
           if (row > rowScores.length - 1) { debugger; } // expect rank = 0
           if (rowScores[row].length == 0) { advanceNextScore(row + 1); return; }
           const { plyr, score } = rowScores[row][0]
-          rowScores[row].shift(); // remove {plyr,score}
+          rowScores[row].shift(); // remove {plyr,score}; rowScores.length -> rank
           this.doneButton(`Advance Markers for Rank ${rank}: ${score}`, plyr.color);
-          plyr.advanceMarker(score, () => advanceNextScore(row))
+          plyr.advanceMarker(score, rowScores.slice(), () => advanceNextScore(row))
         }
         advanceNextScore(0)
       },

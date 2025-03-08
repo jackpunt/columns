@@ -145,7 +145,7 @@ export class ColTable extends Table {
   }
 
   override makeGUIs(scale?: number, cx?: number, cy?: number, dy?: number): void {
-    // this.guisToMake = [this.makeParamGUI]
+    this.guisToMake = [this.makeParamGUI]
     if (!this.stage.canvas) return;
     super.makeGUIs(scale, cx, cy);
   }
@@ -174,6 +174,12 @@ export class ColTable extends Table {
       gui.setValue(item);
       gameSetup.restart({})
     }
+
+    gui.makeParamSpec('allBumpsDown', [true, false], {fontColor: C.legalGreen}); TP.allBumpsDown
+    gui.makeParamSpec('bumpUpRow1', [true, false], {fontColor: C.legalGreen}); TP.bumpUpRow1
+    gui.makeParamSpec('onePerRank', [true, false], {fontColor: C.legalGreen}); TP.onePerRank
+    gui.makeParamSpec('topRankOnly', [true, false], {fontColor: C.legalGreen}); TP.topRankOnly
+    gui.makeParamSpec('nTopMeeps', [1,2,3,4,9], {fontColor: C.legalGreen}); TP.nTopMeeps
 
     parent.addChild(gui)
     gui.x = x; gui.y = y

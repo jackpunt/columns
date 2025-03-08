@@ -350,7 +350,7 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /** advance one score marker, then invoke callback [to gamePlay] */
-  advanceMarker(dScore: number, cb?: () => void) {
+  advanceMarker(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]> = [], cb?: () => void) {
     if (!dScore) { cb && setTimeout(cb, 0); return } // zero or undefined
     // this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
     const scoreTrack = this.gamePlay.table.scoreTrack;
@@ -365,14 +365,18 @@ export class Player extends PlayerLib implements IPlayer {
     })
     this.panel.stage?.update();
     if (this.autoScore) {
-      this.autoAdvanceMarker(dScore); // auto-click one of the markers
+      this.autoAdvanceMarker(dScore, rowScores); // auto-click one of the markers
     }
   }
 
-  autoAdvanceMarker(dScore: number) {
+  /**
+   *
+   * @param dScore score points earned; advance one marker by dScore
+   * @param rowScores [empty when doing scoreForColor]
+   */
+  autoAdvanceMarker(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]>) {
     this.gamePlay.isPhase('AdvanceAndBump')// 'EndRound' --> Score for Rank
     const rMax = this.gamePlay.nRows; // max Rank
-    const { row, rowScores } = this.gamePlay.gameState.state; // TODO: plan ahead
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
     const allClkrs0 = this.markers.map(m => [m.clicker1, m.clicker2]).flat(1);
     const allClkrs = allClkrs0.filter(clkr => clkr.parent); // shown an GUI...
@@ -596,8 +600,8 @@ export class PlayerB extends Player {
     return cards.map(card => card.factions).flat(1)
   }
 
-  autoAdvanceMarkerX(dScore: number) {
-    super.autoAdvanceMarker(dScore)
+  autoAdvanceMarkerX(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]>) {
+    super.autoAdvanceMarker(dScore, rowScores)
   }
 
   override setAutoPlay(v?: boolean): void {

@@ -34,12 +34,15 @@ export class TP extends TPLib {
   static bidReqd = true;
   static nElts = 6;     // number of ScoreTrack elements
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
-  /** [true] scoreForRank scores at most 1 meep per player on each rank */
-  static onePerRank = false;
-  /** score only for your highest rank */
-  static topRankOnly = true;
+
   /** when advance: always bump down (by 2) */
   static allBumpsDown = true;
   /** must bump row1 to row0 */
   static bumpUpRow1 = true;
+  /** [true] scoreForRank scores at most 1 meep per player on each rank */
+  static onePerRank = false;
+  /** score only for your highest rank */
+  static topRankOnly = false;
+  /** score only the top n meeps */
+  static nTopMeeps = 2;
 }

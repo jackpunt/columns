@@ -249,28 +249,32 @@ export class GamePlay extends GamePlayLib {
     const scoreStr = `${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`;
     const anno = (this.table.stage.canvas) ? '' : 'R ';
     this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
-    if (advMrk) player.advanceMarker(score, cb)
+    if (advMrk) player.advanceMarker(score, [], cb)
     return [score, scoreStr];
   }
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
   scoreForRank() {
-    const nRows = this.nRows, plyrScored = arrayN(this.allPlayers.length, i => 0)
+    const nRows = this.nRows, nScored = arrayN(this.allPlayers.length, i => 0)
     // include top row (so ndx == row), but score = 0;
     const playersInRow = arrayN(nRows - 1).map(row =>
       this.cardsInRow(row).map(card => card.meepsOnCard.map(meep => meep.player))
         .flat().filter((plyr, n, ary) => !ary.slice(0, n).find(lp => lp == plyr))
       // retain first occurence of player on row
     )
+
     /** score for presence of player on the given row */
     const scoreForRow = (plyr: Player, row: number) => {
       const meeps = this.cardsInRow(row)
         .map(card => card.meepsOnCard
           .filter(meep => meep.player == plyr)).flat()
-      const rank = this.nRows - 1 - row, nMeeps = meeps.length;
-      const scored = plyrScored[plyr.index] > 0;
-      const score = (row == 0 ? 0 : rank) * (TP.onePerRank ? Math.min(1, nMeeps) : nMeeps);
-      plyrScored[plyr.index] += score;  // becomes > 0 when plyr scores any row/meeple
+      const rank = this.nRows - 1 - row;
+      const nMeep0 = meeps.length;
+      const nMeep1 = (TP.onePerRank ? Math.min(1, nMeep0) : nMeep0)
+      const nMeeps = Math.min(nMeep1, Math.max(0, TP.nTopMeeps - nScored[plyr.index]));
+      const scored = nScored[plyr.index] > 0;
+      const score = (row == 0 ? 0 : rank) * nMeeps;
+      if (score > 0) nScored[plyr.index] += nMeeps;  // number of meeps this player has scored
       return (TP.topRankOnly && scored) ? 0 : score;
     }
     return playersInRow.map((plyrsInRow, row) =>
