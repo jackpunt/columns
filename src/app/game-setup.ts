@@ -87,7 +87,7 @@ export class GameSetup extends GameSetupLib {
   }
 
   override makeGamePlay(scenario: Scenario): GamePlay {
-    return new GamePlay(this, scenario);
+    return new GamePlay(this, scenario); // sure, we could specialize here (recordMeep)
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
@@ -150,8 +150,7 @@ export class PlayerGameSetup extends GameSetup {
 
   syncGame() {
     // get state of real game:
-    const gamePlay = this.gs.gamePlay
-    const stateInfo = gamePlay.scenarioParser.saveState(false);
+    const stateInfo = this.gs.gamePlay.scenarioParser.saveState(false);
     // push into this subGame:
     this.gamePlay.scenarioParser.parseScenario(stateInfo); // parse into this game
   }

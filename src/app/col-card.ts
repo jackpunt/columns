@@ -4,7 +4,7 @@ import { Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColMeeple, ColSelButton } from "./col-meeple";
-import { arrayN, nFacs, type Faction, type GamePlay } from "./game-play";
+import { arrayN, nFacs, type BumpDir, type Faction, type GamePlay } from "./game-play";
 import { GameSetup } from "./game-setup";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
@@ -48,11 +48,11 @@ export class ColCard extends Tile {
   /**
    * @param dir 1: up, -1: down, -2: down-2
    */
-  nextCard(dir: 0 | 1 | -1 | -2): ColCard {
-    return dir == 1 ? this.hex.nextHex('N')?.card ?? this.hex.card
-        : dir == -1 ? this.hex.nextHex('S')?.card ?? this.hex.card
+  nextCard(dir: BumpDir): ColCard {
+    return (dir == 1 ? this.hex.nextHex('N')?.card
+        : dir == -1 ? this.hex.nextHex('S')?.card
         : dir == -2 ? this.nextCard(-1).nextCard(-1)
-        : this.hex.card
+        : undefined) ?? this; // Black card succeeds itself
   }
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
@@ -96,7 +96,7 @@ export class ColCard extends Tile {
    * @param meep
    * @param cellNdx target cell for meep (if supplied by DualCard or openCells[0])
    * @param xy coordinates on this card (supplied by dropFunc -> DualCard)
-   * @returns false if meep is in meepleLoc; true if in bumpLoc
+   * @returns other meeple in cell; if none, meep is in meepleLoc, else meep is in bumpLoc.
    */
   // makeMeeple: always an openCell; cellNdx: number
   //
@@ -106,7 +106,7 @@ export class ColCard extends Tile {
   // meeplesToCell: meep.cellNdx:? number --> openCell[0]: number
   addMeep(meep: ColMeeple, cellNdx = this.openCells[0] ?? 0, xy?: XY) {
     // use ?? 0; b/c dualCell would parse xy->cellNdx[0..1]; must be a single-cell
-    const toBump = !!this.otherMeepInCell(meep, cellNdx);
+    const toBump = this.otherMeepInCell(meep, cellNdx);
     const locXY = toBump ? this.bumpLoc : this.meepleLoc(cellNdx); // meepleLoc IFF cellNdx supplied and cell is empty
     this.meepCont.addChild(meep);
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex; // no collisions, but fromHex
@@ -269,9 +269,10 @@ export class BlackCard extends ColCard {
 
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 
-  // ignore given cellNdx, dump in first empty cell
-  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY): boolean {
-    return super.addMeep(meep, this.openCells[0], xy)
+  // if occupied: ignore given cellNdx, dump in first empty cell
+  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
+    const ndx = (cellNdx !== undefined && !this.meepsAtNdx[cellNdx]) ? cellNdx : this.openCells[0];
+    return super.addMeep(meep, ndx, xy)
   }
 }
 

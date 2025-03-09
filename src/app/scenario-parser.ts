@@ -143,12 +143,14 @@ export class ScenarioParser extends SPLib {
     gamePlay.allMeeples.length = 0; // discard initial/default meeples
     if (layout) {
       layout.forEach((rowElt, row) => {
-        rowElt.forEach(({ meeps }, col) => {
+        const rank = nrows - row - 1;
+        rowElt.forEach(({ meeps }, coln) => {
+          const col = coln + 1;
           meeps?.forEach((pid, ndx) => {
             if (pid < 0) return; // space filler on dual card
             const player = allPlayers[pid];
-            const meep = player.makeMeeple(1 + col); // dubious label on reload
-            const card = hexMap.getCard(nrows - row - 1, 1 + col);
+            const meep = player.makeMeeple(col); // dubious label on reload
+            const card = hexMap.getCard(rank, col);
             card.addMeep(meep, ndx);
           })
         })

@@ -134,7 +134,7 @@ export class GameState extends GameStateLib {
     BeginTurn: {
       start: () => {
         this.gamePlay.saveGame(); // --> gamePlay.scenarioParser.saveState(gamePlay)
-        console.log(stime(this, `.BeginTurn.start: \n`), this.gamePlay.mapString);
+        console.log(stime(this, `.BeginTurn.start: ${this.turnId} \n`), this.gamePlay.mapString);
         setTimeout(() => this.phase('CollectBids'), 0);
       }
     },
