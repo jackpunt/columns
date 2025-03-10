@@ -47,4 +47,6 @@ export class TP extends TPLib {
   static nTopMeeps = 2;
   /** enable textLog in scoreForColor */
   static logFromSubGame = false;
+  /** true -> show auto_bids when selected; false -> show after make-bids done click. */
+  static showAllBids = false;
 }

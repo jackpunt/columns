@@ -153,7 +153,14 @@ export class GameState extends GameStateLib {
           return;
         }
         // console.log(stime(this, `.CollectBids.done: \n`), this.gamePlay.mapString);
-        if (this.allDone || ok) this.phase('ResolveWinner');
+        if (this.allDone || ok) {
+          // show all bids
+          this.gamePlay.allPlayers.forEach(plyr => {
+            plyr.colSelButtons.forEach(b => b.showSelected(false))
+            plyr.colBidButtons.forEach(b => b.showSelected(false))
+          })
+          afterUpdate(this.gamePlay.table.stage, () => this.phase('ResolveWinner'))
+        }
       }
     },
     ResolveWinner: { // resolve winner, select & advance meep

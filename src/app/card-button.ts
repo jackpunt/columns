@@ -7,6 +7,7 @@ import { ColCard } from "./col-card";
 import { ColTable } from "./col-table";
 import type { Faction } from "./game-play";
 import { Player } from "./player";
+import { TP } from "./table-params";
 
 
 export namespace CB {
@@ -44,11 +45,16 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
   player!: Player;
 
+  /** for print version */
   addSideNum() {
     const rad = this.radius, ll = new CenterText(this.label.text, rad * .15, this.label.color)
     ll.x = -.36 * rad;
     ll.y = -.33 * 5/3 * rad;
     this.addChild(ll)
+  }
+
+  get showBidNow() {
+    return TP.showAllBids || !this.player.useRobo
   }
 
   /** onClick: Select this card/button for CollectBids: all Players in parallel */
@@ -115,7 +121,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         // clear any previously selected button:
         this.plyrButtons.find(cb => cb.state === CB.selected)?.setState(CB.clear, false);
         this.dimmer.visible = false;
-        this.highlight.visible = true;
+        this.highlight.visible = this.showBidNow;
         this.state = state;
         this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
         break
@@ -135,6 +141,12 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         break
       }
     }
+    if (update) this.stage?.update()
+  }
+
+  showSelected(update = true) {
+    if (this.state != CB.selected) return;
+    this.highlight.visible = true;
     if (update) this.stage?.update()
   }
 
