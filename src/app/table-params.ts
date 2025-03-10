@@ -45,4 +45,6 @@ export class TP extends TPLib {
   static topRankOnly = false;
   /** score only the top n meeps */
   static nTopMeeps = 2;
+  /** enable textLog in scoreForColor */
+  static logFromSubGame = false;
 }

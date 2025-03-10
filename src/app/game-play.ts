@@ -266,8 +266,9 @@ export class GamePlay extends GamePlayLib {
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = colScore + cardScore + trackScore
     const scoreStr = `${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`;
+    const tlog = TP.logFromSubGame || this.table.stage.canvas
     const anno = (this.table.stage.canvas) ? '' : 'R ';
-    this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
+    tlog && this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
     if (advMrk) player.advanceMarker(score, [], cb)
     return [score, scoreStr];
   }

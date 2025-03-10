@@ -243,8 +243,8 @@ export class GameState extends GameStateLib {
         playersByscore.sort((a, b) => b.rankScoreNow - a.rankScoreNow); // tie breaker
         playersByscore.sort((a, b) => b.score - a.score )
         const winp = playersByscore[0]
-        this.gamePlay.logWriterLine0('finish', { 'winner': winp.index, 'winColor': winp.color })
-        this.doneButton(`End of Game!\n(click for new game)`, winp.color)
+        this.gamePlay.logWriterLine0('finish', { 'winner': winp.index, 'winColor': winp.Aname })
+        this.doneButton(`End of Game! ${winp.Aname}\n(click for new game)`, winp.color)
       },
       done: () => {
         this.gamePlay.logWriter?.showBacklog();
