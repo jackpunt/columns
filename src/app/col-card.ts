@@ -3,7 +3,8 @@ import { CenterText, NamedContainer, type CountClaz, type Paintable, type Painta
 import { Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { ColMeeple, ColSelButton } from "./col-meeple";
+import { ColSelButton } from "./card-button";
+import { ColMeeple } from "./col-meeple";
 import { arrayN, nFacs, type BumpDir, type Faction, type GamePlay } from "./game-play";
 import { GameSetup } from "./game-setup";
 import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";

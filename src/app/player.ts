@@ -2,7 +2,8 @@ import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@th
 import { afterUpdate, UtilButton, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { newPlanner, NumCounterBox, GamePlay as GamePlayLib, Player as PlayerLib, type HexMap, type NumCounter, type PlayerPanel, type SetupElt as SetupEltLib, Tile, NC, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
-import { CardButton, CB, ColBidButton, ColMeeple, ColSelButton, type CardButtonState } from "./col-meeple";
+import { CardButton, CB, ColBidButton, ColSelButton, type CardButtonState } from "./card-button";
+import { ColMeeple } from "./col-meeple";
 import type { ColTable, MarkerShape } from "./col-table";
 import { arrayN, GamePlay, nFacs, type BumpDir, type Faction } from "./game-play";
 import { PlayerGameSetup } from "./game-setup";

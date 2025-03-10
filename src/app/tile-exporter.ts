@@ -1,6 +1,6 @@
 import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
 import { BlackCard, PrintCol, PrintDual, SetupCard, SummaryCard } from "./col-card";
-import { PrintBidValue, PrintColSelect } from "./col-meeple";
+import { PrintBidValue, PrintColSelect } from "./card-button";
 import { TrackLabel, TrackSegment } from "./col-table";
 // end imports
 

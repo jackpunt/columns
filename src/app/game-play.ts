@@ -1,7 +1,8 @@
 import { json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib } from "@thegraid/hexlib";
-import { CB, type ColMeeple } from "./col-meeple";
+import { CB } from "./card-button";
+import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import type { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";

@@ -1,7 +1,8 @@
 import { C, stime } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
-import { type CardButton, type ColMeeple } from "./col-meeple";
+import { type CardButton } from "./card-button";
+import { type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
