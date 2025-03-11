@@ -16,7 +16,7 @@ export interface Scenario extends Scenario0 {
 };
 
 /** initialize & reset & startup the application/game. */
-export class GameSetup extends GameSetupLib {
+class ColGameSetup extends GameSetupLib {
   declare table: ColTable;
   declare gamePlay: GamePlay;
   declare scenarioParser: ScenarioParser;
@@ -106,9 +106,27 @@ export class GameSetup extends GameSetupLib {
   }
 }
 
+export class PyrGameSetup extends ColGameSetup {
+  declare gamePlay: GamePlay;
+
+
+  override makeHexMap(
+    hexMC: Constructor<HexMap<Hex>> = HexMap2,
+    hexC: Constructor<Hex> = Hex2, // (radius, addToMapCont, hexC, Aname)
+    cNames = MapCont.cNames.concat() as string[], // the default layers
+  ) {
+    const [nr] = this.setRowsCols();
+    // set color of 'hex' for each row (district); inject to HexMap.distColor
+    const dc = arrayN(nr).map(i => C.grey224);
+    HexMap.distColor.splice(0, HexMap.distColor.length, ...dc);
+    const hexMap = super.makeHexMap(hexMC, hexC, cNames); // hexMap.makeAllHexes(nh=TP.nHexes, mh=TP.mHexes)
+    return hexMap;
+  }
+
+}
 
 /** GameSetup with no canvas, using gs.logWriter, same loader */
-export class PlayerGameSetup extends GameSetup {
+export class PlayerGameSetup extends ColGameSetup {
   /**
    * @param gs the original/actual running GameSetup, GameState, Players, Table, etc
    */
@@ -165,4 +183,7 @@ class PlayerLogWriter extends LogWriter {
   override writeLine(text?: string): void {
     // if (!text?.startsWith('// ')) this.gsLogwriter.writeLine(text);
   }
+}
+export class GameSetup extends ColGameSetup {
+
 }
