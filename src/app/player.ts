@@ -592,7 +592,7 @@ export class PlayerB extends Player {
   override newGame(gamePlay: GamePlay, url?: string): void {
     super.newGame; //(gamePlay, url)
     // setAutoPlay() for top-level GUI-enabled PlayerB:
-    if (!!gamePlay.table.stage.canvas && this.index > 0) {
+    if (!!gamePlay.table.stage.canvas && this.index < TP.startAuto) {
       console.log(stime(this, `.newGame[${this.index}] setAutpPlay ${this.Aname}`))
       setTimeout(() => this.setAutoPlay(true), 10)
     }

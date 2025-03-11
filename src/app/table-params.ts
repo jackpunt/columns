@@ -51,4 +51,6 @@ export class TP extends TPLib {
   static showAllBids = false;
   /** use extra meeple if player count <= useXtraMeep */
   static useXtraMeep = 4;
+  /** setAutoPlay if player.index < startAuto */
+  static startAuto = 0;
 }
