@@ -2,12 +2,12 @@ import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
 import { ColCard } from "./col-card";
 import type { ColTable } from "./col-table";
-import { arrayN, type Faction, type GamePlay } from "./game-play";
+import { arrayN, type CardContent, type GamePlay } from "./game-play";
 import type { HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // rowElt.length = nCols
-type RowElt = { fac: Faction[], meeps?: number[] }[];
+type RowElt = CardContent[];
 
 type SetupEltR = ReturnType<ScenarioParser["addStateElements"]> & SetupEltLib;
 export type SetupElt = Partial<SetupEltR>
@@ -147,10 +147,11 @@ export class ScenarioParser extends SPLib {
         const rank = nrows - row - 1;
         rowElt.forEach(({ meeps }, coln) => {
           const col = coln + 1;
-          meeps?.forEach((pid, ndx) => {
-            if (pid < 0) return; // space filler on dual card
+          meeps?.forEach((pcid, ndx) => {
+            if (!pcid) return; // empty string -> space filler on dual card
+            const [pnum, colId, ext] = pcid.split(''), pid = Number.parseInt(pnum);
             const player = allPlayers[pid];
-            const meep = player.makeMeeple(col); // dubious label on reload
+            const meep = player.makeMeeple(`${colId}${ext ?? ''}`); // label on reload
             const card = hexMap.getCard(rank, col);
             card.addMeep(meep, ndx);
           })

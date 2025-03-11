@@ -23,7 +23,7 @@ export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
   return Array.from(Array(n), (_, i) => fi(i))
 }
 
-export type CardContent = { fac: Faction[], meeps?: number[] };
+export type CardContent = { fac: Faction[], meeps?: string[] };
 export class GamePlay extends GamePlayLib {
   allCols: ColCard[] = [];
   allDuals: DualCard[] = [];
@@ -63,7 +63,10 @@ export class GamePlay extends GamePlayLib {
     return `${this.gameState.turnId}`; // turnId as string
   }
 
-  /** all the cards and the meeples on them. ordered [row=0..nrows-1][column=0..ncols-1] */
+  /** all the cards and the meeples on them. ordered [row=0..nrows-1][column=0..ncols-1]
+   *
+   * for logWriterLine0() and parseScenario.addStateElements()
+   */
   getLayout(): CardContent[][] {
     const gp = this, hexMap = gp.hexMap;
     // generate from bottom to top, the reverse to get them top to bottom:
@@ -71,8 +74,8 @@ export class GamePlay extends GamePlayLib {
       arrayN(gp.nCols, 1).map(col => {
         const card = hexMap.getCard(rank, col);
         const fac = card.factions;
-        const meeps0 = card.meepsAtNdx.map(meep => meep?.player.index ?? -1)
-        const meeps = meeps0.length > 0 ? meeps0 : undefined;
+        const meeps0 = card.meepsAtNdx.map(meep => meep ? meep.pcid : '')
+        const meeps = card.meepsOnCard.length > 0 ? meeps0 : undefined;
         return ({ fac, meeps })
       })
     ).reverse()

@@ -16,12 +16,16 @@ export class ColMeeple extends Meeple {
   declare baseShape: MeepleShapeLib & { highlight(l?: boolean, u?: boolean): void; };
   declare fromHex: OrthoHex2;
 
-  constructor(Aname: string, player?: Player) {
-    super(Aname, player);
+  constructor(cid: string, player: Player) {
+    const pcid = `${player.index}${cid}`
+    super(`Meep-${pcid}`, player);
+    this.pcid = pcid;
     this.nameText.font = F.fontSpec(this.radius / 6);
     this.nameText.y -= 3;
     // console.log(stime(`ColMeeple: constructor`), this);
   }
+  /** 2 or 3 char id: `{player.index}${colNum}${ext}` */
+  pcid: string;
   /** ColCard maintains: indicates which cell of card this meeple occupies; -> locXY */
   cellNdx?: number;
   /** ColCard on which this meeple is placed */

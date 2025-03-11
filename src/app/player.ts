@@ -12,7 +12,7 @@ import { TP } from "./table-params";
 type PlyrBid = { plyr: Player; bid: number; }
 /** interface from GamePlay/GameState to Player */
 export interface IPlayer {
-  makeMeeple(col: number, ext?: string): ColMeeple;
+  makeMeeple(colId: number | string, ext?: string): ColMeeple;
   panel: PlayerPanel;
   score: number;
   color: string;
@@ -153,9 +153,11 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   // map col [1..n]
-  cardsInCol(col: number) {
+  cardsInCol(col: number, andBlack = false) {
     const nRows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
-    return arrayN(nRows).map(rank => hexMap.getCard(rank, col))
+    return andBlack
+      ? arrayN(nRows).map(rank => hexMap.getCard(rank, col))
+      : arrayN(nRows - 2, 1).map(rank => hexMap.getCard(rank, col))
   }
   colScore() {
     const hexMap = this.gamePlay.hexMap
@@ -164,7 +166,7 @@ export class Player extends PlayerLib implements IPlayer {
     hexMap.forEachHex(hex => hex.card.factions.forEach(f => nfacs[f]++));
     const colScore = arrayN(1 + nCols, i => 0);
     arrayN(nCols, 1).map(col => {
-      this.cardsInCol(col).filter(c => c.factions[0] !== 0).map(card => {
+      this.cardsInCol(col).map(card => {
         const facs = card.factions, n = facs.length;
         facs.forEach(f => colScore[col] += nfacs[f] / n);
       })
@@ -259,14 +261,14 @@ export class Player extends PlayerLib implements IPlayer {
   /**
    * make ColMeeple, add to ColCard @ {column, rank}
    * @param hexMap
-   * @param colNum column
-   * @param rank [0]
-   * @param ext [''] mark name of xtraCol meeple
+   * @param colId colNum | `${player.index}:${colNum}`
    */
-  makeMeeple(colNum: number, ext = '') {
+  makeMeeple(colId: number | string, ext = '') {
     Tile.gamePlay = this.gamePlay; // so Meeples can find their GamePlay
-    const colId = ColSelButton.colNames[colNum]
-    const meep = new ColMeeple(`Meep-${this.index}:${colId}${ext}`, this)
+    const cid = (typeof colId == 'number')
+      ? `${ColSelButton.colNames[colId]}${ext}`
+      : colId;
+    const meep = new ColMeeple(cid, this)
     meep.paint(this.color);
     this.gamePlay.table.makeDragable(meep);
     return meep;
@@ -334,7 +336,7 @@ export class Player extends PlayerLib implements IPlayer {
   /** MarkerShapes on ScoreTrack */
   get markers() {
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
-    const markers = scoreTrack.markers[this.index].filter(m => m.value < max);
+    const markers = scoreTrack.markers[this.index].filter(m => m.value <= max);
     return markers;
   }
 
@@ -371,19 +373,21 @@ export class Player extends PlayerLib implements IPlayer {
   }
 
   /**
-   *
+   * clickers are already on (marker.value + dScore); pick one.
    * @param dScore score points earned; advance one marker by dScore
    * @param rowScores [empty when doing scoreForColor]
    */
   autoAdvanceMarker(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]>) {
     this.gamePlay.isPhase('AdvanceAndBump')// 'EndRound' --> Score for Rank
-    const rMax = this.gamePlay.nRows; // max Rank
+    const rMax = this.gamePlay.nRows - 1; // max Rank
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
-    const allClkrs0 = this.markers.map(m => [m.clicker1, m.clicker2]).flat(1);
+    const allClkrs0 = this.markers.filter(m => m.value < max).map(m => [m.clicker1, m.clicker2]).flat(1);
     const allClkrs = allClkrs0.filter(clkr => clkr.parent); // shown an GUI...
     allClkrs.sort((a, b) => a.value - b.value); // ascending
+    // TODO: sort by fac-bids available & cells hit-able; esp when tOR==2
+    // intersect colSel(clear) with bumpStop.map(cell.fac)
 
-    // do not use Black (unless able to land on rMax w/4-bid)
+    // avoid Black (unless able to land on rMax w/4-bid)
     const colSels = this.colSelButtons.filter(b => b.state == CB.clear)
     const rMaxes = this.meeples.filter(m => m.card.rank == rMax)
     const useBlack = (rMaxes.length > 0  // meeples on rMax
@@ -400,7 +404,7 @@ export class Player extends PlayerLib implements IPlayer {
       ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
       : allClkrs[0];     // lowest mrkr of the most present faction
     if (!clicker) debugger; // Player maxed out
-    clicker?.onClick()
+    clicker?.onClick();    // {clicker.marker.value} -> {clicker.value}
   }
   manualDoneFunc!: () => void;
   manualDone() {
@@ -464,16 +468,19 @@ export class Player extends PlayerLib implements IPlayer {
   /** put meep on card, optimize cell and meepToBump */
   bestBumpInDir(meep: ColMeeple, card: ColCard, bumpDir: BumpDir, ndxs = [0]) {
     // TODO: search tree of {dir, ndx} over cascades (if any)
-    const [bndx, score] = this.bestNdxForMe(card), ndx = bndx ?? ndxs[0];
+    const [bndx, score] = this.bestNdxForMe(card, bumpDir), ndx = bndx ?? ndxs[0];
     return { ndx, bumpDir, meep, score }
   }
 
   /** ndx of cell that maximizes payoff from advance */
-  bestNdxForMe(card: ColCard) {
+  bestNdxForMe(card: ColCard, bumpDir: BumpDir) {
     const [bestFacs, factionTotals] = this.bestFacs(card)
     const bidFacs = this.curBidCard!?.factions;
     const fac = bestFacs.find(fac => bidFacs.includes(fac));
-    const ndx = (fac !== undefined) ? card.factions.indexOf(fac) : undefined;
+    // TODO: hit self when bumpdir == 1 && can hit bid color: hit self
+    const mMeep = (bumpDir == 1) ? card.meepsOnCard.find(m => m?.player == this) : undefined;
+    const mNdx = mMeep?.cellNdx, mBid =  (mNdx !== undefined) && bidFacs.includes(card.factions[mNdx])
+    const ndx = mMeep && mBid ? mNdx : (fac !== undefined) ? card.factions.indexOf(fac) : undefined;
     const val = (fac !== undefined) ? factionTotals[fac] : 0;
     return [ndx, val] as [ndx: number | undefined, val: number]
   }
@@ -489,7 +496,7 @@ export class Player extends PlayerLib implements IPlayer {
     const card2 = card0.nextCard(bumpDir)
     // if other is mine && isOk then bump other (even if, esp if bumpDir == 1)
     if (other.player == this) {
-      const [ndx, val] = this.bestNdxForMe(card0), isOk = (ndx !== undefined);
+      const [ndx, val] = this.bestNdxForMe(card0, bumpDir), isOk = (ndx !== undefined);
       // meep.card is good/ok to land, secure that landing and bump our co-agent;
       if (isOk) {
         return this.chooseCellForBumpee(other, bumpDir, card2)
@@ -514,7 +521,7 @@ export class Player extends PlayerLib implements IPlayer {
     // to Black card, it does not matter
     if (card.factions[0] == 0) return [bumpee, 0];
     const nCells = card.factions.length, rand = Random.random(nCells);
-    const card2 = card.nextCard(bumpDir), c2isBlk = card2.factions[0] = 0;
+    const card2 = card.nextCard(bumpDir), c2isBlk = card2.factions[0] == 0;
     const meepAtNdx = card.meepsAtNdx; // entry for each cellNdx;
     if (bumpDir == 1) {
       if (bumpee.player == this) {
@@ -524,7 +531,7 @@ export class Player extends PlayerLib implements IPlayer {
         if (ndx < 0) ndx = c2isBlk
           ? meepAtNdx.findIndex(meep => !meep) // take empty slot
           : meepAtNdx.findIndex(meep => !!meep) // hit any other meep
-        if (ndx < 0) ndx = this.bestNdxForMe(card)[0] ?? rand;
+        if (ndx < 0) ndx = this.bestNdxForMe(card, bumpDir)[0] ?? rand;
         return [bumpee, ndx]
       } else {
         let ndx = meepAtNdx.findIndex(meep => !meep) // take empty slot
@@ -534,7 +541,7 @@ export class Player extends PlayerLib implements IPlayer {
       }
     } else {
       if (bumpee.player == this) {
-        let ndx = this.bestNdxForMe(card)[0] ?? -1;
+        let ndx = this.bestNdxForMe(card, bumpDir)[0] ?? -1;
         if (ndx < 0) ndx = meepAtNdx.findIndex(meep => meep?.player && meep.player !== this) // try hit other
         if (ndx < 0) ndx = rand;
         return [bumpee, ndx];
@@ -592,12 +599,12 @@ export class PlayerB extends Player {
   }
 
   dualsInCol(col: number) {
-    const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
+    const cards = this.cardsInCol(col)
     return cards.filter(card => card.factions.length > 1)
   }
   factionsInCol(col: number) {
     // non-black cards in col
-    const cards = this.cardsInCol(col).filter(card => card.factions[0] !== 0)
+    const cards = this.cardsInCol(col)
     return cards.map(card => card.factions).flat(1)
   }
 
@@ -732,7 +739,7 @@ export class PlayerB extends Player {
     const plyr = gamePlay.allPlayers[this.index];
     const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
     // save original locations:
-    const col = ccard.colNum, cardsInCol = plyr.cardsInCol(col);
+    const col = ccard.colNum, cardsInCol = plyr.cardsInCol(col, true);
     const allMeepsInCol = cardsInCol.map(card => card.meepsOnCard).flat()
     const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
     // player meepsInCol:
@@ -752,27 +759,22 @@ export class PlayerB extends Player {
   }
 
   // advanceMeeple will need to decide who/how to bump:
-  override chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, dir: 1 | -1): [ColMeeple, ndx: number] {
-    // TODO: consider bumping other if meep is on colBid faction
-    // try each dir/bumpee combo to maximise colorScore & rankScore
+  override chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: 1 | -1): [ColMeeple, ndx: number] {
+    // TODO: try each dir/bumpee combo to maximise colorScore & rankScore
     // looking ahead/comparing with this.rankScoreNow
-    // autoPlayer needs it own version of AdvanceAndBump
-    // happily, pseudoWin will rest all the dudes in the column
+    // autoPlayer needs it own version of advanceAndBump
+    // happily, pseudoWin will reset all the dudes in the column
     //
     // our 'model' of other player is base class Player?
     // pro'ly subGameSetup will instantiate the same class
     // TODO: set Player.params on each instance 'randomly'
-    const card = meep.card;
-    if (dir == -1) {
-      return [other, 0]; // TODO: pick cell...
-    }
+    const card0 = meep.card, card2 = card0.nextCard(bumpDir);
     // const bumpDir = (dir !== 0) ? dir : 1; // TODO: consider each direction
-    const bumpStops = this.bumpStops(meep, dir || 1)
-    const bestFacs = this.bestFacs(card);
+    const bumpStops = this.bumpStops(meep, bumpDir)
+    const bestFacs = this.bestFacs(card2);
+    // TODO: finish the search/analysis; for now punting to super
+    return super.chooseBumpee_Ndx(meep, other, bumpDir)
 
-    const bumpee = (meep.card.rank == 4) ? other : meep;
-
-    return [bumpee, 0];
   }
 
   // TODO winnerMeep: examine intermediate stop/bump cards/cells
@@ -780,10 +782,12 @@ export class PlayerB extends Player {
   bumpStops(meep: ColMeeple, dir: BumpDir) {
     if (dir == -2) dir = -1;
     let cardn = meep.card, cards = [cardn]; // [].push(cardn)
+    let mustBump = false;
     do {
       cardn = cardn.nextCard(dir)
       cards.push(cardn)
-    } while ((dir == 1) ? cardn.openCells.length == 0 : (cardn.rank == 0 || cardn.cellsInUse.length == 0))
+      mustBump = (cardn.hex.row != 0) && (cardn.rank != 0) && (cardn.openCells.length == 0);
+    } while (mustBump);
     return cards;
   }
   /**

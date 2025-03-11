@@ -35,7 +35,7 @@ export class TP extends TPLib {
   static nElts = 6;     // number of ScoreTrack elements
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
 
-  /** when advance: always bump down (by 2) */
+  /** when advance: always bump down (by 2); self-bump is always up (by 1) */
   static allBumpsDown = true;
   /** must bump row1 to row0 */
   static bumpUpRow1 = true;
@@ -44,9 +44,11 @@ export class TP extends TPLib {
   /** score only for your highest rank */
   static topRankOnly = false;
   /** score only the top n meeps */
-  static nTopMeeps = 2;
+  static nTopMeeps = 3;
   /** enable textLog in scoreForColor */
   static logFromSubGame = false;
   /** true -> show auto_bids when selected; false -> show after make-bids done click. */
   static showAllBids = false;
+  /** use extra meeple if player count <= useXtraMeep */
+  static useXtraMeep = 4;
 }

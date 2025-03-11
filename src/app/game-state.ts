@@ -93,7 +93,9 @@ export class GameState extends GameStateLib {
     },
     SelectCol: {
       start: () => {
-        if (this.gamePlay.allPlayers[0].meeples.length > this.nCols) {
+        this.gamePlay.turnNumber = -1; // so BeginTurn can increment.
+        if (TP.numPlayers > TP.useXtraMeep ||
+          this.gamePlay.allPlayers[0].meeples.length > this.nCols) {
           this.phase('BeginRound');
           return;
         }
@@ -134,6 +136,7 @@ export class GameState extends GameStateLib {
     },
     BeginTurn: {
       start: () => {
+        this.gamePlay.setNextPlayer();  // advance turnNumber & turnOfRound
         this.gamePlay.saveGame(); // --> gamePlay.scenarioParser.saveState(gamePlay)
         console.log(stime(this, `.BeginTurn.start: ${this.turnId} \n`), this.gamePlay.mapString);
         setTimeout(() => this.phase('CollectBids'), 0);
@@ -214,8 +217,7 @@ export class GameState extends GameStateLib {
       start: () => {
         this.logScores('EndTurn');
         this.gamePlay.allPlayers.forEach(plyr => plyr.doneifyCards());
-        this.gamePlay.setNextPlayer();  // advance turnNumber & turnOfRound
-        const endOfRound = (this.turnOfRound == 1)
+        const endOfRound = (this.turnOfRound == 3)
         this.phase(endOfRound ? 'EndRound' : 'BeginTurn');
       },
     },

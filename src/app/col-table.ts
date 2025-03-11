@@ -180,6 +180,7 @@ export class ColTable extends Table {
     gui.makeParamSpec('onePerRank', [true, false], {fontColor: C.legalGreen}); TP.onePerRank
     gui.makeParamSpec('topRankOnly', [true, false], {fontColor: C.legalGreen}); TP.topRankOnly
     gui.makeParamSpec('nTopMeeps', [1,2,3,4,9], {fontColor: C.legalGreen}); TP.nTopMeeps
+    gui.makeParamSpec('showAllBids', [true, false], {fontColor: C.legalGreen}); TP.showAllBids
 
     parent.addChild(gui)
     gui.x = x; gui.y = y
