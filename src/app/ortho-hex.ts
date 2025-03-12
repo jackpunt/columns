@@ -93,17 +93,19 @@ export class RectHex2 extends RectHex2Mixed {
  *
  * for Pyramid, use (NW,NE, SW,SE) for links; no E/W
  */
-class RectTopoEWC extends TopoEWC {
+export class RectTopoEWC extends TopoEWC {
   static topo = new RectTopoEWC();
   constructor(public wr = 2.5, public hr = 1.75, public gap = .1 ) {
     super()
   }
 
   /** a TopoMetric for graphical layout */
-  override  xywh(rad = 1, row = 0, col = 0): TopoXYWH {
+  override xywh(rad = 1, row = 0, col = 0): TopoXYWH {
     const w = rad * this.wr, h = rad * this.hr;
     const dxdc = w + rad * this.gap, dydr = h + rad * this.gap;
-    return { x: col * dxdc, y: row * dydr, w, h, dxdc, dydr }
+    const x = (col + Math.abs(Math.floor(row) % 2) / 2) * dxdc;
+    const y = (row) * dydr;   // dist between rows
+    return { x, y, w, h, dxdc, dydr }
   }
 }
 
@@ -147,7 +149,7 @@ export class HexMap2 extends HexMap<ColHex2> {
   }
   getCard(rank: number, col: number) {
     // ASSERT: minRow = 0; maxRow = nRows-1
-    return this[this.maxRow as number - rank][col].card;
+    return this[this.maxRow as number - rank][col]?.card;
   }
   /** the Mark to display on cardMarkhexes */
   cardMark: Paintable
@@ -159,14 +161,31 @@ export class HexMap2 extends HexMap<ColHex2> {
     if (!hex) this.cardMark.visible = false;
   }
 
-  override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir> = TopoRect4C.topo;
+  override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir>;
 
+  // makeAllDistricts() -> makeAllHexes()
   // override to makeRect
   override makeAllHexes(nr = TP.nHexes, nc = TP.mHexes, rc0: RC) {
     const col = 1, district = 0, hexAry = [] as ColHex2[];
-    // nh: rows, mh: cols
-    for (let row = 0; row < nr; row++ ) {
-      this.addLineOfHex(nc, row, col, district, hexAry, 1)
+    const np = TP.numPlayers;
+    if (TP.usePyrTopo) {
+      // [4],5,7,6,5,4,3,[4] np>3   nr = 8; (nr-3 = 5)
+      //   [4],5,7,6,5,4,[4] np<=3  nr = 7; (nr-3 = 4)
+      //  6, 5,4,5,3,2,1, 0
+      const nr3 = nr - 3;       // row with most (nc) columns == (nr-1) - 2
+      const eo = (nr3 % 2);     // 1 when nr3 is an odd row (already shifted)
+      for (let row = 0; row < nr; row++) {
+        const dnr3 = Math.abs(nr3 - row); // distance from nr3
+        const c0 = (row == 0) ? (dnr3 - 3) / 2 : Math.floor(dnr3 / 2); // raw starting column
+        const c1 = eo + c0 - (row % 2);            // with offset for even/odd
+        const ncr = (row == 0) ? 4 : (7 - dnr3); // num cols in row
+        this.addLineOfHex(ncr, row, c1, district, hexAry, 1)
+      }
+    } else {
+      // nh: rows, mh: cols
+      for (let row = 0; row < nr; row++) {
+        this.addLineOfHex(nc, row, col, district, hexAry, 1)
+      }
     }
     this.setDistrictAndPaint(hexAry)
     return hexAry;
@@ -184,7 +203,7 @@ export class HexMap2 extends HexMap<ColHex2> {
   }
   // inject district from row (also sets color)
   override addHex(row: number, col: number, district?: number, hexC?: Constructor<ColHex2>): ColHex2 {
-    district = (TP.nHexes - row - 1); // compute district from row
+    district = (TP.nHexes - row - 1); // compute district == RANK from row
     return super.addHex(row, col, district, hexC)
   }
 }

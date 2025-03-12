@@ -46,7 +46,7 @@ class ColGameSetup extends GameSetupLib {
   }
 
   override startup(scenario: Scenario): void {
-    ColCard.nextRadius = CardShape.onScreenRadius; // reset for on-screen PathCard
+    ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
     super.startup(scenario)
   }
 
@@ -58,15 +58,21 @@ class ColGameSetup extends GameSetupLib {
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
   setRowsCols(np = TP.numPlayers) {
-    // nr includes top & bottom black cells; (8 player could be 7 rows...)
-    // const nr = Math.max(4, 3 + Math.floor(np / 2)) + 2; // include 2 black rows
-    // const nc = Math.max(4, 2 + Math.ceil(np / 2));
-    const nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows
-    const nc = [4, 4, 4, 4, 5, 5, 6, 6, 7, 7][np];
-    //    np =  0  1  2  3  4  5  6  7  8  9
-    // score    40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
-    TP.setParams({ nHexes: nr, mHexes: nc })
-    return [nr, nc] as [number, number];
+    if (TP.usePyrTopo) {
+      // [5],6,7,6,5,4,3,[4] np>3
+      // [5],6,7,6,5,4,[4]   np<=3
+      const nr = (np <= 3) ? 7 : 8, nc = (np <= 4) ? 4 : 5, tc = (np <= 4 ? 28 : 31);
+      TP.setParams({ nHexes: nr, mHexes: nc, cardsInPlay: tc }) // or 28
+      return [nr, nc];
+    } else {
+      // nr includes top & bottom black cells;
+      const nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows
+      const nc = [4, 4, 4, 4, 5, 5, 6, 6, 7, 7][np];
+      //    np =  0  1  2  3  4  5  6  7  8  9
+      //    score      40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
+      TP.setParams({ nHexes: nr, mHexes: nc, cardsInPlay: (nr - 2) * nc })
+      return [nr, nc] as [number, number];
+    }
   }
 
   override makeHexMap(
@@ -108,7 +114,6 @@ class ColGameSetup extends GameSetupLib {
 
 export class PyrGameSetup extends ColGameSetup {
   declare gamePlay: GamePlay;
-
 
   override makeHexMap(
     hexMC: Constructor<HexMap<Hex>> = HexMap2,
@@ -170,7 +175,7 @@ export class PlayerGameSetup extends ColGameSetup {
     // get state of real game:
     const stateInfo = this.gs.gamePlay.scenarioParser.saveState(false);
     // push into this subGame:
-    this.gamePlay.scenarioParser.parseScenario(stateInfo); // parse into this game
+    this.gamePlay.parseScenario(stateInfo); // parse into this game
   }
 }
 

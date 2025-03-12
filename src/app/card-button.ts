@@ -181,8 +181,9 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
 }
 
+export type ColId = ''|'A'|'B'|'C'|'D'|'E'|'F'|'G'|'H';
 export class ColSelButton extends CardButton {
-  static colNames = ['','A','B','C','D','E','F','G','H'];
+  static colNames = ['','A','B','C','D','E','F','G','H'] as ColId[];
   override get plyrButtons(): CardButton[] { return this.player.colSelButtons }
 
   constructor(public colNum = 0, opts: CardButtonOpts) {
@@ -195,7 +196,7 @@ export class ColSelButton extends CardButton {
     this.border = 0;
     this.paint();
   }
-  colId!: string
+  colId!: ColId;
 }
 
 export class ColBidButton extends CardButton {

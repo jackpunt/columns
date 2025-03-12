@@ -25,7 +25,7 @@ export interface IPlayer {
   bidOnCol(col: number): PlyrBid | undefined;
   cancelBid(col: number, bid: number): void;
   meepleToAdvance(meeps: ColMeeple[], colMeep: (meep?: ColMeeple) => void): void;
-  chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: -1 | 1): [ColMeeple, ndx: number]
+  chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: 'S' | 'N'): [ColMeeple, ndx: number]
   doneifyCards(): void;
 }
 
@@ -89,7 +89,7 @@ export class Player extends PlayerLib implements IPlayer {
     if (this.index >= 6) {
       this.gamePlay.table.dragger.makeDragable(this.panel)
     }
-    const ymax = this.makeCardButtons(TP.mHexes);  // number of columns
+    const ymax = this.makeCardButtons(this.gamePlay.nCols);  // number of columns
     this.setupCounters(ymax);
     const manuBut = this.manuButton = this.makeAutoButton(2, 'M', { bgColor: 'lime', active: false }); // manual done
     manuBut.on(S.click, () => this.manualDone(), this); // toggle useRobo
@@ -99,24 +99,33 @@ export class Player extends PlayerLib implements IPlayer {
     redoBut.on(S.click, () => this.selectBid(), this); // select alt bid
   }
 
-  makeCardButtons(ncol = 4, nbid = 4) {
+  makeCardButtons(nCols = 4, nbid = 4) {
     const opts = { visible: true, bgColor: this.color, player: this }
     const { width, height } = new ColSelButton(0, opts).getBounds(); // temp Button to getBounds()
     const { wide, gap } = this.panel.metrics, gap2 = gap / 2, dx = width + gap;
     const dy = height + gap, panel = this.panel;
-    const makeButton = function<T extends CardButton> (claz: Constructor<T>, num: number, row = 0) {
-      const x0 = (width / 2) + (wide - (num * dx - gap2)) / 2;
-      const y0 = (height / 2) + gap;
+    const makeButton = function<T extends CardButton> (claz: Constructor<T>, num: number) {
       return arrayN(num).map(ndx => {
         const button = new claz(ndx + 1, opts)
-        button.x = x0 + dx * ndx;
-        button.y = y0 + dy * row;
-        panel.addChild(button);
         return button
       })
     }
-    this.colSelButtons = makeButton(ColSelButton, ncol, 0);
-    this.colBidButtons = makeButton(ColBidButton, nbid, 1);
+    const placeButtons = function (buttons: CardButton[], row = 0) {
+      const num = buttons.length;
+      const x0 = (width / 2) + (wide - (num * dx - gap2)) / 2;
+      const y0 = (height / 2) + gap;
+      buttons.forEach((button, ndx) => {
+        button.x = x0 + dx * ndx;
+        button.y = y0 + dy * row;
+        panel.addChild(button);
+      })
+    }
+    const ncol = TP.usePyrTopo ? Math.max(nCols, 5) : nCols;
+    this.colSelButtons = makeButton(ColSelButton, ncol);
+    this.colBidButtons = makeButton(ColBidButton, nbid);
+    if (TP.usePyrTopo && this.gamePlay.allPlayers.length < 5) this.colSelButtons.splice(2, 1);
+    placeButtons(this.colSelButtons, 0);
+    placeButtons(this.colBidButtons, 1);
     const ymax = 2 * dy; // bottom edge of last row of buttons
     return ymax;
   }
@@ -152,49 +161,52 @@ export class Player extends PlayerLib implements IPlayer {
     this.colBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
 
-  // map col [1..n]
-  cardsInCol(col: number, andBlack = false) {
-    const nRows = this.gamePlay.nRows, hexMap = this.gamePlay.hexMap;
-    return andBlack
-      ? arrayN(nRows).map(rank => hexMap.getCard(rank, col))
-      : arrayN(nRows - 2, 1).map(rank => hexMap.getCard(rank, col))
-  }
-  colScore() {
+  /** used to select xtraCol  [{ sndx: 0, score}, {sndx: 1, score, ... }] */
+  xtraColScore() {
     const hexMap = this.gamePlay.hexMap
-    const { nRows, nCols } = this.gamePlay, nCards = nRows * nCols;
     const nfacs = arrayN(1 + nFacs, i => 0); // count of each faction on board
     hexMap.forEachHex(hex => hex.card.factions.forEach(f => nfacs[f]++));
-    const colScore = arrayN(1 + nCols, i => 0);
-    arrayN(nCols, 1).map(col => {
-      this.cardsInCol(col).map(card => {
+
+    const blackN = this.gamePlay.blackN;     // blackN[2] may be BlackNull
+    const colIds = blackN.map(card => card.col);
+    // initialize scores to zero:
+    // colIds.reduce((pv, cv) => (pv[cv] = 0, pv), {} as Record<string, number>)
+    const colScores = arrayN(blackN.length).map(bndx => ({ bndx, score: 0 }));
+    blackN.map(card => card.col).map((col, bndx) => {
+      this.gamePlay.cardsInCol(col).map(card => {
         const facs = card.factions, n = facs.length;
-        facs.forEach(f => colScore[col] += nfacs[f] / n);
+        facs.forEach(f => colScores[bndx].score += nfacs[f] / n);
       })
     })
-    return colScore.map((score, col) => ({ col, score })).slice(1);
+    if (blackN[2].maxCells == 0) colScores[2].score = 0; // col C not being used
+    const rv0 = colScores.map(({ bndx, score }) => ({ sndx: this.colSelButtons.findIndex(b => b.colId == blackN[bndx].colId), score}));
+    const rv = rv0.filter(elt => elt.sndx >= 0)
+    if (rv.find(elt => (elt.sndx < 0))) { debugger }
+    return rv
   }
   /** choose column for xtraMeeple */
   xtraCol() {
     const nCols = this.gamePlay.nCols
-    const colScore = this.colScore()
+    const colScore = this.xtraColScore()
     colScore.sort((a,b) => b.score - a.score)
-    const weights = [0], nof = colScore.map((cs, cr) => (nCols - cr) * nCols + 1 + (nCols - cs.col))
+    const weights = [0], nof = colScore.map((cs, cr) => (nCols - cr) * nCols + 1 + (nCols - cs.sndx))
     colScore.forEach((cs, cr) => weights.splice(0, 0, ...arrayN(nof[cr], j => cr)))
     const nw = weights.length;
     // {colScore} nw={nw} [{rand}->{ndx}] = {colScore[ndx].col} {nof}
     permute(weights)
     const rand = Random.random(nw)
     const ndx = weights[rand]
-    const col = colScore[ndx].col;
-    return col
+    const sel = colScore[ndx].sndx;
+    if (sel > nCols) debugger;
+    return sel // ndx of colSelButtons
   }
 
   /** for xtraCol; card.select() -> cardDone = card */
   selectCol() {
-    const col = this.xtraCol()
+    const sel = this.xtraCol()
     this.clearButtons();
-    console.log(stime(this, `.selectCol: ${this.Aname} - ${col}`));
-    this.colSelButtons[col - 1].select()
+    console.log(stime(this, `.selectCol: ${this.Aname} -> ${sel} of ${this.gamePlay.nCols}`));
+    this.colSelButtons[sel].select()
     this.colBidButtons[0].select(); // bid 1 to complete selection
   }
 
@@ -455,7 +467,7 @@ export class Player extends PlayerLib implements IPlayer {
     return [bestFacs, factionTotals] as [Faction[], number[]];
   }
 
-  readonly bumpDirs = [-2, -1, 1] as BumpDir[]; // pro-forma default
+  readonly bumpDirs = ['SS', 'S', 'N'] as BumpDir[]; // pro-forma default
   /** meep will Advance (dir=1) to card, select a cellNdx; also bumpDir for any bumps */
   selectNdx_BumpDir(meep: ColMeeple, card: ColCard, dirs = this.bumpDirs, ndxs = [0]) {
     if (!this.useRobo) {
@@ -478,7 +490,7 @@ export class Player extends PlayerLib implements IPlayer {
     const bidFacs = this.curBidCard!?.factions;
     const fac = bestFacs.find(fac => bidFacs.includes(fac));
     // TODO: hit self when bumpdir == 1 && can hit bid color: hit self
-    const mMeep = (bumpDir == 1) ? card.meepsOnCard.find(m => m?.player == this) : undefined;
+    const mMeep = (bumpDir == 'N') ? card.meepsOnCard.find(m => m?.player == this) : undefined;
     const mNdx = mMeep?.cellNdx, mBid =  (mNdx !== undefined) && bidFacs.includes(card.factions[mNdx])
     const ndx = mMeep && mBid ? mNdx : (fac !== undefined) ? card.factions.indexOf(fac) : undefined;
     const val = (fac !== undefined) ? factionTotals[fac] : 0;
@@ -491,7 +503,7 @@ export class Player extends PlayerLib implements IPlayer {
    * choose bumpee = [meep or other];
    * choose cellNdx for the bumpee
    */
-  chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: -1 | 1): [ColMeeple, ndx: number] {
+  chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: 'S' | 'N'): [ColMeeple, ndx: number] {
     const card0 = meep.card;
     const card2 = card0.nextCard(bumpDir)
     // if other is mine && isOk then bump other (even if, esp if bumpDir == 1)
@@ -502,14 +514,14 @@ export class Player extends PlayerLib implements IPlayer {
         return this.chooseCellForBumpee(other, bumpDir, card2)
       }
     }
-    if (bumpDir < 0) return this.chooseCellForBumpee(other, bumpDir, card2)
+    if (bumpDir.startsWith('S')) return this.chooseCellForBumpee(other, bumpDir, card2)
     if (card2.hex.row === 0) return [other, 0];
     const bumpee = (meep.card.rank == 4) ? other : meep;
     return this.chooseCellForBumpee(bumpee, bumpDir, card2)
   }
 
   /** bumpee is being bumped in dir to card: choose cellNdx */
-  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: (1 | -1 | -2), card: ColCard): [ColMeeple, ndx: number] {
+  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: BumpDir, card: ColCard): [ColMeeple, ndx: number] {
     // TODO:
     // if bumpDir == 1
     // bumpee is ours: hit own-meep so we can re-bump, or bestBid so we can stay;
@@ -523,7 +535,7 @@ export class Player extends PlayerLib implements IPlayer {
     const nCells = card.factions.length, rand = Random.random(nCells);
     const card2 = card.nextCard(bumpDir), c2isBlk = card2.factions[0] == 0;
     const meepAtNdx = card.meepsAtNdx; // entry for each cellNdx;
-    if (bumpDir == 1) {
+    if (bumpDir == 'N') {
       if (bumpee.player == this) {
         let ndx = c2isBlk
           ? meepAtNdx.findIndex(meep => meep?.player && (meep?.player !== this)) // try hit our meep
@@ -596,16 +608,6 @@ export class PlayerB extends Player {
       console.log(stime(this, `.newGame[${this.index}] setAutpPlay ${this.Aname}`))
       setTimeout(() => this.setAutoPlay(true), 10)
     }
-  }
-
-  dualsInCol(col: number) {
-    const cards = this.cardsInCol(col)
-    return cards.filter(card => card.factions.length > 1)
-  }
-  factionsInCol(col: number) {
-    // non-black cards in col
-    const cards = this.cardsInCol(col)
-    return cards.map(card => card.factions).flat(1)
   }
 
   autoAdvanceMarkerX(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]>) {
@@ -739,7 +741,7 @@ export class PlayerB extends Player {
     const plyr = gamePlay.allPlayers[this.index];
     const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
     // save original locations:
-    const col = ccard.colNum, cardsInCol = plyr.cardsInCol(col, true);
+    const col = ccard.colNum, cardsInCol = gamePlay.cardsInCol(col);
     const allMeepsInCol = cardsInCol.map(card => card.meepsOnCard).flat()
     const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
     // player meepsInCol:
@@ -759,7 +761,7 @@ export class PlayerB extends Player {
   }
 
   // advanceMeeple will need to decide who/how to bump:
-  override chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: 1 | -1): [ColMeeple, ndx: number] {
+  override chooseBumpee_Ndx(meep: ColMeeple, other: ColMeeple, bumpDir: 'S' | 'N'): [ColMeeple, ndx: number] {
     // TODO: try each dir/bumpee combo to maximise colorScore & rankScore
     // looking ahead/comparing with this.rankScoreNow
     // autoPlayer needs it own version of advanceAndBump
@@ -780,9 +782,9 @@ export class PlayerB extends Player {
   // TODO winnerMeep: examine intermediate stop/bump cards/cells
   /** cards on which we could choose to stop our bumping meeple */
   bumpStops(meep: ColMeeple, dir: BumpDir) {
-    if (dir == -2) dir = -1;
-    let cardn = meep.card, cards = [cardn]; // [].push(cardn)
-    let mustBump = false;
+    if (dir == 'SS') { dir = 'S'} // down 1 is an option
+    let cardn = meep.card, mustBump = false;
+    const cards = [cardn]; // [].push(cardn)
     do {
       cardn = cardn.nextCard(dir)
       cards.push(cardn)

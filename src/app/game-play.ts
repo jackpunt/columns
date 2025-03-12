@@ -1,21 +1,21 @@
 import { json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
-import { GamePlay as GamePlayLib, Scenario, TP as TPLib } from "@thegraid/hexlib";
-import { CB } from "./card-button";
+import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type SetupElt } from "@thegraid/hexlib";
+import { CB, type ColId } from "./card-button";
+import type { BlackCard, ColCard, DualCard } from "./col-card";
 import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import type { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
-import type { HexMap2 } from "./ortho-hex";
+import { RectTopoEWC, type HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { ScenarioParser } from "./scenario-parser";
 import { TP } from "./table-params";
-import type { BlackCard, ColCard, DualCard } from "./col-card";
 
 /** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
 export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
 export const nFacs = 4;
-export type BumpDir = (-2 | -1 | 1)
+export type BumpDir = ('SS' | 'S' | 'N')
 
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
 export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
@@ -25,12 +25,18 @@ export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
 
 export type CardContent = { fac: Faction[], meeps?: string[] };
 export class GamePlay extends GamePlayLib {
+  /** row0 at the top */
+  black0: ColCard[] = [];
+  /** rowN = rank0 at the bottom */
+  blackN: ColCard[] = [];
   allCols: ColCard[] = [];
   allDuals: DualCard[] = [];
   allBlack: BlackCard[] = [];
 
   constructor (gameSetup: GameSetup, scenario: Scenario) {
     super(gameSetup, scenario);
+    this.nCols = TP.mHexes;
+    this.nRows = TP.nHexes;
   }
 
   override readonly gameState: GameState = new GameState(this);
@@ -52,10 +58,17 @@ export class GamePlay extends GamePlayLib {
     return new ScenarioParser(hexMap, this)
   }
 
+  topoEW = new RectTopoEWC(6, 1, 0);
   get mapString() {
+    let indent = '';
     return arrayN(this.nRows)
-      .map(row => this.cardsInRow(row).map(card => card?.meepStr).join(' | '))
-      .concat(this.cardsInRow(this.nRows - 1).map(card => `${`${card.cellsInUse.length}`.padEnd(3)}`).join(' | '))
+      .map(row => {
+        const cir = this.cardsInRow(row), c0 = cir[0].col;
+        const c0x = this.topoEW.xywh(1, row, c0).x
+        indent = arrayN(c0x).map(i => ' ').join('');
+        return indent + cir.map(card => card?.meepStr).join(' | ')
+      })
+      .concat(indent + this.cardsInRow(this.nRows - 1).map(card => `${`${card.cellsInUse.length}`.padEnd(3)}`).join(' | '))
       .join('\n ')
   }
 
@@ -69,16 +82,15 @@ export class GamePlay extends GamePlayLib {
    */
   getLayout(): CardContent[][] {
     const gp = this, hexMap = gp.hexMap;
-    // generate from bottom to top, the reverse to get them top to bottom:
-    const layout = arrayN(gp.nRows).map(rank =>
-      arrayN(gp.nCols, 1).map(col => {
-        const card = hexMap.getCard(rank, col);
+    // generate from top to bottom
+    const layout = arrayN(gp.nRows).map(row =>
+      gp.cardsInRow(row).map(card => {
         const fac = card.factions;
         const meeps0 = card.meepsAtNdx.map(meep => meep ? meep.pcid : '')
         const meeps = card.meepsOnCard.length > 0 ? meeps0 : undefined;
         return ({ fac, meeps })
       })
-    ).reverse()
+    )
     return layout;
   }
 
@@ -189,17 +201,17 @@ export class GamePlay extends GamePlayLib {
    */
   advanceMeeple(meep: ColMeeple, cb?: () => void) {
     // addMeep to next card, choose bumpDir
-    const advCard = meep.card.nextCard(1), open = advCard.openCells;
+    const advCard = meep.card.nextCard('N'), open = advCard.openCells;
     const nCells = advCard.maxCells, nOpen = open.length;
     const ndxs = ((nCells == 2) && (nOpen != 1)) ? arrayN(nCells) : open;
     if (nCells > 2) ndxs.length = 1;  // offer single cell for Black
     const mustBumpUp = (TP.bumpUpRow1 && (advCard.hex.row == 1)) || this.mustBumpSelf(meep, advCard);
-    const bumpDirs = (mustBumpUp ? [1] : TP.allBumpsDown ? [-2, -1] : [-2, -1, 1]) as BumpDir[];
+    const bumpDirs = (mustBumpUp ? ['N'] : TP.allBumpsDown ? ['SS', 'S'] : ['SS', 'S', 'N']) as BumpDir[];
     const { bumpDir: bDir, ndx } = (ndxs.length > 1)
       ? meep.player.selectNdx_BumpDir(meep, advCard, bumpDirs, ndxs)
       : { ndx: ndxs[0] ?? 0, bumpDir: bumpDirs[0] as BumpDir } // take the [first] open slot
     // enforce (bumpDir = 1) when target cell contains same player's meep:
-    const bumpDir = (advCard.meepsAtNdx[ndx]?.player == meep.player) ? 1 : bDir;
+    const bumpDir = (advCard.meepsAtNdx[ndx]?.player == meep.player) ? 'N' : bDir;
     this.advanceAndBump(meep, advCard, ndx, bumpDir)
     if (cb) cb();   // only for the original, outer-most, winning-bidder
     return bumpDir; // when called by pseudoWin()
@@ -232,27 +244,64 @@ export class GamePlay extends GamePlayLib {
     const toBump = card.addMeep(meep, ndx)
     if (!!toBump) {
       const nextCard = card.nextCard(bumpDir)
-      const cascDir = (bumpDir == -2) ? -1 : bumpDir;
+      const cascDir = (bumpDir == 'SS') ? 'S' : bumpDir;
       const [bumpee, ndx] = meep.player.chooseBumpee_Ndx(meep, toBump, cascDir);
       this.recordMeep(bumpee); // before bumping record original card & cellNdx
       this.advanceAndBump(bumpee, nextCard, ndx, cascDir, depth + 1);
     }
   }
 
+  override parseScenario(scenario: SetupElt): void {
+    super.parseScenario(scenario)
+    this.labelCardCols();
+  }
+
   cardsInRow(row: number) {
     // arrayN(this.nCols, 1).map(col => this.hexMap.getCard(this.nRows - 1 - row, col))
-    return arrayN(this.nCols, 1).map(col => this.hexMap[row][col].card);
+    // TODO: use nextCard('E') ??
+    const [nr, nc] = this.hexMap.nRowCol
+    const hexRow = this.hexMap[row];
+    return hexRow.map(hex => hex?.card).filter(card => card !== undefined);
   }
-  cardsInCol(col: number, noBlack = true) {
-    const [rn, ro] = noBlack ? [2, 1] : [0, 0];
-    return arrayN(this.nRows - rn, ro).map(row => this.hexMap[row][col].card);
+  // TODO: think what this means for Pyramid
+  cardsInCol(col: number, andBlack = true) {
+    const [rn, ro] = andBlack ? [0, 0] : [2, 1];
+    return arrayN(this.nRows - rn, ro).map(row => this.hexMap[row][col]?.card)
+      .filter(card => card !== undefined);
+  }
+  colIdsInPlay = ['A', 'B', 'C', 'D'] as ColId[]
+  // for each card on map, set card.isInCol[colId]: boolean
+  labelCardCols() {
+    this.hexMap.forEachHex(hex => {
+      const card = hex.card;
+      this.colIdsInPlay.map(colId => card.isInCol[colId] = this.isCardInCol(card, colId));
+    })
+  }
+  /** test & set for Card on each Hex[row, col] */
+  isCardInCol(card: ColCard, colId: ColId) {
+    // reference col for bottom card with colId:
+    const rowN = this.nRows - 1;
+    const col0 = this.hexMap[rowN].find(hex => hex?.card.colId == colId)?.col;
+    if (!col0) { debugger; return false }
+    const col0x = this.topoEW.xywh(1, rowN, col0).x;
+    const cardx = this.topoEW.xywh(1, card.hex.row, card.hex.col).x;
+    return Math.abs(cardx - col0x) <= (TP.usePyrTopo ? 1 : 0);
+  }
+  // TOOO: cache the set of cards for a given col (& row); they never move.
+  cardsInColId(colId: ColId, andBlack = true) {
+    const cards = [] as ColCard[];
+    this.hexMap.forEachHex(hex => {
+      const card = hex.card, isBlack = (card.maxCells == 0) || (card.maxCells > 2);
+      if (hex.card.isInCol[colId] && (andBlack ? true : !isBlack)) cards.push(hex.card)
+    })
+    return cards;
   }
 
   /** move meeple from bumpLoc to center of cell;
    * @returns a meep that needs to bump.
    */
   meeplesToCell(col: number) {
-    const cards = this.cardsInCol(col)
+    const cards = this.cardsInCol(col, false); // Black doesn't use bumpLoc
     const meeps = cards.map(card => card.atBumpLoc()).filter(meep => !!meep)
     const bumps = meeps.filter(meep => meep.card.addMeep(meep)); // re-center
     return bumps[0]

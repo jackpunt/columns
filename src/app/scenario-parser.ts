@@ -1,8 +1,9 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
-import { ColCard } from "./col-card";
+import { CardShape } from "./card-shape";
+import { BlackNull, ColCard } from "./col-card";
 import type { ColTable } from "./col-table";
-import { arrayN, type CardContent, type GamePlay } from "./game-play";
+import { type CardContent, type GamePlay } from "./game-play";
 import type { HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
@@ -85,19 +86,25 @@ export class ScenarioParser extends SPLib {
     this.gamePlay.table.stage.update();
   }
 
-  makeAllCards(nr = 1, nc = 1) { return ColCard.makeAllCards(nr, nc); }
+  makeAllCards(nr = 1, nc = 1) {
+    ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
+    Tile.gamePlay = this.gamePlay
+    return ColCard.makeAllCards(nr, nc);
+  }
 
   placeCardsOnMap(layout?: RowElt[]) {
     const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
-    const { allBlack, allCols, allDuals } = this.makeAllCards(nr, nc,);
-    gamePlay.allBlack = allBlack;
-    gamePlay.allCols = allCols;
-    gamePlay.allDuals = allDuals;
-    const black = allBlack;
+    const { black0, blackN, allCols, allDuals } = this.makeAllCards(nr, nc,);
+    if (TP.usePyrTopo && nc == 4) {
+      black0.splice(2, 1); // for 2,3,4 players
+      blackN.splice(2, 1, new BlackNull('')); // for 2,3,4 players
+    }
+    gamePlay.black0 = black0.slice();
+    gamePlay.blackN = blackN.slice();
+    gamePlay.allCols = allCols;   // for printing
+    gamePlay.allDuals = allDuals; // for printing
     const pCards = allCols.slice();
     const dCards = allDuals.slice();
-    const black0 = black.filter((card, n) => n >= nc); // row0; rankN
-    const blackN = black.filter((card, n) => n < nc);  // rowN; rank0
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
@@ -114,7 +121,11 @@ export class ScenarioParser extends SPLib {
       })
       return;
     } else {
-      const nr = gamePlay.nRows, nCards = (nr - 2) * gamePlay.nCols;
+      const nr = gamePlay.nRows
+      let nCards = 0;
+      gamePlay.hexMap.forEachHex(h => {
+        if (h.row !== 0 && h.district !== 0) nCards++; // count ColCard hexes
+      });
       // new/random layout:
       permute(pCards)
       permute(dCards)
@@ -124,7 +135,7 @@ export class ScenarioParser extends SPLib {
       const cards = plain.concat(duals);
       permute(cards);
 
-      const rank0 = nr - 1;
+      const rank0 = nr - 1, row0B = 1, rank0B = 1; // col-index for Black cards
       this.gamePlay.hexMap.forEachHex(hex => {
         const row = hex.row;
         const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
@@ -160,10 +171,13 @@ export class ScenarioParser extends SPLib {
     } else {
       // StartElt has no layout: place one each on rank 0
       allPlayers.forEach(player => {
-        arrayN(ncols, 1).forEach(col => {
-          const meep = player.makeMeeple(col);
-          hexMap.getCard(0, col).addMeep(meep, 0); // rank == 0; black card
-        })
+        this.gamePlay.cardsInRow(nrows - 1)
+          .filter(card => card.factions.length > 0)
+          .forEach(card => {
+            if (card.factions.length == 0) return;
+            const meep = player.makeMeeple(card.col);
+            card.addMeep(meep, 0); // rank == 0; black card
+          })
       })
     }
     // console.log(stime(this, `.placeMeeplesOnMap: layout=${!!layout}\n`), gamePlay.mapString)
