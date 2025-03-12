@@ -53,4 +53,6 @@ export class TP extends TPLib {
   static useXtraMeep = 4;
   /** setAutoPlay if player.index < startAuto */
   static startAuto = 0;
+  /** true to use PryTopo and layout */
+  static usePyrTopo = false;
 }

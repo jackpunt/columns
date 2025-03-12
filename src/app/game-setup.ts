@@ -1,13 +1,14 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { makeStage, type NamedObject } from '@thegraid/easeljs-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, TP, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { arrayN, GamePlay } from './game-play';
-import { OrthoHex2 as Hex2, HexMap2 } from './ortho-hex';
+import { ColHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { PlayerB } from './player';
 import { ScenarioParser, type SetupElt } from './scenario-parser';
+import { TP } from './table-params';
 import { TileExporter } from './tile-exporter';
 
 type Params = Record<string, any>; // until hexlib supplies
@@ -56,16 +57,15 @@ class ColGameSetup extends GameSetupLib {
   }
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
-  setRowsCols(nPlayers = TP.numPlayers) {
+  setRowsCols(np = TP.numPlayers) {
     // nr includes top & bottom black cells; (8 player could be 7 rows...)
-    const nr = Math.max(4, 3 + Math.floor(nPlayers / 2)) + 2; // include 2 black rows
-    const nc = Math.max(4, 2 + Math.ceil(nPlayers / 2));
-    // const nr = [3, 3, 4, 4, 5, 5, 6, 6, 7, 7][np] + 2;
-    // const nc = [2, 3, 3, 4, 4, 5, 5, 6, 6, 7][np];
-    //       np =  0  1  2  3  4  5  6  7  8  9
-    // score            40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
-    TP.nHexes = nr;
-    TP.mHexes = nc;
+    // const nr = Math.max(4, 3 + Math.floor(np / 2)) + 2; // include 2 black rows
+    // const nc = Math.max(4, 2 + Math.ceil(np / 2));
+    const nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows
+    const nc = [4, 4, 4, 4, 5, 5, 6, 6, 7, 7][np];
+    //    np =  0  1  2  3  4  5  6  7  8  9
+    // score    40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
+    TP.setParams({ nHexes: nr, mHexes: nc })
     return [nr, nc] as [number, number];
   }
 

@@ -7,7 +7,7 @@ import { ColSelButton } from "./card-button";
 import { ColMeeple } from "./col-meeple";
 import { arrayN, nFacs, type BumpDir, type Faction, type GamePlay } from "./game-play";
 import { GameSetup } from "./game-setup";
-import { OrthoHex2 as Hex2, type HexMap2 } from "./ortho-hex";
+import { ColHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
 import { TP } from "./table-params";
 // import type { CountClaz } from "./tile-exporter";

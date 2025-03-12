@@ -6,7 +6,7 @@ import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
 import { type Faction, type GamePlay } from "./game-play";
-import { type HexMap2, type OrthoHex2 } from "./ortho-hex";
+import { type HexMap2, type ColHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -20,7 +20,7 @@ export class ColTable extends Table {
   declare hexMap: HexMap2;    // From gamePlay.hexMap
   // return type declaration:
   override hexUnderObj(dragObj: DisplayObject, legalOnly?: boolean) {
-    return super.hexUnderObj(dragObj, legalOnly) as OrthoHex2 | undefined;
+    return super.hexUnderObj(dragObj, legalOnly) as ColHex2 | undefined;
   }
   /** min panel height + gap */
   mph_g = 2.7;
@@ -136,7 +136,7 @@ export class ColTable extends Table {
     let nLegal = 0;
     const countLegalHexes = (hex: IHex2) => {
       if (tile.isLegalTarget(hex, ctx)) {
-        (hex as OrthoHex2).setIsLegal(true, meep); // ==> legalMark.visible = true;
+        (hex as ColHex2).setIsLegal(true, meep); // ==> legalMark.visible = true;
         nLegal += 1;
       }
     };

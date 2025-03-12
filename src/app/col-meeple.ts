@@ -5,7 +5,7 @@ import type { ColCard } from "./col-card";
 import type { Faction } from "./game-play";
 import type { GameState } from "./game-state";
 import { MeepleShape } from "./meeple-shape";
-import { OrthoHex2 } from "./ortho-hex";
+import { ColHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -14,7 +14,7 @@ export class ColMeeple extends Meeple {
 
   declare player: Player;
   declare baseShape: MeepleShapeLib & { highlight(l?: boolean, u?: boolean): void; };
-  declare fromHex: OrthoHex2;
+  declare fromHex: ColHex2;
 
   constructor(cid: string, player: Player) {
     const pcid = `${player.index}${cid}`
@@ -57,7 +57,7 @@ export class ColMeeple extends Meeple {
   }
 
   override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
-    if (!(toHex instanceof OrthoHex2)) return false;
+    if (!(toHex instanceof ColHex2)) return false;
     if (ctx.lastShift && ctx.lastCtrl) return true; // can shift cols with Ctrl
     if (!(toHex.col === this.hex!.col)) return false; // stay in same hex-column
     if (ctx.lastShift) return true;
@@ -68,7 +68,7 @@ export class ColMeeple extends Meeple {
 
   // hex.card.addMeep(this)
   override dropFunc(targetHex: IHex2, ctx: DragContext): void {
-    if (targetHex instanceof OrthoHex2) {
+    if (targetHex instanceof ColHex2) {
       const card = targetHex.card!; // ASSERT: every hex has a card
       const xy = this.parent.localToLocal(this.x, this.y, card.meepCont);
       if (this.player.adviseMeepleDrop(this, targetHex, ctx, xy)) return;
