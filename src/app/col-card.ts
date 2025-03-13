@@ -24,6 +24,7 @@ export class ColCard extends Tile {
   declare gamePlay: GamePlay;
   override get hex(): Hex2 { return super.hex as Hex2 }
   override set hex(hex: Hex1) { super.hex = hex }
+  declare baseShape: CardShape;
 
   static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
   static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE, C.WHITE];
@@ -47,6 +48,12 @@ export class ColCard extends Tile {
   get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row - 1)) }
   get col() { return this.hex.col }
   get colId() { return ColSelButton.colNames[this.col] }
+
+  setLabel(colId: string, fs = .5, color = C.pickTextColor(this.baseShape.colorn)) {
+    const label = new CenterText(`${colId}`, Math.round(this.radius * fs), color,)
+    label.y = label.y = this.radius * (.5 - .48 * fs)
+    this.addChildAt(label, 1); // under meepCont
+  }
   /** true if this Card can be accessed from given ColId (ColBidSelector)
    *
    * set by GamePlay.labelCardCols()
@@ -248,14 +255,12 @@ export class BlackCard extends ColCard {
     return [[n, PrintBlack, 'BlackCard', n, .5]]
   }
 
-  constructor(Aname: string, seqLim = 0, fs = .5) {
+  constructor(Aname: string, seqLim = 0, fs?: number) {
     const nCells = TP.numPlayers * 2;
     super(Aname, ...arrayN(nCells, i => 0) as Faction[]) // initial factions[] for painting color
     const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
     const colId = ColSelButton.colNames[colNum];
-    const label = new CenterText(`${seqLim > 0 ? colId : ''}`, Math.round(this.radius * fs), C.WHITE,)
-    label.y = label.y = this.radius * (.5 - .48 * fs)
-    this.addChildAt(label, 1); // under meepCont
+    this.setLabel(colId, fs)
   }
 
   override get meepStr() {
@@ -282,12 +287,12 @@ export class BlackCard extends ColCard {
 }
 export class BlackNull extends ColCard {
 
-  constructor(aname = 'Null', seqLim = 0, fs = .5) {
+  constructor(aname = 'Null:0', col?: number , fs?: number) {
     super(aname, ...[]); // with zero length factions.
-    const colNum = 3, colId = ColSelButton.colNames[colNum];
-    const label = new CenterText(`${colId}`, Math.round(this.radius * fs), C.BLACK,)
-    label.y = label.y = this.radius * (.5 - .48 * fs)
-    this.addChildAt(label, 1); // under meepCont
+    const colNum = col ?? Number.parseInt(aname.split(':')[1] ?? '0');
+    const colId = ColSelButton.colNames[colNum];
+    this.setLabel(colId, fs); // is Black...
+    this.paint(C.BLACK); // no factions, no color: paint it here.
   }
 }
 

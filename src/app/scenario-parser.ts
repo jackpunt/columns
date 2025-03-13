@@ -111,8 +111,8 @@ export class ScenarioParser extends SPLib {
     const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
     const { black0, blackN, allCols, allDuals } = this.makeAllCards(nr, nc,);
     if (TP.usePyrTopo && nc == 4) {
-      black0.splice(2, 1); // for 2,3,4 players
-      blackN.splice(2, 1, new BlackNull('')); // for 2,3,4 players
+      black0.splice(2, 1); // use all 5 columns when nPlayers > 4
+      blackN.splice(2, 1, new BlackNull('Null:3')); // use only 4 columns
     }
     gamePlay.black0 = black0.slice();
     gamePlay.blackN = blackN.slice();
