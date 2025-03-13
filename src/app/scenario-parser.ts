@@ -49,8 +49,9 @@ export class ScenarioParser extends SPLib {
     const { scores, turn, pStates, layout, gameState } = setup;
     const gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
     const isGUI = gamePlay.gameState.isGUI
-    const n = allPlayers.length, ns = scores?.length, np = pStates?.length;
-    if ((ns && ns !== n) || (np && np !== n)) {
+    // validate number of players:
+    const n = allPlayers.length, ns = scores?.length ?? n, np = pStates?.length ?? n;
+    if ((ns !== n) || (np !== n)) {
       alert(`game-state mismatch: nPlayers=${n}, nScores=${ns}, pStates=${np}`)
       debugger; // TODO launch new gameSetup with n = ???
     }
@@ -64,6 +65,20 @@ export class ScenarioParser extends SPLib {
     {
       this.placeCardsOnMap(layout);
       this.placeMeeplesOnMap(layout);
+      if (TP.usePyrTopo && n < 4) {
+        // Shift top row right to align with top-rank; add links(SE,S,SW)
+        const hexMap = gamePlay.hexMap;
+        const { w, dxdc } = hexMap.topo.xywh(TP.hexRad, 0, 0);
+        const black0 = gamePlay.cardsInRow(0);
+        black0.forEach(card => {
+          card.x += dxdc * .5;
+          card.hex.cont.visible = false;
+          const r0Hex = card.hex;
+          const seHex = r0Hex.nextHex('SE');
+          r0Hex.links['SW'] = r0Hex.links['S'] = seHex;
+          seHex.links['NW'] = seHex.links['N'] = r0Hex;
+        })
+      }
     }
     if (pStates) {
       pStates.forEach((ps, ndx)=> gamePlay.allPlayers[ndx].parseCardStates(ps));
@@ -119,7 +134,6 @@ export class ScenarioParser extends SPLib {
           hex.legalMark.doGraphicsDual(card)
         })
       })
-      return;
     } else {
       const nr = gamePlay.nRows
       let nCards = 0;
@@ -135,17 +149,18 @@ export class ScenarioParser extends SPLib {
       const cards = plain.concat(duals);
       permute(cards);
 
-      const rank0 = nr - 1, row0B = 1, rank0B = 1; // col-index for Black cards
+      const rank0 = nr - 1;
       this.gamePlay.hexMap.forEachHex(hex => {
         const row = hex.row;
         const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
+        if (!card) { debugger; }
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
         hex.legalMark.doGraphicsDual(card)
         return;
       })
       this.gamePlay.gameSetup.update()
-      return;
     }
+    return;
   }
 
   placeMeeplesOnMap(layout?: RowElt[]) {

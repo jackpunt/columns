@@ -1,12 +1,12 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
 import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type CountClaz, type GridSpec, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Shape, Stage } from "@thegraid/easeljs-module";
-import { Hex2, Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
+import { Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
 import { type Faction, type GamePlay } from "./game-play";
-import { type HexMap2, type ColHex2 } from "./ortho-hex";
+import { type ColHex2, type HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -46,17 +46,17 @@ export class ColTable extends Table {
     })
   }
   get super_panelHeight() {
-    return TP.numPlayers > 4 ? this.nRows / 3 - .2 : this.nRows / 2 - .2;
+    return (TP.numPlayers > 4 ? this.nRows / 3 : this.nRows / 2) - .2;
   } // (2 * TP.nHexes - 1) / 3 - .2
   override get panelHeight() { return Math.max(this.super_panelHeight, this.mph_g - .2) }
 
   // getPanelLocs adapted for makeRect()
   override getPanelLocs() {
-    const nPanelRows = 0;
-
-    const { nh: nr, mh: nc } = this.hexMap.getSize();
-    const rC = (nr - 1) / 2;
-    const cC = (nc + 1) / 2;
+    const { nh: nr, mh: nc0 } = this.hexMap.getSize();
+    const { row: rC, col: cC0 } = this.hexMap.centerMap;
+    // when nr3 is even (nRows is odd): shift left by 1/2 col
+    const cC = (TP.usePyrTopo && this.gamePlay.nRows % 2 === 1) ? cC0 - .5 : cC0;
+    const nc = (TP.usePyrTopo ? 7 : nc0)
     const coff = (nc / 2) + (this.panelWidth / 2) + .2;
     const ph = (TP.numPlayers > 4) ? this.panelHeight + .2 : (this.panelHeight + .2) / 2
     // Left of map (dir: +1), Right of map (dir: -1)
@@ -87,7 +87,8 @@ export class ColTable extends Table {
   cardSource!: TileSource<ColCard>
   cardDiscard!: TileSource<ColCard>
 
-  override get panelWidth() { return Math.max(4, this.nCols) * .5; } // (2.5 / 3.5 * .7) = .5 (* hexRad)
+  // Note: nCols is already >= 4!
+  override get panelWidth() { return Math.max(4, this.nCols) * .5; } // (2.5 / 3.5 * .7) = .5 (* onScreenRadius)
 
   override doneClicked(evt?: any, data?: any): void {
     super.doneClicked(evt, data); // vis=false; phaseDone(data)
@@ -120,7 +121,7 @@ export class ColTable extends Table {
   }
   override setupUndoButtons(bgr: XYWH, row?: number, col?: number, undoButtons?: boolean, xOffs?: number, bSize?: number, skipRad?: number): void {
     const row2 = row ?? Math.min(-.5, this.nRows - 7.5);
-    const col2 = col ?? -1.8 - this.nCols * .5;
+    const col2 = col ?? -2.2 - this.nCols * .5;
     super.setupUndoButtons(bgr, row2, col2, undoButtons, xOffs, bSize, skipRad)
   }
   override bindKeysToScale(scaleC: ScaleableContainer, ...views: (XY & { scale: number; isk: string; ssk?: string; })[]): void {
@@ -174,13 +175,18 @@ export class ColTable extends Table {
       gui.setValue(item);
       gameSetup.restart({})
     }
-
-    gui.makeParamSpec('allBumpsDown', [true, false], {fontColor: C.legalGreen}); TP.allBumpsDown
-    gui.makeParamSpec('bumpUpRow1', [true, false], {fontColor: C.legalGreen}); TP.bumpUpRow1
-    gui.makeParamSpec('onePerRank', [true, false], {fontColor: C.legalGreen}); TP.onePerRank
-    gui.makeParamSpec('topRankOnly', [true, false], {fontColor: C.legalGreen}); TP.topRankOnly
-    gui.makeParamSpec('nTopMeeps', [1,2,3,4,9], {fontColor: C.legalGreen}); TP.nTopMeeps
-    gui.makeParamSpec('showAllBids', [true, false], {fontColor: C.legalGreen}); TP.showAllBids
+    gui.makeParamSpec('usePyrTopo', [true, false], { fontColor: 'red', name: 'pyramid' }); TP.usePyrTopo;
+    gui.spec('usePyrTopo').onChange = (item: ParamItem) => {
+      gui.setValue(item);
+      gameSetup.restart({})
+    }
+    const green = C.GREEN;
+    gui.makeParamSpec('allBumpsDown', [true, false], {fontColor: green}); TP.allBumpsDown
+    gui.makeParamSpec('bumpUpRow1', [true, false], {fontColor: green}); TP.bumpUpRow1
+    gui.makeParamSpec('onePerRank', [true, false], {fontColor: green}); TP.onePerRank
+    gui.makeParamSpec('topRankOnly', [true, false], {fontColor: green}); TP.topRankOnly
+    gui.makeParamSpec('nTopMeeps', [1,2,3,4,9], {fontColor: green}); TP.nTopMeeps
+    gui.makeParamSpec('showAllBids', [true, false], {fontColor: green}); TP.showAllBids
 
     parent.addChild(gui)
     gui.x = x; gui.y = y

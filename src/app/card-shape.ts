@@ -4,7 +4,7 @@ import { H, TP } from "@thegraid/hexlib";
 
 
 export class CardShape extends RectShape {
-  /** recompute if TP.hexRad has been changed */
+  /** => TP.hexRad * H.sqrt3; for current value of TP.hexRad */
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
 
   /**

@@ -58,13 +58,13 @@ export class GamePlay extends GamePlayLib {
     return new ScenarioParser(hexMap, this)
   }
 
-  topoEW = new RectTopoEWC(6, 1, 0);
+  topoEW6 = new RectTopoEWC(6, 1, 0);
   get mapString() {
     let indent = '';
     return arrayN(this.nRows)
       .map(row => {
         const cir = this.cardsInRow(row), c0 = cir[0].col;
-        const c0x = this.topoEW.xywh(1, row, c0).x
+        const c0x = this.topoEW6.xywh(1, row, c0).x
         indent = arrayN(c0x).map(i => ' ').join('');
         return indent + cir.map(card => card?.meepStr).join(' | ')
       })
@@ -283,8 +283,8 @@ export class GamePlay extends GamePlayLib {
     const rowN = this.nRows - 1;
     const col0 = this.hexMap[rowN].find(hex => hex?.card.colId == colId)?.col;
     if (!col0) { debugger; return false }
-    const col0x = this.topoEW.xywh(1, rowN, col0).x;
-    const cardx = this.topoEW.xywh(1, card.hex.row, card.hex.col).x;
+    const col0x = this.topoEW6.xywh(1, rowN, col0).x;
+    const cardx = this.topoEW6.xywh(1, card.hex.row, card.hex.col).x;
     return Math.abs(cardx - col0x) <= (TP.usePyrTopo ? 1 : 0);
   }
   // TOOO: cache the set of cards for a given col (& row); they never move.

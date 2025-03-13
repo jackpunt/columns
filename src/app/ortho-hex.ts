@@ -11,7 +11,7 @@ import { TP } from "./table-params";
  *
  * this application is functionally 2-connected: not using (E, W) links.
  */
-class TopoRect4C extends TopoOR4CLib {
+export class TopoRect4C extends TopoOR4CLib {
   static topo = new TopoRect4C();  // a singleton instance used by HexMap (& xywh())
 
   /** asymetrical radius: wr by hr */
@@ -20,7 +20,7 @@ class TopoRect4C extends TopoOR4CLib {
   }
 
     /** a TopoMetric for graphical layout */
-  override  xywh(rad = 1, row = 0, col = 0): TopoXYWH {
+  override xywh(rad = 1, row = 0, col = 0): TopoXYWH {
     const w = rad * this.wr, h = rad * this.hr;
     const dxdc = w + rad * this.gap, dydr = h + rad * this.gap;
     return { x: col * dxdc, y: row * dydr, w, h, dxdc, dydr }
@@ -89,9 +89,10 @@ export class RectHex2 extends RectHex2Mixed {
   }
 }
 
-/** Rectangular Card/BaseShape on a TopoEW grid.
+/**
+ * Rectangular Card/BaseShape on a TopoEW Hex grid (odd-rows shift right).
  *
- * for Pyramid, use (NW,NE, SW,SE) for links; no E/W
+ * For Pyramid: use (NW,NE, SW,SE) for links; no E/W
  */
 export class RectTopoEWC extends TopoEWC {
   static topo = new RectTopoEWC();
@@ -99,7 +100,7 @@ export class RectTopoEWC extends TopoEWC {
     super()
   }
 
-  /** a TopoMetric for graphical layout */
+  /** Topo metric for Hex layout: odd-rows shift right */
   override xywh(rad = 1, row = 0, col = 0): TopoXYWH {
     const w = rad * this.wr, h = rad * this.hr;
     const dxdc = w + rad * this.gap, dydr = h + rad * this.gap;
@@ -109,13 +110,6 @@ export class RectTopoEWC extends TopoEWC {
   }
 }
 
-/** RectHex2 for Pyramid (expect RectTopoEWC) */
-class PyrRectHex2 extends RectHex2 {
-  // overide to inject RectHex.topo
-  override xywh(radius = this.radius, topo: TopoC<DirDCR> = this.map.topo, row = this.row, col = this.col) {
-    return super.xywh(radius, topo, row, col);
-  }
-}
 
 export class ColHex2 extends RectHex2 {}
 
@@ -160,7 +154,11 @@ export class HexMap2 extends HexMap<ColHex2> {
     super.showMark(hex, isCardHex ? this.cardMark : this.mark);
     if (!hex) this.cardMark.visible = false;
   }
-
+  get centerMap() {
+    const row = (((this.maxRow ?? 0) + (this.minRow ?? 0)) / 2);
+    const col = (((this.minCol ?? 0) + (this.maxCol ?? 0)) / 2);
+    return { row, col }
+  }
   override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir>;
 
   // makeAllDistricts() -> makeAllHexes()
@@ -169,17 +167,19 @@ export class HexMap2 extends HexMap<ColHex2> {
     const col = 1, district = 0, hexAry = [] as ColHex2[];
     const np = TP.numPlayers;
     if (TP.usePyrTopo) {
-      // [4],5,7,6,5,4,3,[4] np>3   nr = 8; (nr-3 = 5)
-      //   [4],5,7,6,5,4,[4] np<=3  nr = 7; (nr-3 = 4)
-      //  6, 5,4,5,3,2,1, 0
+      // [4],5, 7,6,5,4,3,[4] np>3   nr = 8; (nr-3 = 5)
+      //    [4],5,7,6,5,4,[4] np<=3  nr = 7; (nr-3 = 4)
+      //  6, 5, 4,5,3,2,1, 0
+      const topoEW = new RectTopoEWC(1, 1, 0);
       const nr3 = nr - 3;       // row with most (nc) columns == (nr-1) - 2
-      const eo = (nr3 % 2);     // 1 when nr3 is an odd row (already shifted)
+      // Note: when nr3 is ODD, everything shifts right by 1/2 col!
       for (let row = 0; row < nr; row++) {
         const dnr3 = Math.abs(nr3 - row); // distance from nr3
-        const c0 = (row == 0) ? (dnr3 - 3) / 2 : Math.floor(dnr3 / 2); // raw starting column
-        const c1 = eo + c0 - (row % 2);            // with offset for even/odd
         const ncr = (row == 0) ? 4 : (7 - dnr3); // num cols in row
-        this.addLineOfHex(ncr, row, c1, district, hexAry, 1)
+        const ncc = (row == 0) ? dnr3 - ncr / 2 : dnr3; // c0 inset
+        const kx = Math.floor(topoEW.xywh(1, row - 1, ncc / 2).x);
+        // console.log(stime(this, `.mAH:`), { row, dnr3, ncr, kx })
+        this.addLineOfHex(ncr, row, kx, district, hexAry, 1)
       }
     } else {
       // nh: rows, mh: cols
