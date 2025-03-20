@@ -8,6 +8,7 @@ import { MeepleShape } from "./meeple-shape";
 import { ColHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
+import type { ColId } from "./card-button";
 
 
 export class ColMeeple extends Meeple {
@@ -49,21 +50,30 @@ export class ColMeeple extends Meeple {
 
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
     const state = ctx.gameState.state.Aname;
-    if (!['AdvanceAndBump', 'ResolveWinner'].includes(state!) && !ctx.lastShift)
+    if (!['BumpAndCascade', 'ResolveWinner'].includes(state!) && !ctx.lastShift)
       return `Only move during Bump phase, not "${state}"`;
-    const col = (ctx.gameState as GameState).gamePlay.colToMove;
-    const colc = this.card.col;
-    return (colc == col || ctx.lastShift) ? undefined : `Only move from column ${col}, not ${colc}`;
+    const okToMove = (ctx.gameState as GameState).gamePlay.meepsToMove;
+    return (okToMove.includes(this) || ctx.lastShift) ? undefined : `Only move highlighted or its bumpee`;
   }
+
+  // unless cantBeMoved()
+  //   table.dragStart() -> this.dragStart();
+  //   markLegalHexes(tile) -> isLegalTarget(hex)
 
   override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
     if (!(toHex instanceof ColHex2)) return false;
     if (ctx.lastShift && ctx.lastCtrl) return true; // can shift cols with Ctrl
-    if (!(toHex.col === this.hex!.col)) return false; // stay in same hex-column
+    const colId = this.player.curSelCard?.colId ?? '';
+    if (!(toHex.isInCol(colId))) return false; // stay in same hex-column
     if (ctx.lastShift) return true;
     // if (toHex === this.fromHex) return true;
-    if (!(ctx.gameState.isPhase('AdvanceAndBump'))) return false;
-    return true;
+    if ((ctx.gameState.isPhase('ResolveWinner'))) return true; // meepleToAdvance
+    if ((ctx.gameState.isPhase('BumpAndCascade'))) return true; // selectNdx_Bumpee
+    return false;
+  }
+
+  isInCol(colId: ColId) {
+    return this.card.isInCol[colId]
   }
 
   // hex.card.addMeep(this)
@@ -71,7 +81,7 @@ export class ColMeeple extends Meeple {
     if (targetHex instanceof ColHex2) {
       const card = targetHex.card!; // ASSERT: every hex has a card
       const xy = this.parent.localToLocal(this.x, this.y, card.meepCont);
-      if (this.player.adviseMeepleDrop(this, targetHex, ctx, xy)) return;
+      if (this.player.adviseMeepleDropFunc(this, targetHex, ctx, xy)) return;
       card.addMeep(this, undefined, xy); // drop
     } else {
       super.dropFunc(targetHex, ctx); // never

@@ -123,14 +123,19 @@ export class ScenarioParser extends SPLib {
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
-        rowElt.forEach(({ fac }, col) => {
+        const hexRow = this.gamePlay.hexMap[row];
+        const c0 = hexRow.findIndex(hex => !!hex);
+        rowElt.forEach(({ fac }, ndx) => {
+          const col = c0 + ndx;
           const cards = (fac.length > 2) ? black : (fac.length == 2) ? dCards : pCards;
-          const card = ((fac.length == 2)
+          const card = ((fac.length == 0) ? new BlackNull(`Null:${col}`, col)
+            : (fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           removeEltFromArray(card, cards);
-          const hex = this.gamePlay.hexMap[row][col + 1];
+          const hex = hexRow[col];
           card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
+          if (!card.hex) debugger;
           hex.legalMark.doGraphicsDual(card)
         })
       })
@@ -171,15 +176,19 @@ export class ScenarioParser extends SPLib {
     if (layout) {
       layout.forEach((rowElt, row) => {
         const rank = nrows - row - 1;
-        rowElt.forEach(({ meeps }, coln) => {
-          const col = coln + 1;
+        const hexRow = this.gamePlay.hexMap[row];
+        const c0 = hexRow.findIndex(hex => !!hex);
+        rowElt.forEach(({ meeps }, ndx) => {
+          const col = c0 + ndx;
           meeps?.forEach((pcid, ndx) => {
             if (!pcid) return; // empty string -> space filler on dual card
-            const [pnum, colId, ext] = pcid.split(''), pid = Number.parseInt(pnum);
-            const player = allPlayers[pid];
-            const meep = player.makeMeeple(`${colId}${ext ?? ''}`); // label on reload
-            const card = hexMap.getCard(rank, col);
-            card.addMeep(meep, ndx);
+            pcid.split('+').forEach(pcid => { // may be other meep in bumpLoc
+              const [pnum, colId, ext] = pcid.split(''), pid = Number.parseInt(pnum);
+              const player = allPlayers[pid];
+              const meep = player.makeMeeple(`${colId}${ext ?? ''}`); // label on reload
+              const card = hexMap.getCard(rank, col);
+              card.addMeep(meep, ndx);
+            })
           })
         })
       })

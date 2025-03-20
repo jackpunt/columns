@@ -1,6 +1,7 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
 import { CircleShape, type Paintable } from "@thegraid/easeljs-lib";
 import { Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TopoEWC, TopoOR4C as TopoOR4CLib, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
+import type { ColId } from "./card-button";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
@@ -37,6 +38,11 @@ export class RectHex extends Hex1Lib {
   // Mixin does not preserve types!
   get card() { return super.tile as ColCard }
   set card(card) { super.tile = card; }
+
+  /** easy reference from Hex -> card.isInCol() */
+  isInCol(colId: ColId) {
+    return this.card.isInCol[colId]
+  }
 }
 
 class RectHex2Mixed extends Hex2Mixin(RectHex) {};

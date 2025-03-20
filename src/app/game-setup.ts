@@ -171,11 +171,16 @@ export class PlayerGameSetup extends ColGameSetup {
     return; // try DO NOT START the GUI
   }
 
-  syncGame() {
-    // get state of real game:
-    const stateInfo = this.gs.gamePlay.scenarioParser.saveState(false);
+  /**
+   * get state of real game (esp gamePlay.getLayout) into this.gamePlay/subGame.
+   * @param stateInfo [gs.gamePlay.scenarioParser.saveState(false)] or as given
+   * @param sync [true] if false just retrieve stateInfo, do not push to subGame.
+   * @returns stateInfo
+   */
+  syncGame(stateInfo = this.gs.gamePlay.scenarioParser.saveState(false), sync = true) {
     // push into this subGame:
-    this.gamePlay.parseScenario(stateInfo); // parse into this game
+    sync && this.gamePlay.parseScenario(stateInfo); // parse into this game
+    return stateInfo;
   }
 }
 

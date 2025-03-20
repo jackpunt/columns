@@ -1,17 +1,16 @@
 import { C, stime } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
-import { type CardButton } from "./card-button";
+import { ColSelButton, type CardButton } from "./card-button";
 import { type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
-import type { GamePlay } from "./game-play";
+import type { AdvDir, BumpDir2, BumpDirA, BumpDirC, GamePlay, Step } from "./game-play";
 import { Player } from "./player";
 import { TP } from "./table-params";
 
 interface Phase extends PhaseLib {
-  col?: number, // for ScoreForRank
-  row?: number,
   rowScores?: {plyr: Player, score: number}[][],
+  draggable?: boolean,
 }
 namespace GS {
   export const tpr = 3; // turns per round
@@ -34,6 +33,8 @@ export class GameState extends GameStateLib {
   get roundNumber() { return 1 + Math.floor(this.gamePlay.turnNumber / GS.tpr) }
   get turnId() { return this.roundNumber + this.turnOfRound / 10 }
   get isGUI() { return !!this.table.stage.canvas }
+  /** latest bumpDir from ResolveWinner */
+  bumpDir!: BumpDirC;
 
   override start(startPhase?: string, startArgs?: any[]): void {
     super.start(startPhase, startArgs);
@@ -162,54 +163,92 @@ export class GameState extends GameStateLib {
             plyr.colSelButtons.forEach(b => b.showSelected(false))
             plyr.colBidButtons.forEach(b => b.showSelected(false))
           })
-          afterUpdate(this.gamePlay.table.stage, () => this.phase('ResolveWinner'))
+          afterUpdate(this.gamePlay.table.stage, () => this.phase('ResolveWinner', 1))
         }
       }
     },
     ResolveWinner: { // resolve winner, select & advance meep
+      draggable: true,
       start: (col = 1) => {
+        const colId = ColSelButton.colNames[col];
         this.winnerMeep = undefined;
-        if (this.gamePlay.isEndOfGame()) { this.phase('EndGame'); return }
-        if (col > this.nCols) { this.phase('EndTurn'); return }
-        // calls player.meepleToAdvance(meeps, colMeep)
-        this.gamePlay.resolveWinner(col, (meep?: ColMeeple) => {
-          setTimeout(() => this.state.done!(col, meep), TP.flipDwell)
+        if (this.gamePlay.isEndOfGame()) { return this.phase('EndGame') }
+        const rank0Card = this.gamePlay.blackN.find(card => card.colId == colId);
+        if (!rank0Card) { return this.phase('EndTurn') }
+        if (rank0Card.maxCells == 0) { return this.phase('ResolveWinner', col + 1) }
+        // calls player.advanceOneMeeple(meeps, cb_advanceMeeple)
+        this.gamePlay.resolveWinnerAndAdvance(col, (step?: Step<AdvDir>) => {
+          setTimeout(() => this.state.done!(col, step), TP.flipDwell)
         })
       },
-      done: (col: number, meep?: ColMeeple) => {
-        this.winnerMeep = meep;
+      // col - track progress; meep - new/final location; {fromHex, ndx, advDir} - Step to current location
+      done: (col: number, step: Step<AdvDir>) => {
+        // ASSERT: step.dir.startsWith('N'); ...but that's not important now.
+        const meep = step?.meep;
+        this.winnerMeep = meep; // may be in top-row; not a real Step
         if (meep) {
-          this.phase('AdvanceAndBump', col, meep);
+          this.phase('BumpFromAdvance', col, meep, ['SS', 'S', 'N']);
         } else {
           this.phase('MeepsToCol', col);
         }
       }
     },
-    AdvanceAndBump: { // winner/bumpee's meep identified and moved: cascade
-      start: (col: number, meep: ColMeeple) => {
+    // alt version of BumpAndCascade, dirs: BumpDirA[]
+    BumpFromAdvance: {
+      draggable: true,
+      // meep.player chooses a bumpDir, and moveMeep(bumpee, card, ndx)
+      // first: dirs = [SS, S, N]: BumpDir1[], recurse: dirs = [N|S]: BumpDirC[]
+      start: (col: number, meep: ColMeeple, dirs: BumpDirA[]) => {
+        const card0 = meep.card, ndx = meep.cellNdx;
+        const toBump = card0.otherMeepInCell(meep, ndx); // on Black every meep gets its own cell.
+        if (toBump) {
+          const plyr = meep.player// as IPlayer;
+          plyr.bumpAfterAdvance(meep, toBump, dirs, (step: Step<BumpDir2>) => {
+            const dir = this.bumpDir = step.dir.startsWith('S') ? 'S' : 'N'; // step.dir --> <S|N>
+            const other = toBump, meep = step.meep; // for debugger, logpoint
+            if (dirs.length == 1 && dir !== dirs[0]) debugger; // 'N' required?
+            this.phase('MeepsToCol', col)
+          })
+          return;
+        }
+        this.phase('MeepsToCol', col); // cleanup and verify no more bumps
+      }
+    },
+    BumpAndCascade: { // winner|bumpee's meep identified and moved: cascade
+      // initial: resolveWinner -> advDir: {N, NW, NE};
+      // secondary: meepsToCol -> advDir: {N}
+      draggable: true,
+      start: (col: number, meep: ColMeeple, step: Step<BumpDirC>) => {
+        const colId = ColSelButton.colNames[col];
         this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
-        this.table.logText(`${meep} in col ${meep.card.colId}`, `AdvanceAndBump`);
+        this.table.logText(`Col-${colId} from ${step.fromCard}#${step.ndx}->${step.dir} --> ${meep}`, `GameState: 'BumpAndCascade'`);
         const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color, () => {
-          this.gamePlay.advanceMeeple(meep, bumpDone); // advance; bump & cascade -> bumpDone
+          // this.gamePlay.advanceMeeple(meep, step.dir, step.ndx, bumpDone); // advance; bump & cascade -> bumpDone
+          this.gamePlay.bumpAndCascade(meep, step.dir, bumpDone); // ???
         });
+        return;
       },
     },
     MeepsToCol: {
-      // when bump and cascade has settled:
+      // when bump and cascade has settled: cleanup placement of meeps
+      // and find unresolved bumps? (from manual moves?)
       start: (col) => {
         // const col = this.state.col as number;
         this.winnerMeep?.highlight(false);
-        const fails = this.gamePlay.meeplesToCell(col)
-        if (fails) {
-          afterUpdate(fails, () => this.phase('AdvanceAndBump',col, fails), this, 10)
+        const meep = this.gamePlay.meeplesToCell(col)
+        if (meep) {
+          const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.bumpDir, }
+          afterUpdate(meep, () => this.phase('BumpAndCascade',col, meep, step), this, 10)
           return;
         }
+        // TODO: add option/doneButton to 'confirm before score'
+        // so GUI can fix a silly move...
         // update faction counters for each Player:
         this.gamePlay.allPlayers.forEach(plyr => plyr.setFactionCounters())
         this.gamePlay.scoreForColor(this.winnerMeep, () => {
-          setTimeout(() => this.phase('ResolveWinner', 1 + col), TP.flipDwell) // Resolve next col
+          setTimeout(() => this.phase('ResolveWinner', col + 1), TP.flipDwell) // Resolve next col
         });
       }
     },
@@ -222,7 +261,6 @@ export class GameState extends GameStateLib {
       },
     },
     EndRound: {
-      row: 0,
       start: () => {
         // score for rank:
         const rowScores = this.gamePlay.scoreForRank(), nRows = this.gamePlay.nRows;

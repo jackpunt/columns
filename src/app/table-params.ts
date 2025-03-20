@@ -48,13 +48,15 @@ export class TP extends TPLib {
   /** enable textLog in scoreForColor */
   static logFromSubGame = false;
   /** true -> show auto_bids when selected; false -> show after make-bids done click. */
-  static showAllBids = false;
+  static showAllBids = true;
   /** use extra meeple if player count <= useXtraMeep */
   static useXtraMeep = 4;
   /** setAutoPlay if player.index < startAuto */
   static startAuto = 0;
+  /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */
+  static autoDrop = true;
   /** true to use PryTopo and layout */
-  static usePyrTopo = true;
+  static usePyrTopo = false;
   /** total ColCards to shuffle & display */
   static cardsInPlay = 31;
 }

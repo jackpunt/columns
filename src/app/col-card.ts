@@ -2,10 +2,10 @@ import { C, F, type XY } from "@thegraid/common-lib";
 import { CenterText, NamedContainer, type CountClaz, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import { Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
-import { CardShape } from "./card-shape";
 import { ColSelButton, type ColId } from "./card-button";
+import { CardShape } from "./card-shape";
 import { ColMeeple } from "./col-meeple";
-import { arrayN, nFacs, type BumpDir, type Faction, type GamePlay } from "./game-play";
+import { arrayN, nFacs, type BumpDir, type BumpDir2, type Faction, type GamePlay } from "./game-play";
 import { GameSetup } from "./game-setup";
 import { ColHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { Player } from "./player";
@@ -44,10 +44,8 @@ export class ColCard extends Tile {
   }
 
   meepCont = new NamedContainer('meepCont')
-  _rank?: number; // set on first access; ASSERT cards don't move
-  get rank() { return this._rank ?? (this._rank = ((this.hex.map as HexMap2).nRowCol[0] - this.hex.row - 1)) }
+  get rank() { return this.hex.district! } // ASSERT: district is set to rank
   get col() { return this.hex.col }
-  get colId() { return ColSelButton.colNames[this.col] }
 
   setLabel(colId: string, fs = .5, color = C.pickTextColor(this.baseShape.colorn)) {
     const label = new CenterText(`${colId}`, Math.round(this.radius * fs), color,)
@@ -61,11 +59,29 @@ export class ColCard extends Tile {
   isInCol: Partial<Record<ColId, boolean>> = {};
 
   /**
+   * Note: BlackCard overrides, returns ?? this
    * @param dir 'N': up, 'S': down, 'SS': down-2
+   * @returns
    */
-  nextCard(dir: BumpDir): ColCard {
-    return (dir == 'SS') ? this.nextCard('S').nextCard('S')
-      : (this.hex.nextHex(dir)?.card ?? this); // Black card succeeds itself
+  nextCard(dir: BumpDir2): ColCard | undefined {
+    if (dir !== 'SS') {
+      // single bump may return undefined when TP.usePyrTopo
+      return this.hex.nextHex(dir)?.card;
+    }
+    // handle case of 'SS': returns target card or single step or this
+    if (!TP.usePyrTopo) {
+      return this.nextCard('S')!.nextCard('S')!; // black cards will return self
+    } else {
+      const { row, col } = this.hex;
+      const card2 = (this.hex.map as HexMap2)[row][col + 2]?.card;
+      if (!card2) {
+        // ASSERT: (exactly) one of these steps must land on a card: [? dead-end ?]
+        const [cardE, cardW] = [this.nextCard('SE'), this.nextCard('SW')];
+        return (cardE ? cardE : cardW!)
+      }
+      return card2;
+    }
+    BlackCard; BlackNull;
   }
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
@@ -75,16 +91,24 @@ export class ColCard extends Tile {
   /** when openCells[0] is undefined: */
   get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
+  /** the meepCont children (which are ColMeeple) */
   get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
   /** meepsOnCard aligned with cellNdx */
   get meepsAtNdx() {
+    const cardMeeps = this.meepsOnCard;
+    return arrayN(this.maxCells)
+      .map(ndx => cardMeeps.filter(meep => meep.cellNdx == ndx))
+  }
+
+  /** first meep in each cellNdx */
+  get meepAtNdx() {
     const cardMeeps = this.meepsOnCard;
     return arrayN(this.maxCells)
       .map(ndx => cardMeeps.find(meep => meep.cellNdx == ndx))
   }
 
   get meepStr() {
-    return this.meepsAtNdx
+    return this.meepAtNdx
       .map(meep => meep ? `${meep.player.index}` : `-`)
       .join(' ')
       .padStart(2).padEnd(3)
@@ -117,15 +141,16 @@ export class ColCard extends Tile {
   //
   // meeplesToCell: meep.cellNdx:? number --> openCell[0]: number
   addMeep(meep: ColMeeple, cellNdx = this.openCells[0] ?? 0, xy?: XY) {
-    // use ?? 0; b/c dualCell would parse xy->cellNdx[0..1]; must be a single-cell
+    // use ?? 0; b/c dualCell will parse xy->cellNdx[0..1]; must be a single-cell
     const toBump = this.otherMeepInCell(meep, cellNdx);
     const locXY = toBump ? this.bumpLoc : this.meepleLoc(cellNdx); // meepleLoc IFF cellNdx supplied and cell is empty
     this.meepCont.addChild(meep);
+    if (!this.hex) debugger; // this Card must be on a hex!
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex; // no collisions, but fromHex
     meep.card = this;
     meep.cellNdx = cellNdx; // undefined if no openCell
     meep.fromHex = this.hex;   // for later use as fromHex?
-    // toBump -> undefined; AdvanceAndBump -> meeplesToCell will addMeep() and resolve
+    // toBump -> undefined; BumpAndCascade -> meeplesToCell will addMeep() and resolve
     meep.faction = (cellNdx == undefined) ? undefined : this.factions[cellNdx];
     return toBump;
   }
@@ -182,10 +207,9 @@ export class ColCard extends Tile {
   static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
     const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
 
-    BlackCard.seqN = 0
     const ncb = TP.usePyrTopo ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
-    const black0 = arrayN(ncb).map(i => new BlackCard(`:0`, ncb)); // row 0
-    const blackN = arrayN(ncb).map(i => new BlackCard(`:0`, ncb)); // row N (rank-0)
+    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`:0`, i)); // row 0
+    const blackN = arrayN(ncb, 1).map(i => new BlackCard(`:0`, i)); // row N (rank-0)
 
     ColCard.cardN = 0;
     const allCols = arrayN(nCards).map(n => {
@@ -250,21 +274,24 @@ export class DualCard extends ColCard {
 
 export class BlackCard extends ColCard {
 
-  static seqN = 0;
   static countClaz(n = 0): CountClaz[] {
-    return [[n, PrintBlack, 'BlackCard', n, .5]]
+    return arrayN(n).map(colNum => [1, PrintBlack, 'BlackCard', colNum, .5])
   }
 
-  constructor(Aname: string, seqLim = 0, fs?: number) {
-    const nCells = TP.numPlayers * 2;
-    super(Aname, ...arrayN(nCells, i => 0) as Faction[]) // initial factions[] for painting color
-    const colNum = BlackCard.seqN = (BlackCard.seqN >= seqLim ? 0 : BlackCard.seqN) + 1;
+  constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers * 2) {
+    const factions = arrayN(nCells, i => 0) as Faction[];
+    super(Aname, ...factions) // initial factions[] for painting color
     const colId = ColSelButton.colNames[colNum];
     this.setLabel(colId, fs)
   }
+  get colId() { return ColSelButton.colNames[this.col] }
+
+  override nextCard(dir: BumpDir): ColCard | undefined {
+    return super.nextCard(dir) ?? this; // back to itself
+  }
 
   override get meepStr() {
-    return this.meepsAtNdx.slice(0, 3)
+    return this.meepAtNdx.slice(0, 3)
       .map(meep => meep ? `${meep.player.index}` : `-`)
       .join('')
       .padStart(2).padEnd(3)
@@ -281,19 +308,29 @@ export class BlackCard extends ColCard {
 
   // if occupied: ignore given cellNdx, dump in first empty cell
   override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
-    const ndx = (cellNdx !== undefined && !this.meepsAtNdx[cellNdx]) ? cellNdx : this.openCells[0];
+    const ndx = (cellNdx !== undefined && !this.meepAtNdx[cellNdx]) ? cellNdx : this.openCells[0];
     return super.addMeep(meep, ndx, xy)
   }
 }
-export class BlackNull extends ColCard {
 
-  constructor(aname = 'Null:0', col?: number , fs?: number) {
-    super(aname, ...[]); // with zero length factions.
+export class BlackNull extends BlackCard {
+
+  constructor(aname = 'Null:0', col?: number, fs?: number) {
+    super(aname, col, fs, 0); // with zero length factions.
     const colNum = col ?? Number.parseInt(aname.split(':')[1] ?? '0');
     const colId = ColSelButton.colNames[colNum];
     this.setLabel(colId, fs); // is Black...
     this.paint(C.BLACK); // no factions, no color: paint it here.
   }
+
+  override nextCard(dir: BumpDir): ColCard | undefined {
+    return undefined;  // no escape...
+  }
+}
+
+/** dead card where Col-C is not playable && rank > 0 */
+export class BlackDead extends BlackNull {
+
 }
 
 export class PrintCol extends ColCard {
