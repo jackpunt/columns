@@ -114,9 +114,9 @@ export class GameState extends GameStateLib {
         }
         if (this.allDone || ok) {
           this.gamePlay.allPlayers.forEach(plyr => {
-            const xtraCol = plyr.isDoneSelecting()?.colNum ?? 1;
-            const meep = plyr.makeMeeple(xtraCol, '*');
-            const card = this.gamePlay.hexMap.getCard(0, xtraCol); // black card
+            const xColId = plyr.isDoneSelecting()!.colId;
+            const meep = plyr.makeMeeple(xColId, '*');
+            const card = this.gamePlay.blackN.find(card => card.colId == xColId)!
             card.addMeep(meep, 0);
             // plyr.clearButtons();
           })

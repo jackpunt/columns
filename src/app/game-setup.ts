@@ -1,6 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { makeStage, type NamedObject } from '@thegraid/easeljs-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, type Hex, type HexAspect, TP as TPLib } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -58,22 +58,26 @@ class ColGameSetup extends GameSetupLib {
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
   setRowsCols(np = TP.numPlayers) {
+    let nr = TP.nHexes, nc = TP.mHexes, nElts = (np == 2) ? 4 : 6;
+    let tc = 0;
     if (TP.usePyrTopo) {
-      // [5],6,7,6,5,4,3,[4] np>3
-      // [5],6,7,6,5,4,[4]   np<=3
-      const nra = [6, 6, 6, 7, 8, 8, 8, 8, 8, 8]; // total, incl top&bottom-black
-      const nr = nra[np], nc = (np <= 4) ? 4 : 5, tc = (np <= 4 ? 28 : 31);
-      TP.setParams({ nHexes: nr, mHexes: nc, cardsInPlay: tc }) // or 28
-      return [nr, nc];
+      // [5],6,7,6,5,4,3,[4] np>=4
+      // [5],6,7,6,5,4,[5]   np==3
+      // [5],6,5,4,3,[4]     np==2
+      nr = [4, 4, 4, 5, 6, 6, 6, 6, 6, 6][np] + 2; // include 2 black rows
+      nc = (np <= 4) ? 4 : 5;
+      tc = (np == 2) ? 18 : (np == 3 ? 28 : 31); // 18 for np=2
     } else {
       // nr includes top & bottom black cells;
-      const nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows
-      const nc = [4, 4, 4, 4, 5, 5, 6, 6, 7, 7][np];
+      nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows
+      nc = [4, 4, 4, 4, 5, 5, 6, 6, 7, 7][np];
+      tc = (nr - 2) * nc;
       //    np =  0  1  2  3  4  5  6  7  8  9
       //    score      40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
-      TP.setParams({ nHexes: nr, mHexes: nc, cardsInPlay: (nr - 2) * nc })
-      return [nr, nc] as [number, number];
     }
+    TP.setParams({ nHexes: nr, mHexes: nc, }, false, TPLib)
+    TP.setParams({ cardsInPlay: tc, nElts }, false, TP)
+    return [nr, nc] as [nr: number, nc: number];
   }
 
   override makeHexMap(

@@ -13,7 +13,7 @@ import { TP } from "./table-params";
 type PlyrBid = { plyr: Player; bid: number; }
 /** interface from GamePlay/GameState to Player */
 export interface IPlayer {
-  makeMeeple(colId: number | string, ext?: string): ColMeeple;
+  makeMeeple(colId: ColId, ext?: string): ColMeeple;
   panel: PlayerPanel;
   score: number;
   color: string;
@@ -172,20 +172,15 @@ export class Player extends PlayerLib implements IPlayer {
     const nfacs = arrayN(1 + nFacs, i => 0); // count of each faction on board
     hexMap.forEachHex(hex => hex.card.factions.forEach(f => nfacs[f]++));
 
-    const blackN = this.gamePlay.blackN;     // blackN[2] may be BlackNull
-    // initialize scores to zero:
-    const bndxScore = blackN.map((_, bndx) => ({ bndx, score: 0 }));
-    blackN.map(card => card.colId).map((colId, bndx) => {
+    const colIdScore: Partial<Record<ColId, {colId: ColId, score:number, sndx: number}>> = {};
+    this.gamePlay.colIdsInPlay.map(([colId, x], sndx) => {
+      colIdScore[colId] = { colId, score: 0, sndx };
       this.gamePlay.cardsInCol(colId).map(card => {
         const facs = card.factions, n = facs.length;
-        facs.forEach(f => bndxScore[bndx].score += nfacs[f] / n);
+        facs.forEach(f => colIdScore[colId]!.score += nfacs[f] / n);
       })
     })
-    const rv1 = bndxScore.map((v, bndx) => blackN[bndx].maxCells == 0 ? { bndx, score: 0 } : v)
-    const rv0 = rv1.map(({ bndx, score }) => ({ sndx: this.colSelButtons.findIndex(b => b.colId == blackN[bndx].colId), score }));
-    const rv = rv0.filter(elt => elt.sndx >= 0); // elt.sndx may be undefined
-    if (rv.find(elt => (elt.sndx < 0))) { debugger }
-    return rv
+    return Object.values(colIdScore)
   }
   /** choose column for xtraMeeple */
   xtraCol() {
@@ -199,17 +194,17 @@ export class Player extends PlayerLib implements IPlayer {
     permute(weights)
     const rand = Random.random(nw)
     const ndx = weights[rand]
-    const sel = colScore[ndx].sndx;
-    if (sel > nCols) debugger;
-    return sel // ndx of colSelButtons
+    const colId = colScore[ndx].colId;
+    return colId // ndx of colSelButtons
   }
 
   /** for xtraCol; card.select() -> cardDone = card */
   selectCol() {
-    const sel = this.xtraCol()
+    const colId = this.xtraCol()
     this.clearButtons();
-    console.log(stime(this, `.selectCol: ${this.Aname} -> ${sel} of ${this.gamePlay.nCols}`));
-    this.colSelButtons[sel].select()
+    console.log(stime(this, `.selectCol: ${this.Aname} -> ${colId} of ${this.gamePlay.nCols}`));
+    const sel = this.colSelButtons.find(b => b.colId == colId)
+    sel?.select();
     this.colBidButtons[0].select(); // bid 1 to complete selection
   }
 
@@ -280,13 +275,12 @@ export class Player extends PlayerLib implements IPlayer {
   /**
    * make ColMeeple, add to ColCard @ {column, rank}
    * @param hexMap
-   * @param colId colNum | `${player.index}:${colNum}`
+   * @param colId where this meeple starts the game
+   * @param ext [''] '*' if is the xtra Meeple in colId
    */
-  makeMeeple(colId: number | string, ext = '') {
+  makeMeeple(colId: string, ext = '') {
     Tile.gamePlay = this.gamePlay; // so Meeples can find their GamePlay
-    const cid = (typeof colId == 'number')
-      ? `${ColSelButton.colNames[colId]}${ext}`
-      : colId;
+    const cid = `${colId}${ext}`;
     const meep = new ColMeeple(cid, this)
     meep.paint(this.color);
     this.gamePlay.table.makeDragable(meep);

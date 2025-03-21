@@ -192,7 +192,7 @@ export class ScenarioParser extends SPLib {
             pcid.split('+').forEach(pcid => { // may be other meep in bumpLoc
               const [pnum, colId, ext] = pcid.split(''), pid = Number.parseInt(pnum);
               const player = allPlayers[pid];
-              const meep = player.makeMeeple(`${colId}${ext ?? ''}`); // label on reload
+              const meep = player.makeMeeple(colId, ext); // label on reload
               const card = hexMap.getCard(rank, col);
               card.addMeep(meep, ndx);
             })
@@ -202,11 +202,10 @@ export class ScenarioParser extends SPLib {
     } else {
       // StartElt has no layout: place one each on rank 0
       allPlayers.forEach(player => {
-        this.gamePlay.cardsInRow(nrows - 1)
+        this.gamePlay.blackN
           .filter(card => card.factions.length > 0)
           .forEach(card => {
-            if (card.factions.length == 0) return;
-            const meep = player.makeMeeple(card.col);
+            const meep = player.makeMeeple(card.colId);
             card.addMeep(meep, 0); // rank == 0; black card
           })
       })
