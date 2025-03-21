@@ -56,7 +56,7 @@ export class TP extends TPLib {
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */
   static autoDrop = true;
   /** true to use PryTopo and layout */
-  static usePyrTopo = false;
+  static usePyrTopo = true;
   /** total ColCards to shuffle & display */
   static cardsInPlay = 31;
 }

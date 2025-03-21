@@ -306,20 +306,27 @@ export class GamePlay extends GamePlayLib {
     return (meeps.length == card.maxCells && !meeps.find(m => m.player !== player))
   }
 
-  origMeepCardNdxs?: ReturnType<GamePlay['recordMeep0']>[];
+  origMeepCardNdxs: ReturnType<GamePlay['recordMeep0']>[] = [];
   recordMeep0(meep: ColMeeple) {
-    const card = meep.card, ndx = meep.cellNdx;
+    const card = meep.card, ndx = meep.cellNdx!;
     return { meep, card, ndx }
   }
   recordMeep(meep: ColMeeple) {
     if (this.origMeepCardNdxs && !this.origMeepCardNdxs.find(mcn => mcn.meep == meep)) {
-      this.origMeepCardNdxs.push(this.recordMeep0(meep))
+      this.origMeepCardNdxs.unshift(this.recordMeep0(meep))
     }
     return meep;
   }
-  restoreMeeps(meeps = this.origMeepCardNdxs) {
-    meeps?.forEach(mcn => mcn.card.addMeep(mcn.meep, mcn.ndx))
-    meeps?.forEach(mcn => { if (!mcn.card.hex) debugger; })
+  recordMeeps() {
+    const prevMeepCardNdxs = this.origMeepCardNdxs
+    this.origMeepCardNdxs = []; // new stack
+    return prevMeepCardNdxs;
+  }
+  restoreMeeps(prevMeepCardNdxs: typeof this.origMeepCardNdxs) {
+    const meeps = this.origMeepCardNdxs;
+    meeps.forEach(mcn => mcn.card.addMeep(mcn.meep, mcn.ndx))
+    meeps.forEach(mcn => { if (!mcn.card.hex) debugger; })
+    this.origMeepCardNdxs = prevMeepCardNdxs;
   }
 
   // assert that Player returns a BumpDir that hits a nextCard!
@@ -327,20 +334,20 @@ export class GamePlay extends GamePlayLib {
    *
    * Check for toBump, recurse until no more toBump.
    * @param meep has been moved to current loc; check for collision and bump
-   * @param bumpDir
-   * * initial: AdvDir (from plyr.selectNdx_BumpDir);
-   * * recursive: BumpDir2 (from plyr.chooseBumpee_Dir_Ndx)
+   * @param bumpDir determines cascDir from startsWith
+   * * initial: BumpDirA (from plyr.scoreForDirNdx, pseudoWin);
+   * * recursive: BumpDirC (from plyr.bumpAndCascade)
    * @param depth
    */
   bumpAndCascade(meep: ColMeeple, bumpDir: BumpDirA | BumpDirC, bumpDone?: () => void, depth = 0) {
     if (depth > this.nRows) debugger;
     const card0 = meep.card, ndx = meep.cellNdx;
-    const toBump = card0.otherMeepInCell(meep, ndx);
-    if (!!toBump) {
+    const other = card0.otherMeepInCell(meep, ndx);
+    if (!!other) {
       const cascDir: BumpDirC = bumpDir.startsWith('S') ? 'S' : 'N';
-      console.log(stime(this, `.bumpAndCascade -> chooseBumpee_Dir_Ndx: meep=${meep.Aname} toBump=${toBump.Aname} cascDir=${cascDir}`))
-      const plyr = meep.player;
-      const step = plyr.bumpInCascade(meep, toBump, cascDir), bumpee = step.meep;
+      console.log(stime(this, `.bumpAndCascade -> bumpInCascade(meep=${meep.toString()} other=${other.toString()} cascDir=${cascDir})`))
+      const step = meep.player.bumpInCascade(meep, other, cascDir)
+      const bumpee = step.meep;
       this.bumpAndCascade(bumpee, cascDir, bumpDone, depth + 1);
       return;
     } else {
@@ -350,22 +357,27 @@ export class GamePlay extends GamePlayLib {
 
   override parseScenario(scenario: SetupElt): void {
     super.parseScenario(scenario)
-    this.setCardInInCol();
+    this.setCardIsInCol();
   }
 
-  cardsInRow(row: number) {
+  cardsInRow(row: number, andBlack = true) {
     // arrayN(this.nCols, 1).map(col => this.hexMap.getCard(this.nRows - 1 - row, col))
     // TODO: use nextCard('E') ??
     const [nr, nc] = this.hexMap.nRowCol
     const hexRow = this.hexMap[row];
-    return hexRow.map(hex => hex?.card).filter(card => card !== undefined);
+    return hexRow.map(hex => hex?.card).filter(card => (card !== undefined) && (andBlack || (card.factions.length != 0)));
   }
-  // TODO: think what this means for Pyramid
+  /**
+   * cards with .isInCol(colId)
+   * @param colId
+   * @param andBlack include top & bottom rows (other blacks always included)
+   * @returns
+   */
   cardsInCol(colId: ColId, andBlack = true) {
-    const [rn, ro] = andBlack ? [0, 0] : [2, 1];
+    const [rn, ro] = andBlack ? [0, 0] : [2, 1]; // also snip BlackNull('Null:3')
     return arrayN(this.nRows - rn, ro)
       .map(row => this.cardsInRow(row)
-        .filter(card => card.isInCol[colId])).flat();
+        .filter(card => card.isInCol[colId] && (andBlack || (card.factions.length != 0)))).flat();
   }
 
   get colIdsInPlay() {
@@ -373,12 +385,13 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** on each Hex[row, col] test & set Card.isInCol() */
-  setCardInInCol() {
+  setCardIsInCol() {
     const colIdsInPlay = this.colIdsInPlay;
     this.hexMap.forEachHex(hex => {
       const w = hex.xywh0.dxdc * .9 * (TP.usePyrTopo ? 1 : 1 )
       const card = hex.card;
       colIdsInPlay.map(([colId, x]) => card.isInCol[colId] = Math.abs(card.x - x) <= w);
+      if (!colIdsInPlay.find(([id, x]) => card.isInCol[id])) card.isDead = true;
     })
   }
 
@@ -427,7 +440,7 @@ export class GamePlay extends GamePlayLib {
     const nRows = this.nRows, nScored = arrayN(this.allPlayers.length, i => 0)
     // include top row (so ndx == row), but score = 0;
     const playersInRow = arrayN(nRows - 1).map(row =>
-      this.cardsInRow(row).map(card => card.meepsOnCard.map(meep => meep.player))
+      this.cardsInRow(row, false).map(card => card.meepsOnCard.map(meep => meep.player))
         .flat().filter((plyr, n, ary) => !ary.slice(0, n).find(lp => lp == plyr))
       // retain first occurence of player on row
     )

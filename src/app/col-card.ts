@@ -57,6 +57,7 @@ export class ColCard extends Tile {
    * set by GamePlay.labelCardCols()
    */
   isInCol: Partial<Record<ColId, boolean>> = {};
+  isDead: boolean = false;
 
   /**
    * Note: BlackCard overrides, returns ?? this
@@ -65,6 +66,7 @@ export class ColCard extends Tile {
    */
   nextCard(dir: BumpDir2): ColCard | undefined {
     if (dir !== 'SS') {
+      if (TP.usePyrTopo && dir.length < 2) debugger;
       // single bump may return undefined when TP.usePyrTopo
       return this.hex.nextHex(dir)?.card;
     }
@@ -281,10 +283,11 @@ export class BlackCard extends ColCard {
   constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers * 2) {
     const factions = arrayN(nCells, i => 0) as Faction[];
     super(Aname, ...factions) // initial factions[] for painting color
-    const colId = ColSelButton.colNames[colNum];
+    const colId = this._colId = ColSelButton.colNames[colNum];
     this.setLabel(colId, fs)
   }
-  get colId() { return ColSelButton.colNames[this.col] }
+  _colId: ColId;
+  get colId() { return this._colId; }
 
   override nextCard(dir: BumpDir): ColCard | undefined {
     return super.nextCard(dir) ?? this; // back to itself

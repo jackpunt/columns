@@ -60,13 +60,20 @@ export class ColMeeple extends Meeple {
   //   table.dragStart() -> this.dragStart();
   //   markLegalHexes(tile) -> isLegalTarget(hex)
 
+  override dragStart(ctx: DragContext): void {
+    this.player.setCardNdxs(this.card);
+  }
+
   override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
+    const plyr = this.player;
     if (!(toHex instanceof ColHex2)) return false;
     if (ctx.lastShift && ctx.lastCtrl) return true; // can shift cols with Ctrl
-    const colId = this.player.curSelCard?.colId ?? '';
+    const colId = plyr.curSelCard?.colId ?? '';
     if (!(toHex.isInCol(colId))) return false; // stay in same hex-column
     if (ctx.lastShift) return true;
     // if (toHex === this.fromHex) return true;
+    const toCard = toHex.card, cardNdxs = plyr.cardNdxs;
+    if (!cardNdxs.find(({card, ndxs})=> card == toCard)) return false;
     if ((ctx.gameState.isPhase('ResolveWinner'))) return true; // meepleToAdvance
     if ((ctx.gameState.isPhase('BumpAndCascade'))) return true; // selectNdx_Bumpee
     return false;

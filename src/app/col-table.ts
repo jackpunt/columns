@@ -54,9 +54,11 @@ export class ColTable extends Table {
   override getPanelLocs() {
     const { nh: nr, mh: nc0 } = this.hexMap.getSize();
     const { row: rC, col: cC0 } = this.hexMap.centerMap;
-    // when nr3 is even (nRows is odd): shift left by 1/2 col
-    const cC = (TP.usePyrTopo && this.gamePlay.nRows % 2 === 1) ? cC0 - .5 : cC0;
-    const nc = (TP.usePyrTopo ? 7 : nc0)
+    // when nrl is even (nRows is odd): shift left by 1/2 col
+    const nru = (TP.numPlayers < 3 ? 2 : 3); // number of rows up
+    const nrl = nr - nru, nrle = (nrl % 2) == 0;
+    const cC = (TP.usePyrTopo && nrle) ? cC0 - .5 : cC0;
+    const nc = (TP.usePyrTopo ? 4 + nru : nc0)
     const coff = (nc / 2) + (this.panelWidth / 2) + .2;
     const ph = (TP.numPlayers > 4) ? this.panelHeight + .2 : (this.panelHeight + .2) / 2
     // Left of map (dir: +1), Right of map (dir: -1)

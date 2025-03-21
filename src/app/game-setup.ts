@@ -61,7 +61,8 @@ class ColGameSetup extends GameSetupLib {
     if (TP.usePyrTopo) {
       // [5],6,7,6,5,4,3,[4] np>3
       // [5],6,7,6,5,4,[4]   np<=3
-      const nr = (np <= 3) ? 7 : 8, nc = (np <= 4) ? 4 : 5, tc = (np <= 4 ? 28 : 31);
+      const nra = [6, 6, 6, 7, 8, 8, 8, 8, 8, 8]; // total, incl top&bottom-black
+      const nr = nra[np], nc = (np <= 4) ? 4 : 5, tc = (np <= 4 ? 28 : 31);
       TP.setParams({ nHexes: nr, mHexes: nc, cardsInPlay: tc }) // or 28
       return [nr, nc];
     } else {
@@ -179,7 +180,9 @@ export class PlayerGameSetup extends ColGameSetup {
    */
   syncGame(stateInfo = this.gs.gamePlay.scenarioParser.saveState(false), sync = true) {
     // push into this subGame:
-    sync && this.gamePlay.parseScenario(stateInfo); // parse into this game
+    if (sync) {
+      this.gamePlay.parseScenario(stateInfo); // parse into this game
+    }
     return stateInfo;
   }
 }

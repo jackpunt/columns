@@ -28,7 +28,7 @@ export interface IPlayer {
   /** move the Advancing meeple up one step, choosing card & cellNdx */
   advanceOneMeeple(meeps: ColMeeple[], cb_advanceStep?: CB_Step<AdvDir>): void;
   /** handle first bump from Advance, 'SS' available; choose dir, bumpee, card & cellNdx */
-  bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, bumpDirs: BumpDirA[], cb_bumpAdvance?: CB_Step<BumpDir2>): Step<BumpDir2>;
+  bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, cb_bumpAdvance?: CB_Step<BumpDir2>): Step<BumpDir2>;
   /** handle cascade bumps; expand <S|N>, choose bumpee, card & cellNdx */
   bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDir: BumpDirC, cb_bumpCascade?: CB_Step<BumpDir>): Step<BumpDir>;
   doneifyCards(): void;
@@ -175,8 +175,8 @@ export class Player extends PlayerLib implements IPlayer {
     const blackN = this.gamePlay.blackN;     // blackN[2] may be BlackNull
     // initialize scores to zero:
     const bndxScore = blackN.map((_, bndx) => ({ bndx, score: 0 }));
-    blackN.map(card => card.colId).map((col, bndx) => {
-      this.gamePlay.cardsInCol(col).map(card => {
+    blackN.map(card => card.colId).map((colId, bndx) => {
+      this.gamePlay.cardsInCol(colId).map(card => {
         const facs = card.factions, n = facs.length;
         facs.forEach(f => bndxScore[bndx].score += nfacs[f] / n);
       })
@@ -470,9 +470,11 @@ export class Player extends PlayerLib implements IPlayer {
     return false;   // not our problem
   }
 
-  readonly bumpDirs1 = ['SS', 'S', 'N'] as BumpDirA[]; // pro-forma default
+  readonly bumpDirsA = ['SS', 'S', 'N'] as BumpDirA[]; // pro-forma default
   meepsToAdvance!: ColMeeple[]
-  bumpDirs!: BumpDirA[];  // allowed bumpDirs1 during manual move
+  dragDirs: BumpDirA[] = [];
+  // legal drop spots for manuMoveBumpee
+  cardNdxs: { card: ColCard, ndxs: number[] }[] = [];  // allowed bumpDirsA during manual move
 
   /** when manuAdvanceOneMeeple is done */
   cb_advanceMeep?: (step: Step<AdvDir>) => void;
@@ -486,12 +488,15 @@ export class Player extends PlayerLib implements IPlayer {
    */
   advanceOneMeeple(meeps: ColMeeple[], cb_advanceMeep?: CB_Step<AdvDir>) {
     // AUTO: subGame will have no cb_meepStep & expects full-auto
-    if (this.useRobo || !cb_advanceMeep) return this.autoAdvanceOneMeeple(meeps, cb_advanceMeep)
+    if (this.useRobo || !cb_advanceMeep) {
+      return this.autoAdvanceOneMeeple(meeps, cb_advanceMeep)
+    }
     // GUI: set dropFunc -> cb_meepStep(meep); so each player does their own D&D
     meeps.forEach(m => m.highlight(true, true)); // light them up!
     this.meepsToAdvance = meeps;
     this.cb_advanceMeep = cb_advanceMeep;
     this.gamePlay.gameState.doneButton(`advance meeple & drop`, this.color);
+    this.dragDirs = ['N'];
     this.adviseMeepleDropFunc;
     return [undefined, undefined] as any as ReturnType<Player['autoAdvanceOneMeeple']>;
   }
@@ -506,7 +511,7 @@ export class Player extends PlayerLib implements IPlayer {
     if (fromCard.hex.row > 0) {                   // top black -> no advance
       const advCard = fromCard.nextCard(advDir)!;
       const ndxs = this.gamePlay.cellsForAdvance(advCard)
-      const { ndx, bumpDir } = this.autoSelectAdvanceNdx_bumpDir(meep, advCard, this.bumpDirs1, ndxs);
+      const { ndx, bumpDir } = this.autoSelectAdvanceNdx_bumpDir(meep, advCard, this.bumpDirsA, ndxs);
       // TODO: maybe cache bumpDir for moveBumpee/bumpInCascade
       this.gamePlay.moveMeep(meep, advCard, ndx)
     }
@@ -535,11 +540,10 @@ export class Player extends PlayerLib implements IPlayer {
    * gameState.isPhase('BumpAndCascade')
    *
    * @param meep advance or bumpee
-   * @param dirs [this.bumpDirs1: 'N', 'S', 'SS'] OR cascade: ['S'] or ['N']
+   * @param dirAs [this.bumpDirsA: ['N'] or ['SS', 'S']] OR cascade: ['S'] or ['N']
    * @param cb (ndx, bumpDir) -> gamePlay for advanceMeeple -> bumpAndCascade()
    */
-  manuMoveBumpee(meep: ColMeeple, other: ColMeeple, dirs = this.bumpDirs1, cb?: CB_Step<BumpDir>) {
-    this.bumpDirs = dirs; // for D&D isLegalTarget
+  manuMoveBumpee(meep: ColMeeple, other: ColMeeple, dirAs = this.bumpDirsA, cb?: CB_Step<BumpDir>) {
     const fromCard = meep.card, ndx = meep.cellNdx, gamePlay = this.gamePlay;
     // TODO: update step.dir
     const step = { meep, fromCard, ndx, dir: 'S'} as Step<BumpDir>;
@@ -548,15 +552,19 @@ export class Player extends PlayerLib implements IPlayer {
       this.cb_moveBumpee = undefined; // one time only
       if (cb) cb(step)
     }
-    const cardNdxs = dirs.map(dir => {
-      const nextCard = fromCard.nextCard(dir);
-      if (!nextCard) return { card: nextCard as any as ColCard, ndxs: [] }// as ReturnType<GamePlay['cellsForBumpee']>;
-      return this.gamePlay.cellsForBumpee(nextCard, dir);
-    })
-    cardNdxs.forEach(({ card, ndxs }) => {
-      // TODO set for isLegalTarget
-    })
-    // TODO wait for adviseMeepleDropFunc to invoke this.cb_Ndx_BumpDir
+    this.dragDirs = dirAs;
+  }
+  /** invoked from setLegalMark */
+  setCardNdxs(fromCard: ColCard, dirAs = this.dragDirs) {
+    const cardNdxs = dirAs.map(dirA => {
+      const dirs = (dirA !== 'SS') ? TP.usePyrTopo ? this.pyrChoices[dirA] : [dirA] : [dirA];
+      return dirs.map(dir => {
+        const nextCard = fromCard.nextCard(dir);
+        if (!nextCard) return undefined;
+        return this.gamePlay.cellsForBumpee(nextCard, dir);
+      })
+    }).flat().filter(cardNdx => !!cardNdx);
+    return this.cardNdxs = cardNdxs; // for ColMeeple.isLegalTarget()
   }
 
   /**
@@ -566,35 +574,37 @@ export class Player extends PlayerLib implements IPlayer {
    * either way - use autoSelectCellNdx_bumpDir() --> dirs.map(dirs=>bestBumpInDir(dir,...))
    * @param meep our meep, just advanced or bumped to meep.card/cellNdx
    * @param other other meep in cell
-   * @param dirs [S|N] --> [S|N] OR [SS,S,N] --> [SS|S|N]
    * @param cb_bumpAdvance (Step<BumpDir>) => void;
    * @returns { meep: meep | other, fromCard: card0, ndx: ndx0, dir: BumpDir}
    * * in manual mode, returns with {ndx: -1}
    */
-  bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, dirs: BumpDirA[], cb_bumpAdvance?: CB_Step<BumpDir2>) {
+  bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, cb_bumpAdvance?: CB_Step<BumpDir2>) {
+    const dirs = ((meep.player == other.player) || (meep.card.hex.row == 1) ? ['N'] : ['SS', 'S']) as BumpDirA[];
     if (this.useRobo) {
-      return this.autoBumpMeeple(meep, other, dirs, cb_bumpAdvance);
+      return this.autoBumpAfterAdvance(meep, other, dirs, cb_bumpAdvance);
     }
     this.manuMoveBumpee(meep, other, dirs, cb_bumpAdvance)
     const dirC = (dirs.length == 1 ? dirs[0] : 'S') as BumpDirC; // not the actual dir
-    const rv: Step<BumpDir2> = { meep, fromCard: meep.card, ndx: -1, dir: dirC };  // signal manual callback mode.
-    cb_bumpAdvance && cb_bumpAdvance(rv);
-    return rv;
+    const step: Step<BumpDir2> = { meep, fromCard: meep.card, ndx: -1, dir: dirC };  // signal manual callback mode.
+    return step;  // because auto-mode returns a value we also return on for Typescript...
   }
   /**
    * meep & other co-resident, move one of them.
-   * @param meep
-   * @param other
-   * @param dirs legal bumpDirs; dirs.length = advance ? 3 : 1
+   * @param meep this Player's meep
+   * @param other prior occupant of cell
+   * @param dirs ['SS', 'S'] or ['N'] if upBump required
    * @returns Step<BumpDirA>
    */
-  autoBumpMeeple(meep: ColMeeple, other: ColMeeple, dirs: BumpDirA[], cb_bumpMeeple?: CB_Step<BumpDir2>) {
+  autoBumpAfterAdvance(meep: ColMeeple, other: ColMeeple, dirs: BumpDirA[], cb_bumpMeeple?: CB_Step<BumpDir2>) {
     const fromCard = meep.card, ndx0 = meep.cellNdx!;
-    const ndx_bumpDirs = this.bestBumpInDir([meep, other], fromCard, dirs);
-    const { ndx, bumpDir } = ndx_bumpDirs[0];
-    const card = fromCard.nextCard(bumpDir)!; // ASSERT: bumpDir --> card
-    this.gamePlay.moveMeep(meep, card, ndx);
-    const step = { meep, fromCard, ndx: ndx0, dir: bumpDir }// immediate return for pseudo-Players
+    const ndx_bumpDirs = this.pickMeepBumpDirAfterAdv([meep, other], fromCard, dirs);
+    const { meep: bumpee, ndx, bumpDir } = ndx_bumpDirs[0];
+    const stayee = (bumpee == meep) ? other : meep; // bumpee bumps; stayee stays
+    const toCard = fromCard.nextCard(bumpDir)!; // ASSERT: bumpDir --> card
+    if (!toCard) debugger;
+    this.gamePlay.moveMeep(bumpee, toCard, ndx); // may be in bumpLoc
+    this.gamePlay.moveMeep(stayee, fromCard, ndx0); // settled on card@hdx0
+    const step = { meep: bumpee, fromCard, ndx: ndx0, dir: bumpDir }// immediate return for pseudo-Players
     cb_bumpMeeple && cb_bumpMeeple(step);
     return step;
   }
@@ -611,29 +621,32 @@ export class Player extends PlayerLib implements IPlayer {
    * @param meep the winner-meep
    * @param advCard the card meep will advance to
    * @param dirs the choice for next bump ('N', 'S') expand when usePyrTopo
-   * @param ndxs the available cells to choose
+   * @param ndxs the available cells on advCard
    * @param cb callback when bump & cascade is complete
    * @returns { ndx: cell for meep, bumpDir: bump first meep, other bumps share S/N }
    */
-  autoSelectAdvanceNdx_bumpDir(meep: ColMeeple, advCard: ColCard, dirs = this.bumpDirs1, ndxs = [0], cb?: (ndx: number, bumpDir: BumpDir2) => void) {
+  autoSelectAdvanceNdx_bumpDir(meep: ColMeeple, advCard: ColCard, dirs = this.bumpDirsA, ndxs = [0], cb?: (ndx: number, bumpDir: BumpDir2) => void) {
     // choose the best cellNdx for meep in advCard:
-    const ndx_bumpDirs = this.bestBumpInDir([meep], advCard, dirs, ndxs)
+    const ndx_bumpDirs = this.pickMeepBumpDirAfterAdv([meep], advCard, dirs, ndxs)
     // remove meep, score:
     const { ndx, bumpDir } = ndx_bumpDirs[0];
     return { ndx, bumpDir } // immediate return for auto-mode Players
   }
-  /** meep is on card, optimize cellNdx based on score (incl subsequent bumps?)
+  /** after Advance, two meeps are on card @ cellNdx:
+   *
+   * choose bumpee -> bumpDir & cellNdx based on score (incl subsequent bumps?)
    *
    * simple score, no lookahead/cascade
    */
-  bestBumpInDir(meeps: ColMeeple[], card: ColCard, bumpDirs: BumpDirA[], ndxs = [0]) {
+  pickMeepBumpDirAfterAdv(meeps: ColMeeple[], card: ColCard, bumpDirs: BumpDirA[], ndxs = [0]) {
     const ndx_bumpDirs = meeps.map(meep => {
       // enforce no self-bump down when advance:
       const dirs = (bumpDirs.length > 1 && meep.player == this) ? ['N' as BumpDirA] : bumpDirs;
       return dirs.map(dir => {
+        // try use bumpDir = dir, see how it works:
         const [bndx, score] = this.bestNdxForMe(card, dir), ndx = bndx ?? ndxs[0];
         const bumpDir = dir as BumpDir2; // TODO: choose next bump dir
-        return { ndx, bumpDir, meep, score } as { ndx: number, bumpDir: BumpDir2, meep?: ColMeeple, score: number }
+        return { ndx, bumpDir, meep, score } as { ndx: number, bumpDir: BumpDir2, meep: ColMeeple, score: number }
       })
     }).flat().sort((a, b) => b.score - a.score);
     if (!ndx_bumpDirs[0]) { ndx_bumpDirs[0] = { ndx: 0, bumpDir: 'S', meep: meeps[0], score: -1 } }
@@ -646,14 +659,19 @@ export class Player extends PlayerLib implements IPlayer {
     return [bestFacs, factionTotals] as [Faction[], number[]];
   }
 
-  /** ndx of cell that maximizes payoff from advance */
-  bestNdxForMe(card: ColCard, bumpDir1: BumpDirA) {
+  /** two meeps on card, one is mine; bumpDir is given;
+   * which should we bump?
+   *
+   * ndx of cell that maximizes payoff from advance
+   */
+  bestNdxForMe(card: ColCard, bumpDirA: BumpDirA) {
     const [bestFacs, factionTotals] = this.bestFacs(card)
     const bidFacs = this.curBidCard?.factions; // this (pseudo-player) may have no curBidCard
     const fac = bestFacs.find(fac => bidFacs?.includes(fac)); // may be none
     // When (bumpdir == 'N') && (hit myMeep) && (myMeep on bidFac): bump myMeep.
-    const mMeep = (bumpDir1 == 'N') ? card.meepsOnCard.find(m => m.player == this) : undefined;
-    const mNdx = mMeep?.cellNdx, mBid = (mNdx !== undefined) && bidFacs?.includes(card.factions[mNdx])
+    const mMeep = (bumpDirA == 'N') ? card.meepsOnCard.find(m => m.player == this) : undefined;
+    const mNdx = mMeep?.cellNdx;
+    const mBid = (mNdx !== undefined) && bidFacs?.includes(card.factions[mNdx])
     const ndx = mMeep && mBid ? mNdx : (fac !== undefined) ? card.factions.indexOf(fac) : undefined;
     const val = (fac !== undefined) ? factionTotals[fac] : 0;
     return [ndx, val] as [ndx: number | undefined, val: number]
@@ -665,7 +683,7 @@ export class Player extends PlayerLib implements IPlayer {
   /**
    * From advance or bump, meep and other are in same cell, one of them must be bumped.
    *
-   * invoked gamePlay.bumpAndCascade()
+   * implements IPlayer: invoked gamePlay.bumpAndCascade()
    *
    * choose bumpee = [meep or other];
    * choose cellNdx for the bumpee
@@ -673,11 +691,11 @@ export class Player extends PlayerLib implements IPlayer {
    * SEE ALSO: bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, bumpDir0: BumpDirC)
    */
   bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC, cb_bumpCascade?: CB_Step<BumpDir>) {
-    const card0 = meep.card, ndx0 = meep.cellNdx!; this.bumpAfterAdvance
-    // TODO: resolve S|N into SE/SW or NE/NW as necesary;
+    const card0 = meep.card, ndx0 = meep.cellNdx!;
+    // resolve S|N into SE/SW or NE/NW as necesary;
     // choosing a bumpDir that resolves to a card2.
-    const bumpDir = !TP.usePyrTopo ? bumpDirC
-      : this.pyrChoices[bumpDirC].find(dir => card0.nextCard(dir))!
+    const bumpDirs: BumpDir[] = TP.usePyrTopo ? this.pyrChoices[bumpDirC] : [bumpDirC];
+    const bumpDir = bumpDirs.find(dir => card0.nextCard(dir))! //  HACK! fix to consider each dir
     const card2 = card0.nextCard(bumpDir)!
     // if other is mine && isOk then bump other (even if, esp if bumpDir == 1)
     if (other.player == this) {
@@ -687,13 +705,16 @@ export class Player extends PlayerLib implements IPlayer {
         return this.moveBumpeeToCell(other, bumpDirC, card2)
       }
     }
-    if (bumpDir.startsWith('S')) return this.moveBumpeeToCell(other, bumpDirC, card2)
-    if (card2.hex.row === 0) return { meep: other, fromCard: card0, ndx: ndx0, dir: 'N' as BumpDirC };
+    // if down bump, send the other (to a cellNdx):
+    if (bumpDirC == 'S') return this.moveBumpeeToCell(other, bumpDir, card2)
+    // if top-row, send the other to black [TODO: unless both are ours and Bid=4]
+    if (card2.hex.row === 0) return this.moveBumpeeToCell(other, bumpDirs[0], card2);
+    // must be an up-bump to a scoring rank; // TODO: consider card2.isDead
     return this.moveBumpeeToCell(meep, bumpDirC, card2); // bump me/meep up!
   }
 
   /** wrapper around chooseCellForBumpee(); chooseCell and then moveMeep() */
-  moveBumpeeToCell(bumpee: ColMeeple, bumpDir: BumpDirC, card: ColCard) {
+  moveBumpeeToCell(bumpee: ColMeeple, bumpDir: BumpDir, card: ColCard) {
     const [meep, dir, ndx2] = this.chooseCellForBumpee(bumpee, bumpDir, card)
     const fromCard = meep.card, ndx = meep.cellNdx!;
     this.gamePlay.moveMeep(meep, card, ndx2); // includes recordMeep()
@@ -701,23 +722,34 @@ export class Player extends PlayerLib implements IPlayer {
     return step
   }
   /** bumpee is being bumped in dir to card: choose cellNdx */
-  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: BumpDirC, card: ColCard): [ColMeeple, bumpdir: BumpDir, ndx: number] {
+  chooseCellForBumpee(bumpee: ColMeeple, bumpDir: BumpDir, card: ColCard) {
     // TODO:
-    // if bumpDir == 1
+    // if bumpDir == N
     // bumpee is ours: hit own-meep so we can re-bump, or bestBid so we can stay;
     // bumpee not ours: hit black or empty to limit cascade
-    // else bumpDir == -1 | -2
+    // else bumpDir == S | SS
     // bumpee is ours: try hit bestFacs, else hit something to rebump
     // bumpee not ours: hit something so others re-bump [or not if we are lower in chain]
 
+    const bumpDirsI = (TP.usePyrTopo && (bumpDir == 'N' || bumpDir == 'S') ) ? this.pyrChoices[bumpDir] : [bumpDir];
+    const bumpDirs = bumpDirsI.filter(dir => card.nextCard(dir)); // remove if off the edge
     // to Black card, it does not matter
-    if (card.factions[0] == 0) return [bumpee, bumpDir, 0];
-    const nCells = card.factions.length, rand = Random.random(nCells);
+    if (card.factions[0] == 0) return [bumpee, bumpDirs[0], 0] as ReturnType<this['rateCell']>;
     // TODO: finish PlayerB.chooseCellForBumpee; iterate though each 'SXX' variations
     // then we can use nextCard(BumpDir1)
-    const card2 = card.nextCard(bumpDir)!, c2isBlk = card2.factions[0] == 0;
+    // Also: maybe take note of card.isDead...
+    // TODO: rateCell to work with dir: BumpDirC | BumpDirP
+    const res = bumpDirs.map(bumpDir => this.rateCell(bumpee, bumpDir, card))
+    return res[0]
+  }
+
+  rateCell(bumpee: ColMeeple, bumpDir: BumpDir, card: ColCard): [meep: ColMeeple, bumpdir: BumpDir, ndx: number] {
+    const nCells = card.factions.length, rand = Random.random(nCells);
+    const card2 = card.nextCard(bumpDir)!
+    if (!card2) debugger;
+    const c2isBlk = card2.factions[0] == 0;
     const meepAtNdx = card.meepAtNdx; // entry for each cellNdx;
-    if (bumpDir == 'N') {
+    if (bumpDir.startsWith('N')) {
       if (bumpee.player == this) {
         let ndx = c2isBlk
           ? meepAtNdx.findIndex(meep => meep?.player && (meep?.player !== this)) // try hit our meep
@@ -725,7 +757,7 @@ export class Player extends PlayerLib implements IPlayer {
         if (ndx < 0) ndx = c2isBlk
           ? meepAtNdx.findIndex(meep => !meep) // take empty slot
           : meepAtNdx.findIndex(meep => !!meep) // hit any other meep
-        if (ndx < 0) ndx = this.bestNdxForMe(card, bumpDir)[0] ?? rand;
+        if (ndx < 0) ndx = this.bestNdxForMe(card, 'N')[0] ?? rand;
         return [bumpee, bumpDir, ndx]
       } else {
         let ndx = meepAtNdx.findIndex(meep => !meep) // take empty slot
@@ -733,9 +765,9 @@ export class Player extends PlayerLib implements IPlayer {
         if (ndx < 0) ndx = rand;
         return [bumpee, bumpDir, ndx]
       }
-    } else {
-      if (bumpee.player == this) {
-        let ndx = this.bestNdxForMe(card, bumpDir)[0] ?? -1;
+    } else { // bumpDir.startsWith('S')
+      if (bumpee.player == this) {  // TODO: fix this hack, consider rest of type BumpDir
+        let ndx = (this.bestNdxForMe(card, 'S')[0] ?? -1);
         if (ndx < 0) ndx = meepAtNdx.findIndex(meep => meep?.player && meep.player !== this) // try hit other
         if (ndx < 0) ndx = rand;
         return [bumpee, bumpDir, ndx];
@@ -923,36 +955,39 @@ export class PlayerB extends Player {
   pseudoWin(ccard: ColSelButton, bcard: ColBidButton): [score: number, str: string, meepStr: string] {
     const gamePlay = this.subGameSetup.gamePlay ?? this.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
-    const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
-    // save original locations:
-    const col = ccard.colNum, colId = ColSelButton.colNames[col], cardsInCol = gamePlay.cardsInCol(colId);
-    const allMeepsInCol = cardsInCol.map(card => card.meepsOnCard).flat()
-    const fromCardNdx = allMeepsInCol.map(meep => [meep, meep.card, meep.cellNdx] as [ColMeeple, ColCard, cellNdx: number])
+    const colId = ColSelButton.colNames[ccard.colNum];
     // player meepsInCol:
     const meepsInCol = gamePlay.meepsInCol(colId, plyr);
     if (meepsInCol.length == 0) {
       return [0, 'no meep to advance/score', '']
     }
+
+    const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
+    // save original locations:
+    const preMeepCardNdxs = gamePlay.recordMeeps();
+
     const step = plyr.autoAdvanceOneMeeple(meepsInCol); // choose lowest rank [TODO-each]
-    const meep = step.meep;
+    const meep = step.meep, ndx = meep.cellNdx;
     gamePlay.gameState.winnerMeep = meep;
-    // meep has advanced, step is defined
-    const cascDir = step!.dir.startsWith('S') ? 'S' : 'N';
-    gamePlay.bumpAndCascade(meep, cascDir); // until bumps have cascaded
-    const meepStr = meep.toString();
+    const other = meep.card.otherMeepInCell(meep, ndx); // on Black every meep gets its own cell.
+    if (other) {
+      const step: Step<BumpDir2> = plyr.bumpAfterAdvance(meep, other); // with no callback
+      const cascDir = step.dir.startsWith('S') ? 'S' : 'N';
+      gamePlay.bumpAndCascade(step.meep, cascDir); // until bumps have cascaded
+    }
     const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
     const rankDiff = Math.round((plyr.rankScoreNow - rankScore0) * perTurn);
     const rd = Math.max(0, rankDiff); // TODO: per turnOfRound
     const score = scorec + rd;
     // restore meeps to original locations:
-    fromCardNdx.sort(([am, ac], [bm, bc]) => ac.rank - bc.rank); // increasing rank (for up-bumps)
-    fromCardNdx.forEach(([meep, card, ndx]) => card.addMeep(meep, ndx)); // back to original slots
-    fromCardNdx.forEach(([meep, card, ndx]) => { if (!card.hex) debugger; })
+    gamePlay.restoreMeeps(preMeepCardNdxs)
+
+    const meepStr = meep.toString();
     return [score, `${scoreStr} +${rd}`, meepStr]
   }
 
   // advanceMeeple will need to decide who/how to bump:
-  override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDir: BumpDirC): Step<BumpDir> {
+  override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
     // TODO: try each dir/bumpee combo to maximise colorScore & rankScore
     // looking ahead/comparing with this.rankScoreNow
     // autoPlayer needs it own version of bumpAndCascade
@@ -961,12 +996,14 @@ export class PlayerB extends Player {
     // our 'model' of other player is base class Player?
     // pro'ly subGameSetup will instantiate the same class
     // TODO: set Player.params on each instance 'randomly'
-    const card0 = meep.card, card2 = card0.nextCard(bumpDir)!;
-    // const bumpDir = (dir !== 0) ? dir : 1; // TODO: consider each direction
-    const bumpStops = this.bumpStops(meep, bumpDir)
+    // TODO: check BOTH options from pyrChoices:
+    const bumpDir = !TP.usePyrTopo ? bumpDirC : this.pyrChoices[bumpDirC][Random.random(2)];
+    const card0 = meep.card, card2 = card0.nextCard(bumpDir) ?? card0;
+    // TODO: use these?
+    const bumpStops = this.bumpStops(meep, bumpDirC)
     const bestFacs = this.bestFacs(card2);
     // TODO: finish the search/analysis; for now punting to super
-    return super.bumpInCascade(meep, other, bumpDir)
+    return super.bumpInCascade(meep, other, bumpDirC)
 
   }
 
@@ -998,11 +1035,11 @@ export class PlayerB extends Player {
     return cards;
   }
 
-  override autoSelectAdvanceNdx_bumpDir(meep: ColMeeple, advCard: ColCard, dirs = this.bumpDirs1, ndxs = [0], cb?: (ndx: number, bumpDir: BumpDir2) => void) {
+  override autoSelectAdvanceNdx_bumpDir(meep: ColMeeple, advCard: ColCard, dirs = this.bumpDirsA, ndxs = [0], cb?: (ndx: number, bumpDir: BumpDir2) => void) {
     // TODO: handle simple case where there is one card with one cell
     const subSetup = this.subGameSetup ?? this.gamePlay.gameSetup;
     const stateInfo = subSetup.syncGame(undefined, false); // TODO: is this RIGHT?
-    const ndx_bumpDirs = this.bestBumpInDir([meep], advCard, dirs, ndxs)
+    const ndx_bumpDirs = this.pickMeepBumpDirAfterAdv([meep], advCard, dirs, ndxs)
     // remove meep, score:
     const { ndx, bumpDir } = ndx_bumpDirs[0];
     return { ndx, bumpDir } // immediate return for auto-mode Players
@@ -1016,7 +1053,7 @@ export class PlayerB extends Player {
    * @param card also has an other meeple @ cellNdx
    * @param dir potential dirs to bump ('N', 'S', 'SS')
    */
-  override bestBumpInDir(meeps: ColMeeple[], card: ColCard, bumpDirs: BumpDirA[], ndxs = [0]) {
+  override pickMeepBumpDirAfterAdv(meeps: ColMeeple[], card: ColCard, dirs: BumpDirA[], ndxs = [0]) {
     // TODO: search tree of {dir, ndx} over cascades (if any)
     const subSetup = this.subGameSetup ?? this.gamePlay.gameSetup;
     if (this.subGameSetup) subSetup.syncGame(); // is this still right?
@@ -1024,16 +1061,19 @@ export class PlayerB extends Player {
     if (!card.hex) debugger;
     const subCard = subPlay.hexMap.getCard(card.rank, card.col);
     const scores = meeps.map(meep => {
-      const dirs = (bumpDirs.length > 1 && meep.player.index == this.index) ? ['N' as BumpDirA] : bumpDirs;
       const subMeep = subPlay.allMeeples.find(m => m.pcid == meep.pcid)!;
       if (!subMeep || subMeep.player.index !== meep.player.index) debugger;
       return ndxs.map(ndx =>
         dirs.map(dir => this.scoreForDirNdx(subMeep, subCard, dir, ndx))
-      ).flat()
-    }).flat();
+      ).flat(); // over dual card cells
+    }).flat();  // over [meep, other]
     scores.sort((a, b) => b.score - a.score)
-    if (!scores[0]) { scores[0] = { ndx: 0, bumpDir: 'S', meep: meeps[0], score: -1 } }
-    return scores;
+    if (!scores[0]) {
+      scores[0] = { ndx: 0, bumpDir: 'N', meep: meeps[0], score: -1 }
+    }
+    // ASSERT: there is a matching meeple in meeps:
+    const myScores = scores.map(({ meep, bumpDir, ndx, score }) => ({ meep: meeps.find(m => m.pcid == meep.pcid)!, bumpDir, ndx, score }));
+    return myScores;
     // return scores[0] as { ndx: number, bumpDir: BumpDir2, meep?: ColMeeple, score: number }
   }
 
@@ -1041,28 +1081,28 @@ export class PlayerB extends Player {
    *
    * @param meep
    * @param card
-   * @param bumpDir
+   * @param bumpDirA
    * @param ndx
    * @returns
    */
-  scoreForDirNdx(meep: ColMeeple, card: ColCard, bumpDir: BumpDirA, ndx = 0) {
+  scoreForDirNdx(meep: ColMeeple, card: ColCard, bumpDirA: BumpDirA, ndx = 0) {
     const gameSetup = this.subGameSetup ?? this.gamePlay.gameSetup;
     const gamePlay = gameSetup.gamePlay;
     const plyr = gamePlay.allPlayers[this.index];
     const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
 
-    gamePlay.origMeepCardNdxs = [];
+    const preMeepCardNdxs = gamePlay.recordMeeps();
     gamePlay.recordMeep(meep);
     let score: number; {
-      gamePlay.bumpAndCascade(meep, bumpDir); // with no callback; just move meeps around
+      gamePlay.bumpAndCascade(meep, bumpDirA); // with no callback; just move meeps around
       // calls back to this.bumpInCascade()
       const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
       const rankDiff = Math.round((plyr.rankScoreNow - rankScore0) * perTurn);
       const rd = Math.max(0, rankDiff); // TODO: per turnOfRound
       score = scorec + rd;
     }
-    gamePlay.restoreMeeps();
+    gamePlay.restoreMeeps(preMeepCardNdxs);
 
-    return { meep, bumpDir, ndx, score }
+    return { meep, bumpDir: bumpDirA, ndx, score }
   }
 }

@@ -41,7 +41,7 @@ export class RectHex extends Hex1Lib {
 
   /** easy reference from Hex -> card.isInCol() */
   isInCol(colId: ColId) {
-    return this.card.isInCol[colId]
+    return this.card?.isInCol[colId] ?? false
   }
 }
 
@@ -173,18 +173,18 @@ export class HexMap2 extends HexMap<ColHex2> {
     const col = 1, district = 0, hexAry = [] as ColHex2[];
     const np = TP.numPlayers;
     if (TP.usePyrTopo) {
-      // [4],5, 7,6,5,4,3,[4] np>3   nr = 8; (nr-3 = 5)
-      //    [4],5,7,6,5,4,[4] np<=3  nr = 7; (nr-3 = 4)
+      // see GameSetup.setRowsCols()
       //  6, 5, 4,5,3,2,1, 0
       const topoEW = new RectTopoEWC(1, 1, 0);
-      const nr3 = nr - 3;       // row with most (nc) columns == (nr-1) - 2
-      // Note: when nr3 is ODD, everything shifts right by 1/2 col!
+      const nru = (np < 3 ? 2 : 3), nrl = nr - nru;       // row with most (nc) columns == (nr-1) - 2
+      const mcl = 4 + nru, trl = (np == 3) ? 5 : 4;
+      // Note: when nrl is ODD, everything shifts right by 1/2 col!
       for (let row = 0; row < nr; row++) {
-        const dnr3 = Math.abs(nr3 - row); // distance from nr3
-        const ncr = (row == 0) ? 4 : (7 - dnr3); // num cols in row
-        const ncc = (row == 0) ? dnr3 - ncr / 2 : dnr3; // c0 inset
+        const dnrl = Math.abs(nrl - row); // distance from nrl
+        const ncr = (row == 0) ? trl : (mcl - dnrl); // num cols in row
+        const ncc = (row == 0) ? dnrl - ncr / 2 : dnrl; // c0 inset
         const kx = Math.floor(topoEW.xywh(1, row - 1, ncc / 2).x);
-        // console.log(stime(this, `.mAH:`), { row, dnr3, ncr, kx })
+        // console.log(stime(this, `.mAH:`), { row, dnrl, ncr, kx })
         this.addLineOfHex(ncr, row, kx, district, hexAry, 1)
       }
     } else {

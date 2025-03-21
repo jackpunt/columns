@@ -1,5 +1,5 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
-import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter } from "@thegraid/hexlib";
+import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter, TP as TPLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { BlackNull, ColCard } from "./col-card";
 import type { ColTable } from "./col-table";
@@ -36,7 +36,7 @@ export class ScenarioParser extends SPLib {
     Tile.gamePlay = this.gamePlay;
     if (setup.start) {
       const { n: nPlayers, trackSegs } = (setup.start as StartElt)
-      TP.numPlayers = nPlayers;
+      TPLib.numPlayers = nPlayers;
       TP.trackSegs = trackSegs;
       TP.nElts = trackSegs?.length;
       // rebuild scoreTrack:
@@ -65,7 +65,7 @@ export class ScenarioParser extends SPLib {
     {
       this.placeCardsOnMap(layout);
       this.placeMeeplesOnMap(layout);
-      if (TP.usePyrTopo && n < 4) {
+      if (TP.usePyrTopo && n < 4 && false) {
         // Shift top row right to align with top-rank; add links(SE,S,SW)
         const hexMap = gamePlay.hexMap;
         const { w, dxdc } = hexMap.topo.xywh(TP.hexRad, 0, 0);
@@ -110,9 +110,15 @@ export class ScenarioParser extends SPLib {
   placeCardsOnMap(layout?: RowElt[]) {
     const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
     const { black0, blackN, allCols, allDuals } = this.makeAllCards(nr, nc,);
-    if (TP.usePyrTopo && nc == 4) {
-      black0.splice(2, 1); // use all 5 columns when nPlayers > 4
-      blackN.splice(2, 1, new BlackNull('Null:3')); // use only 4 columns
+    if (TP.usePyrTopo) {   // use all 5 columns when nPlayers > 4, nc == 5
+      if (TP.numPlayers == 3) {
+        black0.splice(2, 1, new BlackNull('Null:3'));
+      } else {
+        black0.splice(2, 1); // remove colId==C;
+      }
+      if (nc == 4) {
+        blackN.splice(2, 1, new BlackNull('Null:3')); // use only 4 columns, remove 'C'
+      }
     }
     gamePlay.black0 = black0.slice();
     gamePlay.blackN = blackN.slice();
@@ -157,7 +163,8 @@ export class ScenarioParser extends SPLib {
       const rank0 = nr - 1;
       this.gamePlay.hexMap.forEachHex(hex => {
         const row = hex.row;
-        const card = (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
+        const card = (row == 1 && nr == 8 && hex.col == 3) ? new BlackNull('Null:3')
+          : (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
         if (!card) { debugger; }
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
         hex.legalMark.doGraphicsDual(card)

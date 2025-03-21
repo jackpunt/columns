@@ -187,26 +187,27 @@ export class GameState extends GameStateLib {
         const meep = step?.meep;
         this.winnerMeep = meep; // may be in top-row; not a real Step
         if (meep) {
-          this.phase('BumpFromAdvance', col, meep, ['SS', 'S', 'N']);
+          this.phase('BumpFromAdvance', col, meep);
         } else {
           this.phase('MeepsToCol', col);
         }
       }
     },
-    // alt version of BumpAndCascade, dirs: BumpDirA[]
+    // Similar to BumpAndCascade: initial bump: ['N'] or ['SS','S']
     BumpFromAdvance: {
       draggable: true,
       // meep.player chooses a bumpDir, and moveMeep(bumpee, card, ndx)
-      // first: dirs = [SS, S, N]: BumpDir1[], recurse: dirs = [N|S]: BumpDirC[]
-      start: (col: number, meep: ColMeeple, dirs: BumpDirA[]) => {
+      // first: dirs = [SS, S] or [N]: BumpDirA[];
+      start: (col: number, meep: ColMeeple) => {
         const card0 = meep.card, ndx = meep.cellNdx;
         const toBump = card0.otherMeepInCell(meep, ndx); // on Black every meep gets its own cell.
         if (toBump) {
           const plyr = meep.player// as IPlayer;
-          plyr.bumpAfterAdvance(meep, toBump, dirs, (step: Step<BumpDir2>) => {
+          const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
+          plyr.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
             const dir = this.bumpDir = step.dir.startsWith('S') ? 'S' : 'N'; // step.dir --> <S|N>
             const other = toBump, meep = step.meep; // for debugger, logpoint
-            if (dirs.length == 1 && dir !== dirs[0]) debugger; // 'N' required?
+            if (upBump && dir !== 'N') debugger; // 'N' required?
             this.phase('MeepsToCol', col)
           })
           return;
