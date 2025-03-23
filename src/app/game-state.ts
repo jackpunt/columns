@@ -170,12 +170,12 @@ export class GameState extends GameStateLib {
     ResolveWinner: { // resolve winner, select & advance meep
       draggable: true,
       start: (col = 1) => {
-        const colId = ColSelButton.colNames[col];
+        // col index colNames, so 1..nc; blackN is indexed [0..nc-1]
+        const blackN = this.gamePlay.blackN, bCard = blackN[col - 1], colId = bCard?.colId;
         this.winnerMeep = undefined;
         if (this.gamePlay.isEndOfGame()) { return this.phase('EndGame') }
-        const rank0Card = this.gamePlay.blackN.find(card => card.colId == colId);
-        if (!rank0Card) { return this.phase('EndTurn') }
-        if (rank0Card.maxCells == 0) { return this.phase('ResolveWinner', col + 1) }
+        if (col > blackN.length) { return this.phase('EndTurn') }
+        if (bCard.factions.length == 0) { return this.phase('ResolveWinner', col + 1) }
         // calls player.advanceOneMeeple(meeps, cb_advanceMeeple)
         this.gamePlay.resolveWinnerAndAdvance(col, (step?: Step<AdvDir>) => {
           setTimeout(() => this.state.done!(col, step), TP.flipDwell)
@@ -205,7 +205,7 @@ export class GameState extends GameStateLib {
           const plyr = meep.player// as IPlayer;
           const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
           plyr.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
-            const dir = this.bumpDir = step.dir.startsWith('S') ? 'S' : 'N'; // step.dir --> <S|N>
+            const dir = this.bumpDir = this.gamePlay.cascadeDir(step.dir); // step.dir --> <S|N>
             const other = toBump, meep = step.meep; // for debugger, logpoint
             if (upBump && dir !== 'N') debugger; // 'N' required?
             this.phase('MeepsToCol', col)

@@ -1,7 +1,7 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter, TP as TPLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { BlackNull, ColCard } from "./col-card";
+import { BlackCard, BlackNull, ColCard } from "./col-card";
 import type { ColTable } from "./col-table";
 import { type CardContent, type GamePlay } from "./game-play";
 import type { HexMap2 } from "./ortho-hex";
@@ -134,7 +134,7 @@ export class ScenarioParser extends SPLib {
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
           const cards = (fac.length > 2) ? black : (fac.length == 2) ? dCards : pCards;
-          const card = ((fac.length == 0) ? new BlackNull(`Null:${col}`, col)
+          const card = ((fac.length == 0) ? new BlackNull(`Null:${col}`)
             : (fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
@@ -162,8 +162,8 @@ export class ScenarioParser extends SPLib {
 
       const rank0 = nr - 1;
       this.gamePlay.hexMap.forEachHex(hex => {
-        const row = hex.row;
-        const card = (row == 1 && nr == 8 && hex.col == 3) ? new BlackNull('Null:3')
+        const { row, col } = hex;
+        const card = (row == 1 && nr == 8 && col == 3) ? new BlackCard('Fill:3')
           : (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
         if (!card) { debugger; }
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.

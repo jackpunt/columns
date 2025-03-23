@@ -29,7 +29,7 @@ export class TP extends TPLib {
   static override meepleY0 = 0;
 
   /** ratio of 'dual' 2-in-a-box Cards */
-  static rDuals = .3;
+  static rDuals = .0;
   /** [true] no scoreForColor unless winnerMeep lands on a faction of bidCard. */
   static bidReqd = true;
   static nElts = 6;     // number of ScoreTrack elements

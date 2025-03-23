@@ -207,7 +207,7 @@ export class GamePlay extends GamePlayLib {
    */
   resolveWinnerAndAdvance(col: number, cb_advanceMeeple: (step?: Step<AdvDir>) => void) {
     const colId = ColSelButton.colNames[col];
-    const plyr = this.winningBidder(colId);
+    const plyr = this.winningBidder(colId), bid = plyr?.bidOnCol(colId);
     if (plyr) {
       const meepsInCol = this.meepsInCol(colId, plyr);
       this.meepsToMove = meepsInCol;
@@ -234,6 +234,13 @@ export class GamePlay extends GamePlayLib {
     // TODO: alternative for Pyramid
   }
 
+  cascadeDir(bumpDir: BumpDir2) {
+    return (bumpDir.startsWith('S') ? 'S' : 'N') as BumpDirC;
+  }
+  /** utility: meep & other in same cell after Advance */
+  dirsForBumpAdv(meep: ColMeeple, other: ColMeeple) {
+    return ((meep.player == other.player) || (meep.card.hex.row == 1) ? ['N'] : ['SS', 'S']) as BumpDirA[];
+  }
   /** utility to compute valid cellNdxs for advance */
   cellsForAdvance(advCard: ColCard) {
     // assert bumpDir starts with 'N', must use open cell if available.
@@ -246,60 +253,11 @@ export class GamePlay extends GamePlayLib {
     const ndxs = (nCells > 2) ? [0] : (nOpen == 1 && bumpDir.startsWith('N')) ? open : arrayN(nCells);
     return { card: nextCard, ndxs }
   }
-  /** utility to compute valid initial BumpDir1 */
+  /** utility to compute valid initial BumpDirA */
   dirsForBumpDir(meep: ColMeeple, advCard: ColCard) {
     const mustBumpUp = (TP.bumpUpRow1 && (advCard.hex.row == 1)) || this.mustBumpSelf(meep, advCard);
     return (mustBumpUp ? ['N'] : TP.allBumpsDown ? ['SS', 'S'] : ['SS', 'S', 'N']) as BumpDirA[];
   }
-
-  /**
-   * From gameState.BumpAndCascade: bump & cascade.
-   *
-   * @example
-   * meep.card.nextCard(advCir).addMeep(meep, andx); // check for toBump
-   *
-   * When cascade is complete invoke cb() -> gameState.phase(MeepsToCol)
-   * @param meep (still on fromHex)
-   * @param advDir [N] or 'NW' or 'NE'; as chosen by plyr.meepleToAdvance()
-   * @param advNdx [0] cellNdx to advance into
-   * @param cb callback when bump & cascade is complete
-   * @returns with meep in new location, and no more bumps to do
-   */
-  // Obsolete?
-  // advanceMeeple(meep: ColMeeple, advDir: AdvDir = 'N', advNdx = 0, cb?: () => void) {
-  //   // addMeep to nextCard, choose bumpDir
-  //   const advCard = meep.card.nextCard(advDir)!;
-  //   const ndxs = this.cellsForAdvance(advCard);
-  //   if (!ndxs.includes(advNdx)) {
-  //     const ndx0 = ndxs[0];
-  //     debugger;         // player is cheating...
-  //     advNdx = ndx0;    // fix it
-  //   }
-  //   const bumpDirs = this.dirsForBumpDir(meep, advCard);
-  //   const { ndx: ndx, bumpDir: bDir } = meep.player.autoSelectCellNdx_bumpDir(meep, advCard, bumpDirs, ndxs,
-  //     (ndx: number, bDir: BumpDir2) => {
-  //       // enforce must bump own meep UP; else can BumpDn2
-  //       const bumpDir: BumpDir2 = (advCard.meepsAtNdx[ndx]?.player == meep.player) ? 'N' : bDir;
-  //       this.bumpAndCascade(meep, bumpDir)
-  //       if (cb) {
-  //         console.log(stime(`after selectNdx_BumpDir meep=${meep.Aname}, bndx=${ndx}, bumpDir=${bumpDir}`))
-  //         afterUpdate(meep, cb);   // only for the original, outer-most, winning-bidder; manual mode
-  //       }
-  //       return;
-  //     })
-  //   // check for immediate, auto return (ndx >= 0):
-  //   // ALL subGamePlay.player must be in auto mode!
-  //   // AND invoke advanceMeeple with cb == undefined.
-  //   // no return value; meep(s) are in new place.
-  //   // cb() --> MeepsInCol --> scoreForColor --> resolveWinner(nextCol)
-  //   if (ndx >= 0) {
-  //     // enforce (bumpDir = 'N') when target cell contains same player's meep:
-  //     const bumpDir: BumpDir2 = (advCard.meepsAtNdx[ndx]?.player == meep.player) ? 'N' : bDir;
-  //     this.bumpAndCascade(meep, bumpDir)
-  //     if (cb) cb();   // only for the original, outer-most, winning-bidder; auto mode
-  //     return;
-  //   }
-  // }
   /** if meep advances to nextCard(dir).ndx --> bumps their own meep */
   mustBumpSelf(meep: ColMeeple, card: ColCard) {
     const meeps = card.meepsOnCard, player = meep.player;
@@ -344,7 +302,7 @@ export class GamePlay extends GamePlayLib {
     const card0 = meep.card, ndx = meep.cellNdx;
     const other = card0.otherMeepInCell(meep, ndx);
     if (!!other) {
-      const cascDir: BumpDirC = bumpDir.startsWith('S') ? 'S' : 'N';
+      const cascDir = this.cascadeDir(bumpDir)
       console.log(stime(this, `.bumpAndCascade -> bumpInCascade(meep=${meep.toString()} other=${other.toString()} cascDir=${cascDir})`))
       const step = meep.player.bumpInCascade(meep, other, cascDir)
       const bumpee = step.meep;

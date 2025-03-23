@@ -68,20 +68,17 @@ export class ColCard extends Tile {
     if (dir !== 'SS') {
       if (TP.usePyrTopo && dir.length < 2) debugger;
       // single bump may return undefined when TP.usePyrTopo
-      return this.hex.nextHex(dir)?.card;
+      const next = this.hex.nextHex(dir)?.card;
+      return (next && next.maxCells > 0) ? next : undefined; // BlackNull as undefined
     }
     // handle case of 'SS': returns target card or single step or this
     if (!TP.usePyrTopo) {
       return this.nextCard('S')!.nextCard('S')!; // black cards will return self
     } else {
-      const { row, col } = this.hex;
-      const card2 = (this.hex.map as HexMap2)[row][col + 2]?.card;
-      if (!card2) {
-        // ASSERT: (exactly) one of these steps must land on a card: [? dead-end ?]
-        const [cardE, cardW] = [this.nextCard('SE'), this.nextCard('SW')];
-        return (cardE ? cardE : cardW!)
-      }
-      return card2;
+      const { row, col } = this.hex; // 'SS' for usePyrTopo
+      const next = (this.hex.map as HexMap2)[row + 2]?.[col]?.card;
+      return (next && next.maxCells > 0) ? next : undefined; // BlackNull as undefined
+      // when 'SS' fails, caller should try 'SW', 'SE'
     }
     BlackCard; BlackNull;
   }
@@ -95,18 +92,17 @@ export class ColCard extends Tile {
 
   /** the meepCont children (which are ColMeeple) */
   get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
-  /** meepsOnCard aligned with cellNdx */
+  /** meepsOnCard aligned with cellNdx, include meep(s) on bumpLoc */
   get meepsAtNdx() {
     const cardMeeps = this.meepsOnCard;
     return arrayN(this.maxCells)
       .map(ndx => cardMeeps.filter(meep => meep.cellNdx == ndx))
   }
 
-  /** first meep in each cellNdx */
+  /** first meep in each cellNdx; pro'ly not on bumpLoc */
   get meepAtNdx() {
     const cardMeeps = this.meepsOnCard;
-    return arrayN(this.maxCells)
-      .map(ndx => cardMeeps.find(meep => meep.cellNdx == ndx))
+    return arrayN(this.maxCells).map(ndx => cardMeeps.find(meep => meep.cellNdx == ndx))
   }
 
   get meepStr() {
@@ -290,6 +286,7 @@ export class BlackCard extends ColCard {
   get colId() { return this._colId; }
 
   override nextCard(dir: BumpDir): ColCard | undefined {
+    if (!this.colId) return undefined;  // BlackFill: no way out
     return super.nextCard(dir) ?? this; // back to itself
   }
 
@@ -310,8 +307,15 @@ export class BlackCard extends ColCard {
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 
   // if occupied: ignore given cellNdx, dump in first empty cell
-  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY) {
-    const ndx = (cellNdx !== undefined && !this.meepAtNdx[cellNdx]) ? cellNdx : this.openCells[0];
+  override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY): ColMeeple | undefined {
+    let ndx = (meep.card == this) ? meep.cellNdx :
+      (cellNdx !== undefined && !this.meepAtNdx[cellNdx]) ? cellNdx : this.openCells[0];
+    // if maxCells are occupied, add 2 more cells, and reposition all the existing meeps:
+    if (ndx == undefined) {
+      ndx = this.maxCells;
+      this.maxCells += 2;  // space for meep and one more, keeping 2 rows
+      this.meepsOnCard.forEach(m => super.addMeep(m, m.cellNdx))
+    }
     return super.addMeep(meep, ndx, xy)
   }
 }
