@@ -6,7 +6,7 @@ import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { arrayN, GamePlay } from './game-play';
 import { ColHex2 as Hex2, HexMap2 } from './ortho-hex';
-import { PlayerB } from './player';
+import { Player, SubPlayer } from './player';
 import { ScenarioParser, type SetupElt } from './scenario-parser';
 import { TP } from './table-params';
 import { TileExporter } from './tile-exporter';
@@ -102,7 +102,7 @@ class ColGameSetup extends GameSetupLib {
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
-    return new PlayerB(ndx, gamePlay);
+    return new Player(ndx, gamePlay);
   }
 
   override resetState(stateInfo: Scenario & HexAspect): void {
@@ -135,15 +135,17 @@ export class PyrGameSetup extends ColGameSetup {
 
 }
 
-/** GameSetup with no canvas, using gs.logWriter, same loader */
-export class PlayerGameSetup extends ColGameSetup {
+/** GameSetup with no canvas, using gs.logWriter, same ImageLoader.
+ * All Players are auto/robotic SubPlayer.
+ */
+export class SubGameSetup extends ColGameSetup {
   /**
    * @param gs the original/actual running GameSetup, GameState, Players, Table, etc
    */
   constructor(public gs: GameSetup, scenario: Scenario = gs.qParams) {
     super(undefined, scenario);
     // makeLogWriter is invoked by super, *before* gs is available, so overwrite here:
-    (this as any).logWriter = new PlayerLogWriter(gs.logWriter);
+    (this as any).logWriter = new SubGameLogWriter(gs.logWriter);
     this.startup(this.qParams);
   }
   override initialize(canvasId: string): void {
@@ -166,7 +168,7 @@ export class PlayerGameSetup extends ColGameSetup {
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
-    const plyr = new PlayerB(ndx, gamePlay);
+    const plyr = new SubPlayer(ndx, gamePlay);
     (plyr as NamedObject).Aname = `${plyr.Aname} R `;
     return plyr;
   }
@@ -175,24 +177,10 @@ export class PlayerGameSetup extends ColGameSetup {
     this.gamePlay.gameState.start('Idle')
     return; // try DO NOT START the GUI
   }
-
-  /**
-   * get state of real game (esp gamePlay.getLayout) into this.gamePlay/subGame.
-   * @param stateInfo [gs.gamePlay.scenarioParser.saveState(false)] or as given
-   * @param sync [true] if false just retrieve stateInfo, do not push to subGame.
-   * @returns stateInfo
-   */
-  syncGame(stateInfo = this.gs.gamePlay.scenarioParser.saveState(false), sync = true) {
-    // push into this subGame:
-    if (sync) {
-      this.gamePlay.parseScenario(stateInfo); // parse into this game
-    }
-    return stateInfo;
-  }
 }
 
 /** maybe log selected lines... */
-class PlayerLogWriter extends LogWriter {
+class SubGameLogWriter extends LogWriter {
   constructor(public gsLogwriter?: LogWriter) {
     super()
     this.writeLine()

@@ -58,7 +58,7 @@ export class ScenarioParser extends SPLib {
     const turnSet = (turn !== undefined); // indicates a Saved Scenario: assign & place everything
     if (turnSet) {
       gamePlay.turnNumber = turn;
-      table.logText(`turn = ${turn}`, `${isGUI ? ' C ' : ' R '}parseScenario`);
+      table.logText(`turn = ${turn}`, `${isGUI ? ' C' : ' R'}_parseScenario`);
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     // layout or undefined:
@@ -194,6 +194,7 @@ export class ScenarioParser extends SPLib {
               const player = allPlayers[pid];
               const meep = player.makeMeeple(colId, ext); // label on reload
               const card = hexMap.getCard(rank, col);
+              if (!card) debugger;
               card.addMeep(meep, ndx);
             })
           })

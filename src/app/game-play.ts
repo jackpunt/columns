@@ -1,7 +1,7 @@
 import { json, stime } from "@thegraid/common-lib";
-import { afterUpdate, KeyBinder } from "@thegraid/easeljs-lib";
+import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type SetupElt } from "@thegraid/hexlib";
-import { CardButton, CB, ColSelButton, type ColId } from "./card-button";
+import { CB, ColSelButton, type ColId } from "./card-button";
 import type { BlackCard, ColCard, DualCard } from "./col-card";
 import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
@@ -19,11 +19,17 @@ export const nFacs = 4;
 // Player tells game a specific BumpDir;
 // Game tells Player simple up/dn BumpDir0;
 // then Player consults map/usePyrTopo and returns a BumpDir
-export type AdvDir   = ('N' | 'NW' | 'NE'); // dirs to advance or BumpUp
-export type BumpDirP = ('SW' | 'SE' | 'NW' | 'NE'); // pyramid dirs
-export type BumpDirC = ('S' | 'N');       // bumpDir choice to bumpee -> BumpDir
+export const BD_N = 'N' as BumpDirC & AdvDir;
+export const BD_S = 'S' as BumpDirC & BumpDn;
+export const BD_SS = 'SS' as BumpDn2;
+// TODO; constants & types for player.pyrChoices[]
+export type BumpDirC = ('S' | 'N');       // Column dirs
 export type BumpDirA = ('SS' | BumpDirC)  // bumpDir choice to winner -> BumpDir2
+export type BumpDirP = ('SW' | 'SE' | 'NW' | 'NE'); // Pyramid dirs; length == 2
+export type AdvDir   = ('N' | 'NW' | 'NE'); // dirs to Advance or BumpUp
+export type BumpUp   = ('N' | 'NW' | 'NE'); // dirs to Advance or BumpUp
 export type BumpDn2  = ('SS') // double down from winner
+export type BumpDn  = ('S' | 'SW' | 'SE') // single down cascaded
 /** any single dir, including winner's double-down bump (SS)*/
 export type BumpDir2 = (BumpDirC | BumpDirP | BumpDn2); // from winner choice
 /** single (cascade) bump: up or down */
@@ -213,9 +219,7 @@ export class GamePlay extends GamePlayLib {
       this.meepsToMove = meepsInCol;
       // in pyramid games, is possible to bid & win a column where you have no meeps!
       if (meepsInCol.length > 0) {
-        plyr.advanceOneMeeple(meepsInCol, cb_advanceMeeple); // will eventually invoke meepDirNdx()
-        // will invoke callback when dropFunc--> addMeep() is not toBump;
-        return;
+        return plyr.advanceOneMeeple(meepsInCol, cb_advanceMeeple); // invoke callback
       }
     }
     cb_advanceMeeple(undefined); // no meep to advance
@@ -264,7 +268,8 @@ export class GamePlay extends GamePlayLib {
     return (meeps.length == card.maxCells && !meeps.find(m => m.player !== player))
   }
 
-  origMeepCardNdxs: ReturnType<GamePlay['recordMeep0']>[] = [];
+  recordStack: ReturnType<GamePlay['recordMeep0']>[][] = [];
+  origMeepCardNdxs: ReturnType<GamePlay['recordMeep0']>[] = []; // <-- becomes recordStack[0]
   recordMeep0(meep: ColMeeple) {
     const card = meep.card, ndx = meep.cellNdx!;
     return { meep, card, ndx }
@@ -275,16 +280,28 @@ export class GamePlay extends GamePlayLib {
     }
     return meep;
   }
-  recordMeeps() {
-    const prevMeepCardNdxs = this.origMeepCardNdxs
+  recordMeeps(push = true) {
+    if (push) {
+      this.recordStack.push(this.origMeepCardNdxs)
+    } else {
+      this.recordStack = []; // reset
+    }
     this.origMeepCardNdxs = []; // new stack
-    return prevMeepCardNdxs;
   }
-  restoreMeeps(prevMeepCardNdxs: typeof this.origMeepCardNdxs) {
-    const meeps = this.origMeepCardNdxs;
+  restoreMeeps() {
+    const meeps = this.origMeepCardNdxs; // the current record
     meeps.forEach(mcn => mcn.card.addMeep(mcn.meep, mcn.ndx))
     meeps.forEach(mcn => { if (!mcn.card.hex) debugger; })
-    this.origMeepCardNdxs = prevMeepCardNdxs;
+    this.origMeepCardNdxs = this.recordStack.pop()!; // the previous record
+    if (!this.origMeepCardNdxs) debugger;
+  }
+
+  /** bumpUp or bumpDn2 */
+  bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, cb_bumpAdvance?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined {
+    const dirs = this.dirsForBumpAdv(meep, other);
+    const plyr = meep.player;
+    const step = (dirs[1] == BD_N) ? plyr.bumpUp(meep, other, cb_bumpAdvance) : plyr.bumpDn2(meep, other, cb_bumpAdvance)
+    return step;
   }
 
   // assert that Player returns a BumpDir that hits a nextCard!

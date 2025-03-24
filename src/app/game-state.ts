@@ -182,7 +182,7 @@ export class GameState extends GameStateLib {
         })
       },
       // col - track progress; meep - new/final location; {fromHex, ndx, advDir} - Step to current location
-      done: (col: number, step: Step<AdvDir>) => {
+      done: (col: number, step?: Step<AdvDir>) => {
         // ASSERT: step.dir.startsWith('N'); ...but that's not important now.
         const meep = step?.meep;
         this.winnerMeep = meep; // may be in top-row; not a real Step
@@ -204,7 +204,7 @@ export class GameState extends GameStateLib {
         if (toBump) {
           const plyr = meep.player// as IPlayer;
           const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
-          plyr.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
+          this.gamePlay.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
             const dir = this.bumpDir = this.gamePlay.cascadeDir(step.dir); // step.dir --> <S|N>
             const other = toBump, meep = step.meep; // for debugger, logpoint
             if (upBump && dir !== 'N') debugger; // 'N' required?
