@@ -205,7 +205,7 @@ export class GameState extends GameStateLib {
           const plyr = meep.player// as IPlayer;
           const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
           this.gamePlay.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
-            const dir = this.bumpDir = this.gamePlay.cascadeDir(step.dir); // step.dir --> <S|N>
+            const dir = this.gamePlay.cascadeDir(); // step.dir --> <S|N>
             const other = toBump, meep = step.meep; // for debugger, logpoint
             if (upBump && dir !== 'N') debugger; // 'N' required?
             this.phase('MeepsToCol', col)
@@ -227,7 +227,7 @@ export class GameState extends GameStateLib {
         const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color, () => {
           // this.gamePlay.advanceMeeple(meep, step.dir, step.ndx, bumpDone); // advance; bump & cascade -> bumpDone
-          this.gamePlay.bumpAndCascade(meep, step.dir, bumpDone); // ???
+          this.gamePlay.bumpAndCascade(meep, bumpDone); // ???
         });
         return;
       },
@@ -240,7 +240,7 @@ export class GameState extends GameStateLib {
         this.winnerMeep?.highlight(false);
         const meep = this.gamePlay.meeplesToCell(col)
         if (meep) {
-          const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.bumpDir, }
+          const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
           afterUpdate(meep, () => this.phase('BumpAndCascade',col, meep, step), this, 10)
           return;
         }

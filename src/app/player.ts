@@ -245,7 +245,7 @@ export class Player extends PlayerLib implements ColPlayer {
     // console.log(stime(this, `.simpleGreedy - ${this.Aname} \n`), this.gamePlay.mapString)
     this.syncSubGame();
     const scores = this.latestScores = this.subPlyr.collectScores()
-    const [col, bid] = this.subPlyr.selectBid(scores)
+    const [col, bid] = this.selectBid(scores)
     if (this.gamePlay.gameState.turnOfRound == 1 && bid == 1) {
       this.selectBid(scores); // try save (bid == 1) for later; see also score2
     }
@@ -533,8 +533,12 @@ export class Player extends PlayerLib implements ColPlayer {
     this.subGame.parseScenario(stateInfo);
     this.subGame.recordMeeps(false);
   }
-  myMeep<T extends BumpDir2>(step: Step<T>) {
-    return {...step, meep: this.gamePlay.allMeeples.find(m => m.pcid == step.meep.pcid)!} as Step<T>
+  myStep<T extends BumpDir2>(step: Step<T>) {
+    const meep = this.gamePlay.allMeeples.find(m => m.pcid == step.meep.pcid)!
+    const fromCard = meep.card, dir = step.dir, ndx = step.ndx;
+    const card = meep.card.nextCard(dir)!;
+    this.gamePlay.moveMeep(meep, card, ndx);
+    return { meep, fromCard, dir, ndx } as Step<T>
   }
   subMeeps(...meeps: ColMeeple[]) {
     return meeps.map(meep => this.subGame.allMeeples.find(m => m.pcid == meep.pcid)!)
@@ -600,7 +604,7 @@ export class Player extends PlayerLib implements ColPlayer {
     this.syncSubGame();
     const subMeeps = this.subMeeps(...meeps);
     const subStep = this.subPlyr.advanceOneMeeple(subMeeps)
-    const step = this.myMeep(subStep);
+    const step = this.myStep(subStep);
     cb_advanceMeep && cb_advanceMeep(step)
     return step;
   }
@@ -614,7 +618,7 @@ export class Player extends PlayerLib implements ColPlayer {
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
     const subStep = this.subPlyr.bumpUp(subMeep, subOther)
-    const step = this.myMeep(subStep);
+    const step = this.myStep(subStep);
     cb_bump && cb_bump(step);
     return step;
   }
@@ -627,7 +631,7 @@ export class Player extends PlayerLib implements ColPlayer {
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
     const subStep = this.subPlyr.bumpDn2(subMeep, subOther)
-    const step = this.myMeep(subStep);
+    const step = this.myStep(subStep);
     cb_bump && cb_bump(step);
     return step;
   }
@@ -641,7 +645,7 @@ export class Player extends PlayerLib implements ColPlayer {
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
     const subStep = this.subPlyr.bumpDn(subMeep, subOther)
-    const step = this.myMeep(subStep);
+    const step = this.myStep(subStep);
     cb_bump && cb_bump(step);
     return step;
   }
@@ -651,7 +655,7 @@ export class Player extends PlayerLib implements ColPlayer {
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
     const subStep = this.subPlyr.bumpInCascade(subMeep, subOther, bumpDirC)
-    const step = this.myMeep(subStep);
+    const step = this.myStep(subStep);
     return step;
   }
 
@@ -742,7 +746,7 @@ export class SubPlayer extends Player {
    */
   evalMoves(meeps: ColMeeple[], dir: BumpDirA, isAdv = false) {
     const plyr = this, gamePlay = this.gamePlay;
-    const dirs = this.allDirs(dir);
+    const dirs = this.allDirs(dir); // assert either isAdv OR dir already constrained by cascDir
 
     const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
     gamePlay.recordMeeps();   // start new record
@@ -750,20 +754,25 @@ export class SubPlayer extends Player {
     const scores = meeps.map(meep => {
       const fromCard = meep.card;
       return dirs.map(dir => {
+        // cannot bump own meep down:
+        if (dir.startsWith('S') && meep.player == this) return undefined;
         const toCard = fromCard.nextCard(dir)
         if (!toCard) return undefined;
         const ndxs = isAdv ? gamePlay.cellsForAdvance(toCard) : gamePlay.cellsForBumpee(toCard, dir).ndxs;
         return ndxs.map(ndx => {
+          // the actual, reported Step for meep:
           const step = { meep, fromCard, dir, ndx } as Step<BumpDir2>
+          // see what else is bumped and moved...
           let other = gamePlay.moveMeep(meep, toCard, ndx);
-          let cascDir = gamePlay.cascadeDir(dir);
           if (other && isAdv) {
-            const step = gamePlay.bumpAfterAdvance(meep, other)!
-            cascDir = gamePlay.cascadeDir(step.dir);
-            other = meep.card.otherMeepInCell(meep)
+            // move a Meeple & set cascadeDir:
+            const bStep = gamePlay.bumpAfterAdvance(meep, other)!
+            meep = bStep.meep;
+            other = meep.card.otherMeepInCell(meep);
           }
           if (other) {
-             gamePlay.bumpAndCascade(meep, cascDir); // --> meep.player.bumpAndCascade()
+            // loop to move meeps in cascadeDir
+            gamePlay.bumpAndCascade(meep); // --> meep.player.bumpAndCascade()
           }
           // ASSERT: moves and cascades have stopped.
           const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
@@ -786,44 +795,45 @@ export class SubPlayer extends Player {
    * @param cb_advanceMeep callback not used
    * @return Step meep moved to fromCard.nextCard(dir, ndx)
    */
-  override advanceOneMeeple(meeps: ColMeeple[], cb_advanceMeep?: CB_Step<AdvDir>): Step<AdvDir> {
+  override advanceOneMeeple(meeps: ColMeeple[]): Step<AdvDir> {
     if (meeps.length == 0) debugger;
-    const step = this.bestMove(meeps, BD_N, true)[1] as Step<AdvDir>;
+    const step = this.bestMove(meeps, BD_N, true)?.[1] as Step<AdvDir>;
+    if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
-    cb_advanceMeep && cb_advanceMeep(step);
     return step;
   }
 
   /** choose bumpee, card & cellNdx -> Step<AdvDir> */
-  override bumpUp(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<AdvDir>) {
-    const step = this.bestMove([meep, other], BD_N, true)[1] as Step<AdvDir>;
+  override bumpUp(meep: ColMeeple, other: ColMeeple) {
+    const step = this.bestMove([meep, other], BD_N)?.[1] as Step<AdvDir>;
+    if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
-    cb_bump && cb_bump(step);
     return step;
   }
   /** choose bumpee, card & cellNdx */
-  override bumpDn2(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDir2>) {
-    const step = this.bestMove([meep, other], BD_SS, true)[1] as Step<BumpDir2>;
+  override bumpDn2(meep: ColMeeple, other: ColMeeple) {
+    const step = this.bestMove([meep, other], BD_SS)?.[1] as Step<BumpDir2>;
+    if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
-    cb_bump && cb_bump(step);
     return step;
   }
 
   /** choose bumpee, card & cellNdx */
-  override bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>) {
-    const step = this.bestMove([meep, other], BD_S, true)[1] as Step<BumpDn>;
+  override bumpDn(meep: ColMeeple, other: ColMeeple) {
+    const step = this.bestMove([meep, other], BD_S)?.[1] as Step<BumpDn>;
+    if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
-    cb_bump && cb_bump(step);
     return step;
   }
 
   // advanceMeeple will need to decide who/how to bump:
   override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
-    const step = this.bestMove([meep, other], bumpDirC, true)[1] as Step<BumpDir>;
+    const step = this.bestMove([meep, other], bumpDirC)?.[1] as Step<BumpDir>;
+    if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
     return step;

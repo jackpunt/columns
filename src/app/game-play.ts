@@ -238,8 +238,8 @@ export class GamePlay extends GamePlayLib {
     // TODO: alternative for Pyramid
   }
 
-  cascadeDir(bumpDir: BumpDir2) {
-    return (bumpDir.startsWith('S') ? 'S' : 'N') as BumpDirC;
+  cascadeDir(bumpDir?: BumpDir2) {
+    return bumpDir ? this.cascDir = (bumpDir.startsWith('S') ? 'S' : 'N') : this.cascDir!;
   }
   /** utility: meep & other in same cell after Advance */
   dirsForBumpAdv(meep: ColMeeple, other: ColMeeple) {
@@ -283,6 +283,7 @@ export class GamePlay extends GamePlayLib {
   recordMeeps(push = true) {
     if (push) {
       this.recordStack.push(this.origMeepCardNdxs)
+      if (this.recordStack.length > 8) debugger;
     } else {
       this.recordStack = []; // reset
     }
@@ -299,31 +300,34 @@ export class GamePlay extends GamePlayLib {
   /** bumpUp or bumpDn2 */
   bumpAfterAdvance(meep: ColMeeple, other: ColMeeple, cb_bumpAdvance?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined {
     const dirs = this.dirsForBumpAdv(meep, other);
+    const cascDir = this.cascadeDir(dirs[0])
     const plyr = meep.player;
-    const step = (dirs[1] == BD_N) ? plyr.bumpUp(meep, other, cb_bumpAdvance) : plyr.bumpDn2(meep, other, cb_bumpAdvance)
+    const step = (cascDir == BD_N)
+      ? plyr.bumpUp(meep, other, cb_bumpAdvance)
+      : plyr.bumpDn2(meep, other, cb_bumpAdvance)
     return step;
   }
+  /** signal all bumps from this advance are cascDir */
+  cascDir?: BumpDirC;
 
   // assert that Player returns a BumpDir that hits a nextCard!
   /** meep has moved to (card0, ndx); any bump goes to bumpDir [supplied by winner or previous bumpee]
    *
    * Check for toBump, recurse until no more toBump.
    * @param meep has been moved to current loc; check for collision and bump
-   * @param bumpDir determines cascDir from startsWith
-   * * initial: BumpDirA (from plyr.scoreForDirNdx, pseudoWin);
-   * * recursive: BumpDirC (from plyr.bumpAndCascade)
+   * @param bumpDone callback when cascade of bumps has stopped
    * @param depth
    */
-  bumpAndCascade(meep: ColMeeple, bumpDir: BumpDirA | BumpDirC, bumpDone?: () => void, depth = 0) {
+  bumpAndCascade(meep: ColMeeple, bumpDone?: () => void, depth = 0) {
     if (depth > this.nRows) debugger;
     const card0 = meep.card, ndx = meep.cellNdx;
     const other = card0.otherMeepInCell(meep, ndx);
     if (!!other) {
-      const cascDir = this.cascadeDir(bumpDir)
-      console.log(stime(this, `.bumpAndCascade -> bumpInCascade(meep=${meep.toString()} other=${other.toString()} cascDir=${cascDir})`))
+      const cascDir = this.cascadeDir()
+      console.log(stime(this, `.bumpAndCascade -> (meep=${meep.toString()} other=${other.toString()} cascDir=${cascDir})`))
       const step = meep.player.bumpInCascade(meep, other, cascDir)
       const bumpee = step.meep;
-      this.bumpAndCascade(bumpee, cascDir, bumpDone, depth + 1);
+      this.bumpAndCascade(bumpee, bumpDone, depth + 1);
       return;
     } else {
       bumpDone && bumpDone();
