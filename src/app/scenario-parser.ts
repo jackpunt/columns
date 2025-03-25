@@ -126,6 +126,7 @@ export class ScenarioParser extends SPLib {
     gamePlay.allDuals = allDuals; // for printing
     const pCards = allCols.slice();
     const dCards = allDuals.slice();
+    const rank0 = nr - 1;
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
@@ -133,12 +134,13 @@ export class ScenarioParser extends SPLib {
         const c0 = hexRow.findIndex(hex => !!hex);
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
-          const cards = ((fac.length > 2) || (fac.length == 0)) ? black
-            : (fac.length == 2) ? dCards : pCards;
+          const cards = (row == 0 || row == rank0) ? black
+              : (row == 1 && nr == 8 && col == 3) ? [new BlackCard(`Fill:${col}`)]
+              : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
-          if (!card) debugger;
+          if (!card) debugger; // ASSERT: cards.includes(card)
           removeEltFromArray(card, cards);
           const hex = hexRow[col];
           card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
@@ -161,7 +163,6 @@ export class ScenarioParser extends SPLib {
       const cards = plain.concat(duals);
       permute(cards);
 
-      const rank0 = nr - 1;
       this.gamePlay.hexMap.forEachHex(hex => {
         const { row, col } = hex;
         const card = (row == 1 && nr == 8 && col == 3) ? new BlackCard('Fill:3')
