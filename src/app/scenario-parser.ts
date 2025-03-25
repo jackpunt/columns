@@ -133,9 +133,9 @@ export class ScenarioParser extends SPLib {
         const c0 = hexRow.findIndex(hex => !!hex);
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
-          const cards = (fac.length > 2) ? black : (fac.length == 2) ? dCards : pCards;
-          const card = ((fac.length == 0) ? (cards.unshift(new BlackNull(`Null:${col}`)), cards[0])
-            : (fac.length == 2)
+          const cards = ((fac.length > 2) || (fac.length == 0)) ? black
+            : (fac.length == 2) ? dCards : pCards;
+          const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           if (!card) debugger;
