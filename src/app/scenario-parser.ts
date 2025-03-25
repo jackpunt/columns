@@ -134,10 +134,11 @@ export class ScenarioParser extends SPLib {
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
           const cards = (fac.length > 2) ? black : (fac.length == 2) ? dCards : pCards;
-          const card = ((fac.length == 0) ? new BlackNull(`Null:${col}`)
+          const card = ((fac.length == 0) ? (cards.unshift(new BlackNull(`Null:${col}`)), cards[0])
             : (fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
+          if (!card) debugger;
           removeEltFromArray(card, cards);
           const hex = hexRow[col];
           card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.

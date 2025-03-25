@@ -32,6 +32,7 @@ export class TP extends TPLib {
   static rDuals = .0;
   /** [true] no scoreForColor unless winnerMeep lands on a faction of bidCard. */
   static bidReqd = true;
+  static nEltsPerPlayer = [4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6];
   static nElts = 6;     // number of ScoreTrack elements
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
 

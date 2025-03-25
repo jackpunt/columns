@@ -58,7 +58,7 @@ class ColGameSetup extends GameSetupLib {
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
   setRowsCols(np = TP.numPlayers) {
-    let nr = TP.nHexes, nc = TP.mHexes, nElts = (np == 2) ? 4 : 6;
+    let nr = TP.nHexes, nc = TP.mHexes, nElts = TP.nEltsPerPlayer[np];
     let tc = 0;
     if (TP.usePyrTopo) {
       // [5],6,7,6,5,4,3,[4] np>=4

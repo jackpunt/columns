@@ -288,7 +288,7 @@ export class GamePlay extends GamePlayLib {
   recordMeeps(push = true) {
     if (push) {
       this.recordStack.push(this.origMeepCardNdxs)
-      if (this.recordStack.length > 8) debugger;
+      if (this.recordStack.length > 12) debugger;
     } else {
       this.recordStack = []; // reset
     }
