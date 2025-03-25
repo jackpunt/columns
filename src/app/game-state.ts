@@ -206,9 +206,9 @@ export class GameState extends GameStateLib {
           const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
           this.gamePlay.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
             const dir = this.gamePlay.cascadeDir(); // step.dir --> <S|N>
-            const other = toBump, meep = step.meep; // for debugger, logpoint
+            const bumpee = step.meep, stayee = step.stayee;// for debugger, logpoint
             if (upBump && dir !== 'N') debugger; // 'N' required?
-            this.phase('MeepsToCol', col)
+            this.phase('MeepsToCol', col, [stayee, bumpee])
           })
           return;
         }
@@ -224,10 +224,10 @@ export class GameState extends GameStateLib {
         this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
         meep.highlight(true);
         this.table.logText(`Col-${colId} from ${step.fromCard}#${step.ndx}->${step.dir} --> ${meep}`, `GameState: 'BumpAndCascade'`);
-        const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
+        const bumpDone = (bumpees: ColMeeple[]) => setTimeout(() => this.phase('MeepsToCol', col, bumpees), TP.flipDwell);
         this.doneButton(`bump & cascade ${col} done`, meep.player.color, () => {
           // this.gamePlay.advanceMeeple(meep, step.dir, step.ndx, bumpDone); // advance; bump & cascade -> bumpDone
-          this.gamePlay.bumpAndCascade(meep, bumpDone); // ???
+          this.gamePlay.bumpAndCascade(meep, [], bumpDone); // ???
         });
         return;
       },
@@ -235,10 +235,10 @@ export class GameState extends GameStateLib {
     MeepsToCol: {
       // when bump and cascade has settled: cleanup placement of meeps
       // and find unresolved bumps? (from manual moves?)
-      start: (col) => {
+      start: (col, bumpees: ColMeeple[] = []) => {
         // const col = this.state.col as number;
         this.winnerMeep?.highlight(false);
-        const meep = this.gamePlay.meeplesToCell(col)
+        const meep = this.gamePlay.meeplesToCell(bumpees)
         if (meep) {
           const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
           afterUpdate(meep, () => this.phase('BumpAndCascade',col, meep, step), this, 10)

@@ -45,6 +45,8 @@ export interface Step<T extends AdvDir | BumpDir2> {
   fromCard: ColCard; // where meeple started
   dir: T;            // fromCard -> meep.crd
   ndx: number;       // started fromCard.ndx
+  stayee?: ColMeeple;// other meeple, not bumped
+  meepStr?: string;  // showing meep location at this point
 }
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
 export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
@@ -280,6 +282,9 @@ export class GamePlay extends GamePlayLib {
     }
     return meep;
   }
+  /** start a new list of meeple locations
+   * @param push [true] push a layer; false -> flush and reset
+   */
   recordMeeps(push = true) {
     if (push) {
       this.recordStack.push(this.origMeepCardNdxs)
@@ -287,7 +292,9 @@ export class GamePlay extends GamePlayLib {
     } else {
       this.recordStack = []; // reset
     }
+    const prev = this.recordStack[this.recordStack.length-1]; // debug logpoint
     this.origMeepCardNdxs = []; // new stack
+    return
   }
   restoreMeeps() {
     const meeps = this.origMeepCardNdxs; // the current record
@@ -302,9 +309,10 @@ export class GamePlay extends GamePlayLib {
     const dirs = this.dirsForBumpAdv(meep, other);
     const cascDir = this.cascadeDir(dirs[0])
     const plyr = meep.player;
+    console.log(stime(this, `.bumpAfterAdvance(${meep.toString()} ${other.toString()} cascDir=${cascDir})`))
     const step = (cascDir == BD_N)
       ? plyr.bumpUp(meep, other, cb_bumpAdvance)
-      : plyr.bumpDn2(meep, other, cb_bumpAdvance)
+      : plyr.bumpDn2(other, cb_bumpAdvance)
     return step;
   }
   /** signal all bumps from this advance are cascDir */
@@ -318,19 +326,23 @@ export class GamePlay extends GamePlayLib {
    * @param bumpDone callback when cascade of bumps has stopped
    * @param depth
    */
-  bumpAndCascade(meep: ColMeeple, bumpDone?: () => void, depth = 0) {
+  bumpAndCascade(meep: ColMeeple, bumpees: ColMeeple[] = [], bumpDone?: (bumpees: ColMeeple[]) => void, depth = 0) {
     if (depth > this.nRows) debugger;
     const card0 = meep.card, ndx = meep.cellNdx;
     const other = card0.otherMeepInCell(meep, ndx);
     if (!!other) {
       const cascDir = this.cascadeDir()
-      console.log(stime(this, `.bumpAndCascade -> (meep=${meep.toString()} other=${other.toString()} cascDir=${cascDir})`))
+      console.log(stime(this, `.bumpAndCascade ->(${meep.toString()} ${other.toString()} cascDir=${cascDir})`))
+      console.groupCollapsed(`${meep.player.Aname}@${this.turnId} bumpAndCascade`)
       const step = meep.player.bumpInCascade(meep, other, cascDir)
-      const bumpee = step.meep;
-      this.bumpAndCascade(bumpee, bumpDone, depth + 1);
+      console.groupEnd();
+      const bumpee = step.meep, stayee = step.stayee;
+      const toBump = stayee && card0.addMeep(stayee, stayee.cellNdx); if (stayee && toBump) debugger; // recenter stayee
+      bumpees.push(bumpee)
+      this.bumpAndCascade(bumpee, bumpees, bumpDone, depth + 1);
       return;
     } else {
-      bumpDone && bumpDone();
+      bumpDone && bumpDone(bumpees);
     }
   }
 
@@ -387,12 +399,9 @@ export class GamePlay extends GamePlayLib {
   /** move meeple from bumpLoc to center of cell;
    * @returns a meep that needs to bump.
    */
-  meeplesToCell(col: number) {
-    const colId = ColSelButton.colNames[col];
-    const cards = this.cardsInCol(colId, false); // Black doesn't use bumpLoc
-    const meeps = cards.map(card => card.atBumpLoc()).filter(meep => !!meep)
-    const bumps = meeps.filter(meep => meep.card.addMeep(meep)); // re-center
-    return bumps[0]
+  meeplesToCell(bumpees: ColMeeple[]) {
+    const bumps = bumpees.filter(meep => meep.card.addMeep(meep, meep.cellNdx)); // re-center
+    return bumps[0];
   }
 
   /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */

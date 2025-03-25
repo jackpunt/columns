@@ -27,7 +27,7 @@ export interface ColPlayer extends PlayerLib {
   /** choose bumpee, card & cellNdx */
   bumpUp(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
   /** choose bumpee, card & cellNdx */
-  bumpDn2(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
+  bumpDn2(other: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
   /** choose bumpee, card & cellNdx */
   bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>): Step<BumpDn> | undefined;
   doneifyCards(): void;
@@ -244,7 +244,9 @@ export class Player extends PlayerLib implements ColPlayer {
   auto_collectBid() {
     // console.log(stime(this, `.simpleGreedy - ${this.Aname} \n`), this.gamePlay.mapString)
     this.syncSubGame();
+    console.groupCollapsed(`${this.Aname}@${this.gamePlay.turnId} collectScores`)
     const scores = this.latestScores = this.subPlyr.collectScores()
+    console.groupEnd();
     const [col, bid] = this.selectBid(scores)
     if (this.gamePlay.gameState.turnOfRound == 1 && bid == 1) {
       this.selectBid(scores); // try save (bid == 1) for later; see also score2
@@ -285,7 +287,7 @@ export class Player extends PlayerLib implements ColPlayer {
     const bidCard = this.colBidButtons.find(b => b.colBid == colBid)!
     const plyrId = AT.ansiText(['red', 'bold'], this.Aname)
     const ndxStr = AT.ansiText([slen == 1 ? 'red' : 'blue', 'bold'], `${ndx}/${slen}`)
-    console.log(stime(this, `.collectBid_greedy: ${plyrId} [${ndxStr}] ${colId}-${colBid} => ${score0} meep=${meep}\n`), scc, sc5)
+    console.log(stime(this, `.selectBid: ${plyrId} [${ndxStr}] ${colId}-${colBid} => ${score0} meep=${meep}\n`), scc, sc5)
     colCard.select()
     bidCard.select()
     this.gamePlay.table.stage.update()
@@ -535,10 +537,12 @@ export class Player extends PlayerLib implements ColPlayer {
   }
   myStep<T extends BumpDir2>(step: Step<T>) {
     const meep = this.gamePlay.allMeeples.find(m => m.pcid == step.meep.pcid)!
+    const ndx0 = meep.cellNdx!;
     const fromCard = meep.card, dir = step.dir, ndx = step.ndx;
     const card = meep.card.nextCard(dir)!;
     this.gamePlay.moveMeep(meep, card, ndx);
-    return { meep, fromCard, dir, ndx } as Step<T>
+    const stayee = fromCard.meepAtNdx[ndx0];
+    return { meep, fromCard, dir, ndx, stayee } as Step<T>
   }
   subMeeps(...meeps: ColMeeple[]) {
     return meeps.map(meep => this.subGame.allMeeples.find(m => m.pcid == meep.pcid)!)
@@ -546,7 +550,7 @@ export class Player extends PlayerLib implements ColPlayer {
 
   moveMeepWithCB(meep: ColMeeple, other: ColMeeple, dir: BumpDirA, doneStr: string, cb?: CB_Step<any>) {
     if (!this.useRobo) {
-      return this.manuMoveMeeps(meep, other, dir, doneStr, cb);
+      return this.manuMoveMeeps([meep, other], dir, doneStr, cb);
     }
     this.syncSubGame();
     const step = this.subPlyr.bestMove([meep, other], dir)[1];
@@ -566,9 +570,9 @@ export class Player extends PlayerLib implements ColPlayer {
    * @param dirAs [this.bumpDirsA: ['N'] or ['SS', 'S']] OR cascade: ['S'] or ['N']
    * @param cb (ndx, bumpDir) -> gamePlay for advanceMeeple -> bumpAndCascade()
    */
-  manuMoveMeeps(meep: ColMeeple, other: ColMeeple, dirA: BumpDirA, doneStr: string
+  manuMoveMeeps(meeps: ColMeeple[], dirA: BumpDirA, doneStr: string
     , cb?: CB_Step<BumpDir2> | CB_Step<AdvDir> | CB_Step<BumpDn>) {
-    const meeps = this.meepsToMove = [meep, other].filter(m => m);
+    meeps = this.meepsToMove = meeps.filter(m => m) as ColMeeple[];
     meeps.forEach(m => m.highlight(true, true)); // light them up!
     if (doneStr) this.gamePlay.gameState.doneButton(doneStr, this.color);
     this.dragDirs = this.allDirs(dirA);
@@ -599,12 +603,15 @@ export class Player extends PlayerLib implements ColPlayer {
    */
   advanceOneMeeple(meeps: ColMeeple[], cb_advanceMeep?: CB_Step<AdvDir>): Step<AdvDir> | undefined {
     if (!this.useRobo || !cb_advanceMeep) {
-      return this.manuMoveMeeps(meeps[0], meeps[1], BD_N, `advance meeple`, cb_advanceMeep)
+      return this.manuMoveMeeps(meeps, BD_N, `advance meeple`, cb_advanceMeep)
     }
     this.syncSubGame();
     const subMeeps = this.subMeeps(...meeps);
+    console.groupCollapsed(stime(this, `.advanceOneMeeple: ${this.Aname}@${this.gamePlay.turnId}`), meeps.map(m => m?.toString()))
     const subStep = this.subPlyr.advanceOneMeeple(subMeeps)
+    console.groupEnd()
     const step = this.myStep(subStep);
+    if (!meeps.includes(step.meep)) debugger;
     cb_advanceMeep && cb_advanceMeep(step)
     return step;
   }
@@ -612,7 +619,7 @@ export class Player extends PlayerLib implements ColPlayer {
   /** choose bumpee, card & cellNdx -> Step<AdvDir> */
   bumpUp(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<AdvDir>) {
     if (!this.useRobo) {
-      this.manuMoveMeeps(meep, other, BD_N, 'bumpUp', cb_bump);
+      this.manuMoveMeeps([meep, other], BD_N, 'bumpUp', cb_bump);
       return;
     }
     this.syncSubGame();
@@ -623,14 +630,17 @@ export class Player extends PlayerLib implements ColPlayer {
     return step;
   }
   /** choose bumpee, card & cellNdx */
-  bumpDn2(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDir2>) {
+  bumpDn2(other: ColMeeple, cb_bump?: CB_Step<BumpDir2>) {
+    // is bumpFromAdvance; cannot bump your own meep down/down2
     if (!this.useRobo) {
-      this.manuMoveMeeps(meep, other, BD_N, 'bumpDn2', cb_bump);
+      this.manuMoveMeeps([other], BD_N, 'bumpDn2', cb_bump);
       return;
     }
     this.syncSubGame();
-    const [subMeep, subOther] = this.subMeeps(meep, other);
-    const subStep = this.subPlyr.bumpDn2(subMeep, subOther)
+    const [subOther] = this.subMeeps(other);
+    console.groupCollapsed(stime(this, `.bumpDn2: ${this.Aname}@${this.gamePlay.turnId} ${other.toString()}`))
+    const subStep = this.subPlyr.bumpDn2(subOther)
+    console.groupEnd();
     const step = this.myStep(subStep);
     cb_bump && cb_bump(step);
     return step;
@@ -639,12 +649,14 @@ export class Player extends PlayerLib implements ColPlayer {
   /** choose bumpee, card & cellNdx */
   bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>) {
     if (!this.useRobo) {
-      this.manuMoveMeeps(meep, other, BD_N, 'bumpDn', cb_bump);
+      this.manuMoveMeeps([meep, other], BD_N, 'bumpDn', cb_bump);
       return;
     }
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
+    console.groupCollapsed(stime(this, `.bumpDn: ${this.Aname}@${this.gamePlay.turnId} ${[meep, other].map(m => m.toString())}`))
     const subStep = this.subPlyr.bumpDn(subMeep, subOther)
+    console.groupEnd();
     const step = this.myStep(subStep);
     cb_bump && cb_bump(step);
     return step;
@@ -654,7 +666,9 @@ export class Player extends PlayerLib implements ColPlayer {
   bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
+    console.groupCollapsed(stime(this, `.bumpInCascade: ${this.Aname}@${this.gamePlay.turnId} ${[meep, other].map(m => m.toString())}`))
     const subStep = this.subPlyr.bumpInCascade(subMeep, subOther, bumpDirC)
+    console.groupEnd()
     const step = this.myStep(subStep);
     return step;
   }
@@ -701,7 +715,13 @@ export class SubPlayer extends Player {
         // mark 'selected' for scoreForColor; no other players -> never gamePlay.allDone()
         ccard.setState(CB.selected, false);
         bcard.setState(CB.selected, false);
-        let [score, step, scoreStr, meepStr] = this.pseudoWin(ccard, bcard); // advance in ccard.col
+        const colId = ccard.colId;
+        const meepsInCol = this.gamePlay.meepsInCol(colId, this);
+        /** pretend ccard,bcard win, and advance in col */
+        const vec = (meepsInCol.length == 0)
+          ? [-1, {}, `${this.Aname}: no meep in col-${colId}`, ''] as ReturnType<SubPlayer['bestMove']>
+          : this.bestMove(meepsInCol, BD_N, true);
+        let [score, step, scoreStr, meepStr] = vec;
         if (this.gamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
         }
@@ -713,19 +733,7 @@ export class SubPlayer extends Player {
         return rv
       })
     ).flat()
-    return scores.concat(scores2).filter(rv => rv.meep); // remove if no meep in column;
-  }
-
-  /** pretend ccard,bcard win, and advance in col */
-  pseudoWin(ccard: ColSelButton, bcard: ColBidButton): ReturnType<SubPlayer['bestMove']> {
-    const colId = ccard.colId;
-    const meepsInCol = this.gamePlay.meepsInCol(colId, this);
-    if (meepsInCol.length == 0) {
-      const noStep = undefined as any as Step<BumpDir2>;
-      return [-1, noStep, `${this.Aname}: no meep in col-${colId}`, '']
-    }
-    // best meep->card@cellNdx; considering other bumps:
-    return this.bestMove(meepsInCol, BD_N, true);
+    return scores.concat(scores2); // may have {score: -1, meep: undefined}
   }
 
   bestMove(meeps: ColMeeple[], dir: BumpDirA, isAdv = false) {
@@ -748,38 +756,47 @@ export class SubPlayer extends Player {
     const plyr = this, gamePlay = this.gamePlay;
     const dirs = this.allDirs(dir); // assert either isAdv OR dir already constrained by cascDir
 
-    const rankScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
+    const plyrsRanked = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score);
+    const tPlyr = plyrsRanked.find(p => p !== this)!; // highest scoring *other* player.
+    const tScore0 = tPlyr?.rankScoreNow;
+    const myScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
     gamePlay.recordMeeps();   // start new record
 
-    const scores = meeps.map(meep => {
+    const scores = meeps.filter(m => m).map(meep => {
       const fromCard = meep.card;
       return dirs.map(dir => {
-        // cannot bump own meep down:
-        if (dir.startsWith('S') && meep.player == this) return undefined;
+        // cannot bump own advancing meep down: (vs trick where you scoot sideways, back to black)
+        if (isAdv && dir.startsWith('S') && meep.player == this) return undefined;
         const toCard = fromCard.nextCard(dir)
         if (!toCard) return undefined;
         const ndxs = isAdv ? gamePlay.cellsForAdvance(toCard) : gamePlay.cellsForBumpee(toCard, dir).ndxs;
         return ndxs.map(ndx => {
           // the actual, reported Step for meep:
-          const step = { meep, fromCard, dir, ndx } as Step<BumpDir2>
-          // see what else is bumped and moved...
-          let other = gamePlay.moveMeep(meep, toCard, ndx);
-          if (other && isAdv) {
-            // move a Meeple & set cascadeDir:
-            const bStep = gamePlay.bumpAfterAdvance(meep, other)!
-            meep = bStep.meep;
-            other = meep.card.otherMeepInCell(meep);
+          const step = { meep, fromCard, dir, ndx, meepStr: meep.toString() } as Step<BumpDir2>
+          this.gamePlay.recordMeeps()
+          // moveMeep(toCard,ndx) and see what else is sitting there:
+          const other = gamePlay.moveMeep(meep, toCard, ndx);
+          let bumpee = meep;
+          if (isAdv) { // set winnerMeep, and cascadeDir (if bumping)
+            this.gamePlay.gameState.winnerMeep = meep;
+            if (other) {
+              // bump & move meep or other, and set cascadeDir:
+              const bStep = gamePlay.bumpAfterAdvance(meep, other)!
+              bumpee = bStep.meep;
+            }
           }
-          if (other) {
-            // loop to move meeps in cascadeDir
-            gamePlay.bumpAndCascade(meep); // --> meep.player.bumpAndCascade()
-          }
-          // ASSERT: moves and cascades have stopped.
-          const [scorec, scoreStr] = gamePlay.scoreForColor(meep, undefined, false)
-          const rankDiff = Math.round((plyr.rankScoreNow - rankScore0) * perTurn);
-          const rd = Math.max(0, rankDiff); // TODO: per turnOfRound
+          // loop if bumpee while bumpee has an other:
+          gamePlay.bumpAndCascade(bumpee); // --> meep.player.bumpAndCascade()
+          // ASSERT: moves and cascades have stopped; score the move of winnerMeep
+          const winMeep = this.gamePlay.gameState.winnerMeep!
+          if (!winMeep) debugger;
+          const [scorec, scoreStr] = gamePlay.scoreForColor(winMeep, undefined, false)
+          const tRankDiff = Math.round((tPlyr.rankScoreNow - tScore0) * perTurn);
+          const myRankDiff = Math.round((plyr.rankScoreNow - myScore0) * perTurn);
+          const rd = Math.max(0, myRankDiff - tRankDiff); // good if I go up or T goes down;
           const score = scorec + rd, sum = `${scoreStr}+${rd}`;
-          const meepStr = meep.toString();  // final location of meep;
+          const meepStr = winMeep.toString();  // final location of meep;
+          this.gamePlay.restoreMeeps();
           return [score, step, sum, meepStr] as [score: number, step: Step<BumpDir2>, sum: string, meepStr: string]
         })
       }).flat().filter(v => !!v)
@@ -813,8 +830,8 @@ export class SubPlayer extends Player {
     return step;
   }
   /** choose bumpee, card & cellNdx */
-  override bumpDn2(meep: ColMeeple, other: ColMeeple) {
-    const step = this.bestMove([meep, other], BD_SS)?.[1] as Step<BumpDir2>;
+  override bumpDn2(other: ColMeeple) {
+    const step = this.bestMove([other], BD_SS)?.[1] as Step<BumpDir2>;
     if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
