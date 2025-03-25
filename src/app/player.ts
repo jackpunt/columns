@@ -216,9 +216,10 @@ export class Player extends PlayerLib implements ColPlayer {
   doneifyCards() {
     const csb = this.colSelButtons.find(b => b.state === CB.selected);
     const cbb = this.colBidButtons.find(b => b.state === CB.selected);
+    const turn = `${this.gamePlay.gameState.turnOfRound}`
     // TODO: set turnNumber on overlay.
-    if (csb) { csb.setState(CB.done); };
-    if (cbb) { cbb.setState(CB.done); cbb.bidOnCol = csb!?.colNum };
+    if (csb) { csb.setState(CB.done); csb.sideNum = turn};
+    if (cbb) { cbb.setState(CB.done); cbb.sideNum = turn, cbb.bidOnCol = csb!?.colNum };
   }
 
   cancelBid(colId: ColId, bid: number) {

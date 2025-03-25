@@ -45,11 +45,14 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
   player!: Player;
 
-  /** for print version */
-  addSideNum() {
-    const rad = this.radius, ll = new CenterText(this.label.text, rad * .15, this.label.color)
-    ll.x = -.36 * rad;
-    ll.y = -.33 * 5/3 * rad;
+  _sideNum!: CenterText;
+  set sideNum(txt: string) { this._sideNum.text = txt }
+  /** small text in upper-left; for print version */
+  addSideNum(txt = this.label.text, ds = .15) {
+    const rad = this.radius
+    const ll = this._sideNum = new CenterText(txt, rad * ds, this.label.color)
+    ll.x = (-.39 +.03 * ds/.15) * rad; // -.36 * rad
+    ll.y = (-.60 +.05 * ds/.15) * rad; // .33 * 5/3 * rad
     this.addChild(ll)
   }
 
@@ -115,6 +118,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         this.highlight.visible = false;
         this.canceled.visible = false;
         this.outbid.visible = false;
+        this._sideNum && (this.sideNum = '');
         break
       }
       case CB.selected: {
@@ -194,6 +198,7 @@ export class ColSelButton extends CardButton {
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
     this.border = 0;
+    this.addSideNum('', .3);
     this.paint();
   }
   colId!: ColId;
@@ -217,6 +222,7 @@ export class ColBidButton extends CardButton {
     this.addFactionColors(colBid, width * .9, y + height * .33)
     this.label.y = (y + height * .18)
     this.border = 0;
+    this.addSideNum('', .3);
     this.paint();
   }
 
