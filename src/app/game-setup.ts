@@ -1,6 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { makeStage, type NamedObject } from '@thegraid/easeljs-lib';
-import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, type Hex, type HexAspect, TP as TPLib } from '@thegraid/hexlib';
+import { AliasLoader, GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -117,23 +117,10 @@ class ColGameSetup extends GameSetupLib {
   }
 }
 
-export class PyrGameSetup extends ColGameSetup {
-  declare gamePlay: GamePlay;
-
-  override makeHexMap(
-    hexMC: Constructor<HexMap<Hex>> = HexMap2,
-    hexC: Constructor<Hex> = Hex2, // (radius, addToMapCont, hexC, Aname)
-    cNames = MapCont.cNames.concat() as string[], // the default layers
-  ) {
-    const [nr] = this.setRowsCols();
-    // set color of 'hex' for each row (district); inject to HexMap.distColor
-    const dc = arrayN(nr).map(i => C.grey224);
-    HexMap.distColor.splice(0, HexMap.distColor.length, ...dc);
-    const hexMap = super.makeHexMap(hexMC, hexC, cNames); // hexMap.makeAllHexes(nh=TP.nHexes, mh=TP.mHexes)
-    return hexMap;
-  }
+export class GameSetup extends ColGameSetup {
 
 }
+
 
 /** GameSetup with no canvas, using gs.logWriter, same ImageLoader.
  * All Players are auto/robotic SubPlayer.
@@ -148,9 +135,10 @@ export class SubGameSetup extends ColGameSetup {
     (this as any).logWriter = new SubGameLogWriter(gs.logWriter);
     this.startup(this.qParams);
   }
+  // invoked from super constructor, before this own initialization!
   override initialize(canvasId: string): void {
     const Aname = this.qParams['Aname']
-    console.log(stime(this, `------- new PlayerGameSetup: ${Aname} ${canvasId ?? 'robo'} --------`))
+    console.log(stime(this, `------- new SubGameSetup: ${Aname} ${canvasId ?? 'robo'} --------`))
     this.stage = makeStage(canvasId, false);
     PlayerLib.logNewPlayer = (plyr: PlayerLib) => {
       if (plyr.gamePlay.table.stage.canvas) {
@@ -188,7 +176,4 @@ class SubGameLogWriter extends LogWriter {
   override writeLine(text?: string): void {
     // if (!text?.startsWith('// ')) this.gsLogwriter.writeLine(text);
   }
-}
-export class GameSetup extends ColGameSetup {
-
 }

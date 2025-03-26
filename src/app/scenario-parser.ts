@@ -10,7 +10,7 @@ import { TP } from "./table-params";
 // rowElt.length = nCols
 type RowElt = CardContent[];
 
-type SetupEltR = ReturnType<ScenarioParser["addStateElements"]> & SetupEltLib;
+type SetupEltR = { update?: boolean } & ReturnType<ScenarioParser["addStateElements"]> & SetupEltLib;
 export type SetupElt = Partial<SetupEltR>
 
 interface StartElt extends SetupElt, SetupEltLib {
@@ -46,7 +46,8 @@ export class ScenarioParser extends SPLib {
       // TP.trackSegs = undefined; // use new random selection
     }
 
-    const { scores, turn, pStates, layout, gameState } = setup;
+    const { scores, turn, pStates, layout, gameState, update } = setup;
+    const newCards = !update; // newCards -> makeAllCards & Meeples; update -> just move them
     const gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
     const isGUI = gamePlay.gameState.isGUI
     // validate number of players:
@@ -58,27 +59,14 @@ export class ScenarioParser extends SPLib {
     const turnSet = (turn !== undefined); // indicates a Saved Scenario: assign & place everything
     if (turnSet) {
       gamePlay.turnNumber = turn;
-      table.logText(`turn = ${turn}`, `${isGUI ? ' C' : ' R'}_parseScenario`);
-      this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
+      table.logText(`turn = ${turn}`, `${isGUI ? 'C ' : 'R '}_parseScenario`);
+      newCards && this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     // layout or undefined:
     {
-      this.placeCardsOnMap(layout);
-      this.placeMeeplesOnMap(layout);
-      if (TP.usePyrTopo && n < 4 && false) {
-        // Shift top row right to align with top-rank; add links(SE,S,SW)
-        const hexMap = gamePlay.hexMap;
-        const { w, dxdc } = hexMap.topo.xywh(TP.hexRad, 0, 0);
-        const black0 = gamePlay.cardsInRow(0);
-        black0.forEach(card => {
-          card.x += dxdc * .5;
-          card.hex.cont.visible = false;
-          const r0Hex = card.hex;
-          const seHex = r0Hex.nextHex('SE');
-          r0Hex.links['SW'] = r0Hex.links['S'] = seHex;
-          seHex.links['NW'] = seHex.links['N'] = r0Hex;
-        })
-      }
+      console.log(stime(this, `.parseScenario: newCards=${newCards} layout=`), layout);
+      newCards && this.placeCardsOnMap(layout); // for sync, leave cards as they are
+      this.placeMeeplesOnMap(layout, newCards); // for sync, do not 'make' new cards
     }
     if (pStates) {
       pStates.forEach((ps, ndx)=> gamePlay.allPlayers[ndx].parseCardStates(ps));
@@ -130,7 +118,7 @@ export class ScenarioParser extends SPLib {
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
-        const hexRow = this.gamePlay.hexMap[row];
+        const hexRow = gamePlay.hexMap[row];
         const c0 = hexRow.findIndex(hex => !!hex);
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
@@ -163,7 +151,7 @@ export class ScenarioParser extends SPLib {
       const cards = plain.concat(duals);
       permute(cards);
 
-      this.gamePlay.hexMap.forEachHex(hex => {
+      gamePlay.hexMap.forEachHex(hex => {
         const { row, col } = hex;
         const card = (row == 1 && nr == 8 && col == 3) ? new BlackCard('Fill:3')
           : (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
@@ -172,31 +160,40 @@ export class ScenarioParser extends SPLib {
         hex.legalMark.doGraphicsDual(card)
         return;
       })
-      this.gamePlay.gameSetup.update()
+      gamePlay.gameSetup.update()
     }
     return;
   }
 
-  placeMeeplesOnMap(layout?: RowElt[]) {
+  /**
+   * First time use make=true, then can sync using make=false.
+   * @param layout rowElts with pcids of meeps to place
+   * @param newMeeps [true] make new meeples; false -> just move the current meeples
+   */
+  placeMeeplesOnMap(layout?: RowElt[], newMeeps = true) {
     const gamePlay = this.gamePlay;
     const hexMap = gamePlay.hexMap, nrows = gamePlay.nRows, ncols = gamePlay.nCols;
     const allPlayers = gamePlay.allPlayers;
-    gamePlay.allMeeples.length = 0; // discard initial/default meeples
+    if (newMeeps) gamePlay.allMeeples.length = 0; // discard initial/default meeples
     if (layout) {
       layout.forEach((rowElt, row) => {
         const rank = nrows - row - 1;
         const hexRow = this.gamePlay.hexMap[row];
         const c0 = hexRow.findIndex(hex => !!hex);
         rowElt.forEach(({ meeps }, ndx) => {
-          const col = c0 + ndx;
-          meeps?.forEach((pcid, ndx) => {
-            if (!pcid) return; // empty string -> space filler on dual card
-            pcid.split('+').forEach(pcid => { // may be other meep in bumpLoc
+          const card = hexMap.getCard(rank, c0 + ndx);
+          if (!card) debugger;
+          card.rmAllMeeps();
+          meeps?.forEach((pcids, ndx) => {
+            if (!pcids) return; // empty string -> space filler on dual card
+            pcids.split('+').forEach(pcid => { // may be other meep in bumpLoc
               const [pnum, colId, ext] = pcid.split(''), pid = Number.parseInt(pnum);
               const player = allPlayers[pid];
-              const meep = player.makeMeeple(colId, ext); // label on reload
-              const card = hexMap.getCard(rank, col);
-              if (!card) debugger;
+              // make or match existing meeple:
+              const meep = newMeeps ? player.makeMeeple(colId, ext)
+                : player.meeples.find(m => m.pcid == pcid) ?? player.makeMeeple(colId, ext);
+                // xtraCol meeples created after makeSubGame(make == true)
+              if (!meep) debugger;
               card.addMeep(meep, ndx);
             })
           })

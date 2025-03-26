@@ -288,7 +288,7 @@ export class GamePlay extends GamePlayLib {
   recordMeeps(push = true) {
     if (push) {
       this.recordStack.push(this.origMeepCardNdxs)
-      if (this.recordStack.length > 12) debugger;
+      if (this.recordStack.length > 18) debugger;
     } else {
       this.recordStack = []; // reset
     }
@@ -323,7 +323,8 @@ export class GamePlay extends GamePlayLib {
    *
    * Check for toBump, recurse until no more toBump.
    * @param meep has been moved to current loc; check for collision and bump
-   * @param bumpDone callback when cascade of bumps has stopped
+   * @param bumpees previous bumps in this cascade, push new bumpee each recursion
+   * @param bumpDone callback(bumpees) when cascade of bumps has stopped
    * @param depth
    */
   bumpAndCascade(meep: ColMeeple, bumpees: ColMeeple[] = [], bumpDone?: (bumpees: ColMeeple[]) => void, depth = 0) {
@@ -337,8 +338,11 @@ export class GamePlay extends GamePlayLib {
       const step = meep.player.bumpInCascade(meep, other, cascDir)
       console.groupEnd();
       const bumpee = step.meep, stayee = step.stayee;
-      const toBump = stayee && card0.addMeep(stayee, stayee.cellNdx); if (stayee && toBump) debugger; // recenter stayee
-      bumpees.push(bumpee)
+      if (stayee) {
+        // stayee stops moving, settle into place
+        if (this.meeplesToCell([stayee])) debugger;  // bumpee should be gone...
+      }
+      bumpees.push(bumpee);
       this.bumpAndCascade(bumpee, bumpees, bumpDone, depth + 1);
       return;
     } else {
@@ -397,10 +401,14 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** move meeple from bumpLoc to center of cell;
-   * @returns a meep that needs to bump.
+   * Expect cell is unoccupied; but maybe not for manu moves?
+   * @returns a meep to BumpInCascade
    */
   meeplesToCell(bumpees: ColMeeple[]) {
-    const bumps = bumpees.filter(meep => meep.card.addMeep(meep, meep.cellNdx)); // re-center
+    const bumps = bumpees.filter(meep => {
+      meep.highlight(false);
+      return meep.card.addMeep(meep, meep.cellNdx)
+    });
     return bumps[0];
   }
 

@@ -529,12 +529,17 @@ export class Player extends PlayerLib implements ColPlayer {
     const allPlayers = subGame.allPlayers as ReturnType<SubGameSetup['makePlayer']>[];
     this.subPlyr = allPlayers.find(plyr => plyr.index == this.index)!;
     if (!this.subPlyr) debugger;
+    this.syncSubGame(false);   // do first/full sync
     return subSetup
   }
-  syncSubGame() {
+  syncSubGame(update = true) {
     const stateInfo = this.gamePlay.scenarioParser.saveState(false);
+    stateInfo.update = update;
     this.subGame.parseScenario(stateInfo);
-    this.subGame.recordMeeps(false);
+    if (update) {
+      // this.subGame.scenarioParser.placeMeeplesOnMap(layout, false);
+      this.subGame.recordMeeps(false);
+    }
   }
   myStep<T extends BumpDir2>(step: Step<T>) {
     const meep = this.gamePlay.allMeeples.find(m => m.pcid == step.meep.pcid)!

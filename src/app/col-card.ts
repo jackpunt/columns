@@ -90,6 +90,8 @@ export class ColCard extends Tile {
   /** when openCells[0] is undefined: */
   get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
+  /** for parseScenario, clear card so addMeep() does the right thing */
+  rmAllMeeps() { this.meepCont.removeAllChildren() }
   /** the meepCont children (which are ColMeeple) */
   get meepsOnCard() { return this.meepCont.children.filter(c => (c instanceof ColMeeple))}
   /** meepsOnCard aligned with cellNdx, include meep(s) on bumpLoc */

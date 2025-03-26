@@ -237,7 +237,6 @@ export class GameState extends GameStateLib {
       // and find unresolved bumps? (from manual moves?)
       start: (col, bumpees: ColMeeple[] = []) => {
         // const col = this.state.col as number;
-        this.winnerMeep?.highlight(false);
         const meep = this.gamePlay.meeplesToCell(bumpees)
         if (meep) {
           const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
