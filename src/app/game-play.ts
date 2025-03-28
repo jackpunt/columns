@@ -17,9 +17,8 @@ export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
 export const nFacs = 4;
 
 // TODO: 4-color card for dead-end spots
+// TODO: try no dead in cols A-E
 // TODO: early black: prefer col-E
-// TODO:
-
 
 // Player tells game a specific BumpDir;
 // Game tells Player simple up/dn BumpDir0;
@@ -27,7 +26,7 @@ export const nFacs = 4;
 export const BD_N = 'N' as BumpDirC & AdvDir;
 export const BD_S = 'S' as BumpDirC & BumpDn;
 export const BD_SS = 'SS' as BumpDn2;
-// TODO; constants & types for player.pyrChoices[]
+// constants & types for player.pyrChoices[]
 export type BumpDirC = ('S' | 'N');       // Column dirs
 export type BumpDirA = ('SS' | BumpDirC)  // bumpDir choice to winner -> BumpDir2
 export type BumpDirP = ('SW' | 'SE' | 'NW' | 'NE'); // Pyramid dirs; length == 2
@@ -254,9 +253,7 @@ export class GamePlay extends GamePlayLib {
    * @returns meeples of Player in column, suitable for winner.meep
    */
   meepsInCol(colId: ColId, player: Player) {
-    // cannot advance in another column (allowed to 'advance' from row == 0)
     return player.meeples.filter(meep => meep.card.isInCol[colId]);
-    // TODO: alternative for Pyramid
   }
   /** set by Player.manuMoveMeeps(,dirA,) */
   dragDirs: BumpDir2[] = [];
@@ -369,11 +366,8 @@ export class GamePlay extends GamePlayLib {
   }
 
   cardsInRow(row: number, andBlack = true) {
-    // arrayN(this.nCols, 1).map(col => this.hexMap.getCard(this.nRows - 1 - row, col))
-    // TODO: use nextCard('E') ??
-    const [nr, nc] = this.hexMap.nRowCol
     const hexRow = this.hexMap[row];
-    return hexRow.map(hex => hex?.card).filter(card => (card !== undefined) && (andBlack || (card.maxCells != 0)));
+    return hexRow.map(hex => hex?.card).filter(card => !!card && (andBlack || (card.maxCells != 0)));
   }
   /**
    * cards with .isInCol(colId)
