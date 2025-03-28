@@ -151,7 +151,6 @@ export class ColCard extends Tile {
     meep.card = this;
     meep.cellNdx = cellNdx; // undefined if no openCell
     meep.fromHex = this.hex;   // for later use as fromHex?
-    // toBump -> undefined; BumpAndCascade -> meeplesToCell will addMeep() and resolve
     meep.faction = (cellNdx == undefined) ? undefined : this.factions[cellNdx];
     return toBump;
   }

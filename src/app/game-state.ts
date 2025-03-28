@@ -202,11 +202,11 @@ export class GameState extends GameStateLib {
         if (meep) {
           this.phase('BumpFromAdvance', col, meep);
         } else {
-          this.phase('MeepsToCol', col);
+          this.phase('AfterMoveMeep', col);
         }
       }
     },
-    // Similar to BumpAndCascade: initial bump: ['N'] or ['SS','S']
+    // initial bump: ['N'] or ['SS','S']
     BumpFromAdvance: {
       draggable: true,
       // meep.player chooses a bumpDir, and moveMeep(bumpee, card, ndx)
@@ -219,25 +219,21 @@ export class GameState extends GameStateLib {
           const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
           this.gamePlay.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
             const dir = this.gamePlay.cascadeDir(); // step.dir --> <S|N>
-            const bumpee = step.meep, stayee = step.stayee;// for debugger, logpoint
             if (upBump && dir !== 'N') debugger; // 'N' required?
-            this.phase('MeepsToCol', col, [stayee, bumpee])
+            this.phase('AfterMoveMeep', col)
           })
           return;
         }
-        this.phase('MeepsToCol', col); // cleanup and verify no more bumps
+        this.phase('AfterMoveMeep', col); // cleanup and verify no more bumps
       },
     },
-    MeepsToCol: {
-      // when bump and cascade has settled: cleanup placement of meeps
-      // and find unresolved bumps? (from manual moves?)
-      start: (col, bumpees: ColMeeple[] = this.gamePlay.meepsToMove) => {
-        console.log(stime(this, `.MeepsToCol.start: bumpees=`), bumpees.map(b=>`${b}`))
-        // const col = this.state.col as number;
-        const meep = this.gamePlay.meeplesToCell(bumpees)
+    AfterMoveMeep: {
+      start: (col) => {
+        // Resolve collision/bump OR ScoreForColor & continue to next Column.
+        console.log(stime(this, `.AfterMoveMeep: meepsToMove=`), this.gamePlay.meepsToMove.map(b => `${b}`))
+        const meep = this.gamePlay.meepsToMove[0];
         if (meep) {
-          const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
-          afterUpdate(meep, () => this.phase('BumpAndCascade', col, meep, step), this, 10)
+            afterUpdate(meep, () => this.phase('BumpAndCascade', col, meep), this, 10)
           return;
         }
         // TODO: add option/doneButton to 'confirm before score'
@@ -249,18 +245,20 @@ export class GameState extends GameStateLib {
         });
       }
     },
-    BumpAndCascade: { // winner|bumpee's meep identified and moved: cascade
+    BumpAndCascade: {
+      // winner|bumpee's meep identified and moved: cascade
       // initial: resolveWinner -> advDir: {N, NW, NE};
       // secondary: meepsToCol -> advDir: {N}
       draggable: true,
-      start: (col: number, meep: ColMeeple, step: Step<BumpDirC>) => {
+      start: (col: number, meep: ColMeeple) => {
+          const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
         const colId = ColSelButton.colNames[col];
         const other = meep.card.otherMeepInCell(meep)!; // MeepsToCell would not invoke unless other
         const ex = `Col-${colId} from ${step.fromCard}#${step.ndx}[${step.dir}] --> ${meep} & ${other?.toString() ?? '-'}`
-        console.log(stime(this, `.BumpAndCascade:`), ex); // this.table.logText(ex, `GameState: 'BumpAndCascade'`);
+        console.log(stime(this, `.BumpAndCascade:`), ex);
 
         // meep.highlight(true);
-        const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
+        const bumpDone = () => setTimeout(() => this.phase('AfterMoveMeep', col), TP.flipDwell);
         // manual will call bumpDone for each step.
         // auto will loop internally, then call bumpDone and return
         this.gamePlay.bumpAndCascade(meep, other, bumpDone); // ???
@@ -295,7 +293,7 @@ export class GameState extends GameStateLib {
       },
       done: (eog = this.gamePlay.isEndOfGame()) => {
         this.logScores();
-        this.phase(eog ? 'EndGame' : 'BeginRound');
+        setTimeout(() => this.phase(eog ? 'EndGame' : 'BeginRound'), TP.flashDwell);
       }
     },
     EndGame: {

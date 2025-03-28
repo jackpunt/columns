@@ -432,7 +432,6 @@ export class Player extends PlayerLib implements ColPlayer {
    * @param rowScores [empty when doing scoreForColor]
    */
   autoAdvanceMarker(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]>) {
-    this.gamePlay.isPhase('BumpAndCascade')// 'EndRound' --> Score for Rank
     const rMax = this.gamePlay.nRows - 1; // max Rank
     const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
     const allClkrs0 = this.markers.filter(m => m.value < max).map(m => [m.clicker1, m.clicker2]).flat(1);
@@ -459,31 +458,6 @@ export class Player extends PlayerLib implements ColPlayer {
       : allClkrs[0];     // lowest mrkr of the most present faction
     if (!clicker) debugger; // Player maxed out
     clicker?.onClick();    // {clicker.marker.value} -> {clicker.value}
-  }
-
-  // TODO: set isLegal on the AdvDir cards
-  /** manual mode for ResolveWinnerAndAdvance, BumpAndCascade */
-  adviseMeepleDropFunc(meep: ColMeeple, targetHex: ColHex2, ctx: DragContext, xy: XY) {
-    const gamePlay = this.gamePlay;
-    if (gamePlay.curPlayer.useRobo ) return false;
-    if (!meep.isMoveMeep) return false;
-    if (!gamePlay.isMovePhase) return false;
-    if (!gamePlay.cb_moveMeeps) return false;
-    const isLegit = meep.isLegalTarget(targetHex, { ...ctx, lastCtrl: false, lastShift: false })
-    if (!isLegit) return false; // ctl/shift breaks assertions.
-
-    const { card: fromCard, cellNdx } = meep, fromHex = fromCard.hex;
-    // when isLegalTarget is set correctly, ndx & dir will be defined:
-    const dir = fromHex.linkDirs.find(dir => fromHex.links[dir] == targetHex)! as BumpDir;
-    const asStep = function<T extends AdvDir | BumpDir>(dir: T) {
-      return { meep, fromCard, ndx: cellNdx, dir} as Step<T>
-    }
-    const card = targetHex.card
-    const ndx = (card.maxCells == 2) ? (xy.x <= 0 ? 0 : 1) : 0;
-    gamePlay.moveMeep(meep, card, ndx);
-    const step = asStep<AdvDir>(dir as AdvDir)
-    console.log(stime(this, `.adviseDrop: fromCard=${fromCard}#${ndx}[${dir}] -> ${meep}`))
-    return gamePlay.cb_moveMeeps(step);
   }
 
   readonly bumpDirsA = ['SS', 'S', 'N'] as BumpDirA[]; // pro-forma default
@@ -531,12 +505,10 @@ export class Player extends PlayerLib implements ColPlayer {
   }
   myStep<T extends BumpDir2>(step: Step<T>) {
     const meep = this.gamePlay.allMeeples.find(m => m.pcid == step.meep.pcid)!
-    const ndx0 = meep.cellNdx!;
     const fromCard = meep.card, dir = step.dir, ndx = step.ndx;
     const card = meep.card.nextCard(dir)!;
     this.gamePlay.moveMeep(meep, card, ndx);
-    const stayee = fromCard.meepAtNdx[ndx0];
-    return { meep, fromCard, dir, ndx, stayee } as Step<T>
+    return { meep, fromCard, dir, ndx } as Step<T>
   }
   subMeeps(...meeps: ColMeeple[]) {
     return meeps.map(meep => this.subGame.allMeeples.find(m => m.pcid == meep.pcid)!)
@@ -554,11 +526,33 @@ export class Player extends PlayerLib implements ColPlayer {
     return step
   }
 
-  /** meep advances to card; pick a cellNdx; choose bumpDir2
+  /** for manual mode */
+  adviseMeepleDropFunc(meep: ColMeeple, targetHex: ColHex2, ctx: DragContext, xy: XY) {
+    const gamePlay = this.gamePlay;
+    if (gamePlay.curPlayer.useRobo ) return false;
+    if (!meep.isMoveMeep) return false;
+    if (!gamePlay.isMovePhase) return false;
+    if (!gamePlay.cb_moveMeeps) return false;
+    const isLegit = meep.isLegalTarget(targetHex, { ...ctx, lastCtrl: false, lastShift: false })
+    if (!isLegit) return false; // ctl/shift breaks assertions.
+
+    const { card: fromCard, cellNdx } = meep, fromHex = fromCard.hex;
+    // when isLegalTarget is set correctly, ndx & dir will be defined:
+    const dir = fromHex.linkDirs.find(dir => fromHex.links[dir] == targetHex)! as BumpDir;
+    const asStep = function<T extends AdvDir | BumpDir>(dir: T) {
+      return { meep, fromCard, ndx: cellNdx, dir } as Step<T>
+    }
+    const card = targetHex.card
+    const ndx = (card.maxCells == 2) ? (xy.x <= 0 ? 0 : 1) : 0;
+    gamePlay.moveMeep(meep, card, ndx);
+    const step = asStep<AdvDir>(dir as AdvDir)
+    console.log(stime(this, `.adviseDrop: fromCard=${fromCard}#${ndx}[${dir}] -> ${meep}`))
+    return gamePlay.cb_moveMeeps(step);
+  }
+
+  /** meep advances to card; pick a cellNdx;
    *
-   * [choosing bumpDir2 is not really a thing...]
-   *
-   * gameState.isPhase('BumpAndCascade')
+   * adviseMeepleDropFunc infers the initial bumpDir.
    *
    * @param meep to advance or bump
    * @param dirA: 'N' | 'SS' | 'S'
@@ -566,7 +560,7 @@ export class Player extends PlayerLib implements ColPlayer {
    */
   manuMoveMeeps(meeps: ColMeeple[], dirA: BumpDirA, doneStr: string
     , cb?: CB_Step<BumpDir2> | CB_Step<AdvDir> | CB_Step<BumpDn>) {
-    this.gamePlay.meepsToMove = meeps.filter(m => m) as ColMeeple[];
+    this.gamePlay.meepsToMove = meeps.filter(m => m);// before move: many; after: 2 or 0
     this.gamePlay.dragDirs = this.allDirs(dirA);
     this.gamePlay.cb_moveMeeps = (step: Step<BumpDir2>) => {
       this.gamePlay.cb_moveMeeps = undefined; // one time only

@@ -50,7 +50,6 @@ export interface Step<T extends AdvDir | BumpDir2> {
   fromCard: ColCard; // where meeple started
   dir: T;            // fromCard -> meep.crd
   ndx: number;       // started fromCard.ndx
-  stayee?: ColMeeple;// other meeple, not bumped
   meepStr?: string;  // showing meep location at this point
 }
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
@@ -206,7 +205,9 @@ export class GamePlay extends GamePlayLib {
   /** interpose on addMeep for official moves; so we can track/log/verify */
   moveMeep(meep: ColMeeple, card: ColCard, ndx = 0) {
     this.recordMeep(meep); // before moving: record original card & cellNdx
+    const fromCard = meep.card, stayee = fromCard.otherMeepInCell(meep);
     const toBump = card.addMeep(meep, ndx);
+    stayee && fromCard.addMeep(stayee, stayee?.cellNdx)
     this.meepsToMove = toBump ? [meep, toBump] : [];
     return toBump;
   }
@@ -331,10 +332,7 @@ export class GamePlay extends GamePlayLib {
     console.log(stime(this, `.bumpAfterAdvance(${meep.toString()} ${other.toString()} cascDir=${cascDir})`))
     const step = (cascDir == BD_N)
       ? plyr.bumpUp(meep, other, cb_bumpAdvance)
-      : plyr.bumpDn2(other, undefined, (step: Step<BumpDir2>) => {
-        this.meeplesToCell([meep]);
-        cb_bumpAdvance?.(step);
-      })
+      : plyr.bumpDn2(other, undefined, cb_bumpAdvance)
     return step;
   }
   /** signal all bumps from this advance are cascDir */
@@ -356,11 +354,7 @@ export class GamePlay extends GamePlayLib {
     if (!!other) {
       const step = meep.player.bumpInCascade(meep, other, cascDir, bumpDone)
       if (!step) return;  // manual mode returns undefined, will call bumpDone
-      const bumpee = step.meep, stayee = step.stayee;
-      if (stayee) {
-        // stayee stops moving, settle into place. bumpee is already moved to its new cell
-        if (this.meeplesToCell([stayee])) debugger;  // bumpee should be gone...
-      }
+      const bumpee = step.meep
       // auto-mode returns the next Step<BumpDir>, expects a new call to plyr.bumpInCascade
       this.bumpAndCascade(bumpee, undefined, bumpDone, depth + 1);
       return;
@@ -423,7 +417,7 @@ export class GamePlay extends GamePlayLib {
 
   /** move meeple from bumpLoc to center of cell;
    * Expect cell is unoccupied; but maybe not for manu moves?
-   * @param bumpees the meeps [bumpee, stayee] that were movable (may be some undef's)
+   * @param bumpees the meeps [bumpee] that were movable (may be some undef's)
    * @returns a meep to BumpInCascade
    */
   meeplesToCell(bumpees: ColMeeple[]) {
