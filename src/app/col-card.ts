@@ -143,7 +143,8 @@ export class ColCard extends Tile {
   addMeep(meep: ColMeeple, cellNdx = this.openCells[0] ?? 0, xy?: XY) {
     // use ?? 0; b/c dualCell will parse xy->cellNdx[0..1]; must be a single-cell
     const toBump = this.otherMeepInCell(meep, cellNdx);
-    const locXY = toBump ? this.bumpLoc : this.meepleLoc(cellNdx); // meepleLoc IFF cellNdx supplied and cell is empty
+    const locXY = !toBump ? this.meepleLoc(cellNdx)
+      : this.isBumpLoc(toBump) ? this.meepleLoc(cellNdx) : this.bumpLoc;
     this.meepCont.addChild(meep);
     if (!this.hex) debugger; // this Card must be on a hex!
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex; // no collisions, but fromHex
@@ -327,7 +328,7 @@ export class BlackNull extends BlackCard {
   constructor(aname = 'Null:0', col?: number, fs?: number) {
     super(aname, col, fs, 0); // with zero length factions.
     const colNum = col ?? Number.parseInt(aname.split(':')[1] ?? '0');
-    const colId = ColSelButton.colNames[colNum];
+    const colId = ColSelButton.colNames[colNum]; // this._colId = undefined
     this.setLabel(colId, fs); // is Black...
     this.paint(C.BLACK); // no factions, no color: paint it here.
   }

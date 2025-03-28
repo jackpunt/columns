@@ -81,6 +81,19 @@ export class GameState extends GameStateLib {
     return !notDone;
   }
 
+  _doneClicked: (evt: any, data?: any) => void = () => {}
+  doneClicked(evt: any, data?: any) {
+    this._doneClicked.call(this, evt, data);
+  }
+  whenDoneClicked(onClick: (evt: any, data?: any) => void) {
+    this._doneClicked = onClick;
+  }
+  override doneButton(label?: string, color?: string, afterPopup?: () => void) {
+    const rv = super.doneButton(label, color, afterPopup)
+    this.whenDoneClicked(() => this.done())
+    return rv
+  }
+
   winnerMeep?: ColMeeple;
 
   get panel() { return this.curPlayer.panel; }
@@ -170,14 +183,14 @@ export class GameState extends GameStateLib {
     ResolveWinner: { // resolve winner, select & advance meep
       draggable: true,
       start: (col = 1) => {
-        // col index colNames, so 1..nc; blackN is indexed [0..nc-1]
-        const blackN = this.gamePlay.blackN, bCard = blackN[col - 1], colId = bCard?.colId;
         this.winnerMeep = undefined;
         if (this.gamePlay.isEndOfGame()) { return this.phase('EndGame') }
+        // col index colNames, so 1..nc; blackN is indexed [0..nc-1]
+        const blackN = this.gamePlay.blackN, bCard = blackN[col - 1], colId = bCard?.colId;
         if (col > blackN.length) { return this.phase('EndTurn') }
-        if (bCard.factions.length == 0) { return this.phase('ResolveWinner', col + 1) }
-        // calls player.advanceOneMeeple(meeps, cb_advanceMeeple)
-        this.gamePlay.resolveWinnerAndAdvance(col, (step?: Step<AdvDir>) => {
+        if (bCard.maxCells == 0) { return this.phase('ResolveWinner', col + 1) } // skip BlackNull column
+        // calls player.advanceOneMeeple(meepsInCol, cb_advanceMeeple)
+        this.gamePlay.resolveWinnerAndAdvance(colId, (step?: Step<AdvDir>) => {
           setTimeout(() => this.state.done!(col, step), TP.flipDwell)
         })
       },
@@ -213,34 +226,18 @@ export class GameState extends GameStateLib {
           return;
         }
         this.phase('MeepsToCol', col); // cleanup and verify no more bumps
-      }
-    },
-    BumpAndCascade: { // winner|bumpee's meep identified and moved: cascade
-      // initial: resolveWinner -> advDir: {N, NW, NE};
-      // secondary: meepsToCol -> advDir: {N}
-      draggable: true,
-      start: (col: number, meep: ColMeeple, step: Step<BumpDirC>) => {
-        const colId = ColSelButton.colNames[col];
-        this.gamePlay.setCurPlayer(meep.player); // light up the PlayerPanel
-        meep.highlight(true);
-        this.table.logText(`Col-${colId} from ${step.fromCard}#${step.ndx}->${step.dir} --> ${meep}`, `GameState: 'BumpAndCascade'`);
-        const bumpDone = (bumpees: ColMeeple[]) => setTimeout(() => this.phase('MeepsToCol', col, bumpees), TP.flipDwell);
-        this.doneButton(`bump & cascade ${col} done`, meep.player.color, () => {
-          // this.gamePlay.advanceMeeple(meep, step.dir, step.ndx, bumpDone); // advance; bump & cascade -> bumpDone
-          this.gamePlay.bumpAndCascade(meep, [], bumpDone); // ???
-        });
-        return;
       },
     },
     MeepsToCol: {
       // when bump and cascade has settled: cleanup placement of meeps
       // and find unresolved bumps? (from manual moves?)
-      start: (col, bumpees: ColMeeple[] = []) => {
+      start: (col, bumpees: ColMeeple[] = this.gamePlay.meepsToMove) => {
+        console.log(stime(this, `.MeepsToCol.start: bumpees=`), bumpees.map(b=>`${b}`))
         // const col = this.state.col as number;
         const meep = this.gamePlay.meeplesToCell(bumpees)
         if (meep) {
           const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
-          afterUpdate(meep, () => this.phase('BumpAndCascade',col, meep, step), this, 10)
+          afterUpdate(meep, () => this.phase('BumpAndCascade', col, meep, step), this, 10)
           return;
         }
         // TODO: add option/doneButton to 'confirm before score'
@@ -251,6 +248,24 @@ export class GameState extends GameStateLib {
           setTimeout(() => this.phase('ResolveWinner', col + 1), TP.flipDwell) // Resolve next col
         });
       }
+    },
+    BumpAndCascade: { // winner|bumpee's meep identified and moved: cascade
+      // initial: resolveWinner -> advDir: {N, NW, NE};
+      // secondary: meepsToCol -> advDir: {N}
+      draggable: true,
+      start: (col: number, meep: ColMeeple, step: Step<BumpDirC>) => {
+        const colId = ColSelButton.colNames[col];
+        const other = meep.card.otherMeepInCell(meep)!; // MeepsToCell would not invoke unless other
+        const ex = `Col-${colId} from ${step.fromCard}#${step.ndx}[${step.dir}] --> ${meep} & ${other?.toString() ?? '-'}`
+        console.log(stime(this, `.BumpAndCascade:`), ex); // this.table.logText(ex, `GameState: 'BumpAndCascade'`);
+
+        // meep.highlight(true);
+        const bumpDone = () => setTimeout(() => this.phase('MeepsToCol', col), TP.flipDwell);
+        // manual will call bumpDone for each step.
+        // auto will loop internally, then call bumpDone and return
+        this.gamePlay.bumpAndCascade(meep, other, bumpDone); // ???
+        return;
+      },
     },
     EndTurn: {
       start: () => {

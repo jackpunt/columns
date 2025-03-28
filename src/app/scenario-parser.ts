@@ -59,12 +59,12 @@ export class ScenarioParser extends SPLib {
     const turnSet = (turn !== undefined); // indicates a Saved Scenario: assign & place everything
     if (turnSet) {
       gamePlay.turnNumber = turn;
-      table.logText(`turn = ${turn}`, `${isGUI ? 'C ' : 'R '}_parseScenario`);
+      // console.log(stime(this, `.parseScenario: turn = ${turn}`));
       newCards && this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     // layout or undefined:
     {
-      console.log(stime(this, `.parseScenario: newCards=${newCards} layout=`), layout);
+      // console.log(stime(this, `.parseScenario: newCards=${newCards} layout=`), layout);
       newCards && this.placeCardsOnMap(layout); // for sync, leave cards as they are
       this.placeMeeplesOnMap(layout, newCards); // for sync, do not 'make' new cards
     }
@@ -105,11 +105,12 @@ export class ScenarioParser extends SPLib {
         black0.splice(2, 1); // remove colId==C;
       }
       if (nc == 4) {
+        // BlackNull: maxCells = 0; column is NOT in play.
         blackN.splice(2, 1, new BlackNull('Null:3')); // use only 4 columns, remove 'C'
       }
     }
     gamePlay.black0 = black0.slice();
-    gamePlay.blackN = blackN.slice();
+    gamePlay.blackN = blackN.slice();  // defines gamePlay.colIdsInPlay
     gamePlay.allCols = allCols;   // for printing
     gamePlay.allDuals = allDuals; // for printing
     const pCards = allCols.slice();

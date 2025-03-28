@@ -46,10 +46,10 @@ export class TP extends TPLib {
   static topRankOnly = false;
   /** score only the top n meeps */
   static nTopMeeps = 3;
-  /** enable textLog in scoreForColor */
+  /** enable textLog in scoreForColor & parseScenario */
   static logFromSubGame = false;
   /** true -> show auto_bids when selected; false -> show after make-bids done click. */
-  static showAllBids = true;
+  static showAllBids = false;
   /** use extra meeple if player count <= useXtraMeep */
   static useXtraMeep = 4;
   /** setAutoPlay if player.index < startAuto */

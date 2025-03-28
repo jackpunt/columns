@@ -92,10 +92,10 @@ export class ColTable extends Table {
   // Note: nCols is already >= 4!
   override get panelWidth() { return Math.max(4, this.nCols) * .5; } // (2.5 / 3.5 * .7) = .5 (* onScreenRadius)
 
-  override doneClicked(evt?: any, data?: any): void {
-    super.doneClicked(evt, data); // vis=false; phaseDone(data)
+  override doneClicked(evt?: any, data?: any) {
+    if (this.doneButton) this.doneButton.visible = false;
+    this.gamePlay.gameState.doneClicked(evt, data)
   }
-
   override panelLocsForNp(np: number): number[] {
     return [[], [0], [0, 2], [0, 3, 2], [0, 3, 5, 2], [0, 3, 4, 5, 2], [0, 3, 4, 5, 2, 1]][np];
   }

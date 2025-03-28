@@ -16,6 +16,11 @@ import { TP } from "./table-params";
 export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
 export const nFacs = 4;
 
+// TODO: 4-color card for dead-end spots
+// TODO: early black: prefer col-E
+// TODO:
+
+
 // Player tells game a specific BumpDir;
 // Game tells Player simple up/dn BumpDir0;
 // then Player consults map/usePyrTopo and returns a BumpDir
@@ -194,6 +199,10 @@ export class GamePlay extends GamePlayLib {
     } while (true)
   }
 
+  movePhases = ['BumpAndCascade', 'BumpFromAdvance', 'ResolveWinner'];
+  get isMovePhase() {
+    return this.movePhases.includes(this.gameState.state.Aname!)
+  }
   /** interpose on addMeep for official moves; so we can track/log/verify */
   moveMeep(meep: ColMeeple, card: ColCard, ndx = 0) {
     this.recordMeep(meep); // before moving: record original card & cellNdx
@@ -201,7 +210,16 @@ export class GamePlay extends GamePlayLib {
     this.meepsToMove = toBump ? [meep, toBump] : [];
     return toBump;
   }
-  meepsToMove: ColMeeple[] = []; // [meep, toBump]
+  _meepsToMove: ColMeeple[] = []; // [meep, toBump]
+  get meepsToMove() { return this._meepsToMove }
+  set meepsToMove(meeps: ColMeeple[]) {
+    this._meepsToMove.forEach(m => m.highlight(false, false))
+    this._meepsToMove = meeps;
+    this._meepsToMove.forEach(m => m.highlight(true, false))
+    this.gameSetup.stage.update();
+  }
+  /** Player move meeps manually */
+  cb_moveMeeps?: (step: Step<AdvDir> | Step<BumpDir2>) => boolean;
 
   /**
    * Determine winningBidder (if any), select meep to advance, gp.moveMeep(card, ndx)
@@ -213,10 +231,10 @@ export class GamePlay extends GamePlayLib {
    * @param col column [1..nCols] supplied by gameState
    * @param cb_advanceMeeple callback when winningBidder has selected a meep, dir & ndx to advance.
    */
-  resolveWinnerAndAdvance(col: number, cb_advanceMeeple: (step?: Step<AdvDir>) => void) {
-    const colId = ColSelButton.colNames[col];
-    const plyr = this.winningBidder(colId), bid = plyr?.bidOnCol(colId);
+  resolveWinnerAndAdvance(colId: ColId, cb_advanceMeeple: (step?: Step<AdvDir>) => void) {
+    const plyr =  this.winningBidder(colId);
     if (plyr) {
+      this.setCurPlayer(plyr); // so we know plyr.useRobo
       const meepsInCol = this.meepsInCol(colId, plyr);
       this.meepsToMove = meepsInCol;
       // in pyramid games, is possible to bid & win a column where you have no meeps!
@@ -239,7 +257,8 @@ export class GamePlay extends GamePlayLib {
     return player.meeples.filter(meep => meep.card.isInCol[colId]);
     // TODO: alternative for Pyramid
   }
-
+  /** set by Player.manuMoveMeeps(,dirA,) */
+  dragDirs: BumpDir2[] = [];
   cascadeDir(bumpDir?: BumpDir2) {
     return bumpDir ? this.cascDir = (bumpDir.startsWith('S') ? 'S' : 'N') : this.cascDir!;
   }
@@ -312,7 +331,10 @@ export class GamePlay extends GamePlayLib {
     console.log(stime(this, `.bumpAfterAdvance(${meep.toString()} ${other.toString()} cascDir=${cascDir})`))
     const step = (cascDir == BD_N)
       ? plyr.bumpUp(meep, other, cb_bumpAdvance)
-      : plyr.bumpDn2(other, cb_bumpAdvance)
+      : plyr.bumpDn2(other, undefined, (step: Step<BumpDir2>) => {
+        this.meeplesToCell([meep]);
+        cb_bumpAdvance?.(step);
+      })
     return step;
   }
   /** signal all bumps from this advance are cascDir */
@@ -323,30 +345,27 @@ export class GamePlay extends GamePlayLib {
    *
    * Check for toBump, recurse until no more toBump.
    * @param meep has been moved to current loc; check for collision and bump
-   * @param bumpees previous bumps in this cascade, push new bumpee each recursion
+   * @param other otherMeepInCell with meep (if any)
    * @param bumpDone callback(bumpees) when cascade of bumps has stopped
    * @param depth
    */
-  bumpAndCascade(meep: ColMeeple, bumpees: ColMeeple[] = [], bumpDone?: (bumpees: ColMeeple[]) => void, depth = 0) {
-    if (depth > this.nRows) debugger;
-    const card0 = meep.card, ndx = meep.cellNdx;
-    const other = card0.otherMeepInCell(meep, ndx);
+  bumpAndCascade(meep: ColMeeple, other = meep.card.otherMeepInCell(meep), bumpDone?: () => void, depth = 0) {
+    this.setCurPlayer(meep.player); // light up the PlayerPanel
+    const cascDir = this.cascadeDir()
+    console.log(stime(this, `.bumpAndCascade ->(${meep.toString()} ${other?.toString()} cascDir=${cascDir})`))
     if (!!other) {
-      const cascDir = this.cascadeDir()
-      console.log(stime(this, `.bumpAndCascade ->(${meep.toString()} ${other.toString()} cascDir=${cascDir})`))
-      console.groupCollapsed(`${meep.player.Aname}@${this.turnId} bumpAndCascade`)
-      const step = meep.player.bumpInCascade(meep, other, cascDir)
-      console.groupEnd();
+      const step = meep.player.bumpInCascade(meep, other, cascDir, bumpDone)
+      if (!step) return;  // manual mode returns undefined, will call bumpDone
       const bumpee = step.meep, stayee = step.stayee;
       if (stayee) {
-        // stayee stops moving, settle into place
+        // stayee stops moving, settle into place. bumpee is already moved to its new cell
         if (this.meeplesToCell([stayee])) debugger;  // bumpee should be gone...
       }
-      bumpees.push(bumpee);
-      this.bumpAndCascade(bumpee, bumpees, bumpDone, depth + 1);
+      // auto-mode returns the next Step<BumpDir>, expects a new call to plyr.bumpInCascade
+      this.bumpAndCascade(bumpee, undefined, bumpDone, depth + 1);
       return;
     } else {
-      bumpDone && bumpDone(bumpees);
+      bumpDone && bumpDone();
     }
   }
 
@@ -360,7 +379,7 @@ export class GamePlay extends GamePlayLib {
     // TODO: use nextCard('E') ??
     const [nr, nc] = this.hexMap.nRowCol
     const hexRow = this.hexMap[row];
-    return hexRow.map(hex => hex?.card).filter(card => (card !== undefined) && (andBlack || (card.factions.length != 0)));
+    return hexRow.map(hex => hex?.card).filter(card => (card !== undefined) && (andBlack || (card.maxCells != 0)));
   }
   /**
    * cards with .isInCol(colId)
@@ -372,10 +391,12 @@ export class GamePlay extends GamePlayLib {
     const [rn, ro] = andBlack ? [0, 0] : [2, 1]; // also snip BlackNull('Null:3')
     return arrayN(this.nRows - rn, ro)
       .map(row => this.cardsInRow(row)
-        .filter(card => card.isInCol[colId] && (andBlack || (card.factions.length != 0)))).flat();
+        .filter(card => card.isInCol[colId] && (andBlack || (card.maxCells != 0)))).flat();
+    // Note: (maxCells == 0) for unplayable BlackNull on bottom row.
   }
 
   get colIdsInPlay() {
+    // black cards have maxCells = (inPlay) ? 2*np : 0 (not in play)
     return this.blackN.filter(bc => bc.maxCells > 0).map(card => [card.colId, card.x] as [colId: ColId, x: number])
   }
 
@@ -402,12 +423,13 @@ export class GamePlay extends GamePlayLib {
 
   /** move meeple from bumpLoc to center of cell;
    * Expect cell is unoccupied; but maybe not for manu moves?
+   * @param bumpees the meeps [bumpee, stayee] that were movable (may be some undef's)
    * @returns a meep to BumpInCascade
    */
   meeplesToCell(bumpees: ColMeeple[]) {
     const bumps = bumpees.filter(meep => {
-      meep.highlight(false);
-      return meep.card.addMeep(meep, meep.cellNdx)
+      meep?.highlight(false);
+      return meep?.card.addMeep(meep, meep.cellNdx)
     });
     return bumps[0];
   }

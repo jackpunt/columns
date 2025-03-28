@@ -1,18 +1,18 @@
 import { F } from "@thegraid/common-lib";
 import type { Paintable } from "@thegraid/easeljs-lib";
-import { Meeple, type MeepleShape as MeepleShapeLib, type Player as PlayerLib, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
+import { Meeple, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib, type Player as PlayerLib } from "@thegraid/hexlib";
+import type { ColId } from "./card-button";
 import type { ColCard } from "./col-card";
-import type { Faction } from "./game-play";
-import type { GameState } from "./game-state";
+import type { Faction, GamePlay } from "./game-play";
 import { MeepleShape } from "./meeple-shape";
 import { ColHex2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { TP } from "./table-params";
-import type { ColId } from "./card-button";
 
 
 export class ColMeeple extends Meeple {
 
+  declare gamePlay: GamePlay;
   declare player: Player;
   declare baseShape: MeepleShapeLib & { highlight(l?: boolean, u?: boolean): void; };
   declare fromHex: ColHex2;
@@ -48,12 +48,15 @@ export class ColMeeple extends Meeple {
     if (update) this.stage?.update();
   }
 
+  get isMoveMeep() {
+    return this.gamePlay.meepsToMove.includes(this); // also: !!meep.highlight
+  }
+
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
-    const state = ctx.gameState.state.Aname;
-    if (!['BumpAndCascade', 'ResolveWinner'].includes(state!) && !ctx.lastShift)
-      return `Only move during Bump phase, not "${state}"`;
-    const okToMove = (ctx.gameState as GameState).gamePlay.meepsToMove;
-    return (okToMove.includes(this) || ctx.lastShift) ? undefined : `Only move highlighted or its bumpee`;
+    if (!this.gamePlay.isMovePhase && !ctx.lastShift)
+      return `Not allowed to move/bump in Phase: "${ctx.gameState.state.Aname}"`;
+    // const okToMove = (ctx.gameState as GameState).gamePlay.meepsToMove.includes(this);
+    return (this.isMoveMeep || ctx.lastShift) ? undefined : `Only move highlighted meeples`;
   }
 
   // unless cantBeMoved()
@@ -61,21 +64,26 @@ export class ColMeeple extends Meeple {
   //   markLegalHexes(tile) -> isLegalTarget(hex)
 
   override dragStart(ctx: DragContext): void {
-    this.player.setCardNdxs(this.card);
+    this.fromHex = this.card.hex;
+    // set cardNdxs:
+    this.cardNdxs = this.gamePlay.dragDirs.map(dir => {
+      const nextCard = this.card.nextCard(dir);
+      if (!nextCard) return undefined;
+      return this.gamePlay.cellsForBumpee(nextCard, dir);
+    }).flat().filter(cardNdx => !!cardNdx);
   }
+  // isLegalTarget for manuMoveBumpee; could be moved to gamePlay?
+  cardNdxs: { card: ColCard, ndxs: number[] }[] = [];  // allowed bumpDirsA during manual move
 
   override isLegalTarget(toHex: Hex1, ctx: DragContext): boolean {
     const plyr = this.player;
     if (!(toHex instanceof ColHex2)) return false;
     if (ctx.lastShift && ctx.lastCtrl) return true; // can shift cols with Ctrl
-    const colId = plyr.curSelCard?.colId ?? '';
-    if (!(toHex.isInCol(colId))) return false; // stay in same hex-column
     if (ctx.lastShift) return true;
-    // if (toHex === this.fromHex) return true;
-    const toCard = toHex.card, cardNdxs = plyr.cardNdxs;
-    if (!cardNdxs.find(({card, ndxs})=> card == toCard)) return false;
-    if ((ctx.gameState.isPhase('ResolveWinner'))) return true; // meepleToAdvance
-    if ((ctx.gameState.isPhase('BumpAndCascade'))) return true; // selectNdx_Bumpee
+    if (toHex === this.fromHex) return true;
+    const toCard = toHex.card;
+    if (!this.cardNdxs.find(({ card, ndxs }) => card == toCard)) return false;
+    if (this.gamePlay.isMovePhase) return true;
     return false;
   }
 
@@ -85,6 +93,10 @@ export class ColMeeple extends Meeple {
 
   // hex.card.addMeep(this)
   override dropFunc(targetHex: IHex2, ctx: DragContext): void {
+    if (targetHex == this.fromHex) {
+      this.card.addMeep(this, this.cellNdx);
+      return
+    }
     if (targetHex instanceof ColHex2) {
       const card = targetHex.card!; // ASSERT: every hex has a card
       const xy = this.parent.localToLocal(this.x, this.y, card.meepCont);

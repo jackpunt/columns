@@ -27,7 +27,7 @@ export interface ColPlayer extends PlayerLib {
   /** choose bumpee, card & cellNdx */
   bumpUp(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
   /** choose bumpee, card & cellNdx */
-  bumpDn2(other: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
+  bumpDn2(other: ColMeeple, meep?: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
   /** choose bumpee, card & cellNdx */
   bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>): Step<BumpDn> | undefined;
   doneifyCards(): void;
@@ -82,8 +82,6 @@ export class Player extends PlayerLib implements ColPlayer {
     }
     const ymax = this.makeCardButtons(this.gamePlay.nCols);  // number of columns
     this.setupCounters(ymax);
-    const manuBut = this.manuButton = this.makeAutoButton(2, 'M', { bgColor: 'lime', active: false }); // manual done
-    manuBut.on(S.click, () => this.manualDone(), this); // toggle useRobo
     const autoBut = this.autoButton = this.makeAutoButton(1, 'A');
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
     const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
@@ -462,22 +460,15 @@ export class Player extends PlayerLib implements ColPlayer {
     if (!clicker) debugger; // Player maxed out
     clicker?.onClick();    // {clicker.marker.value} -> {clicker.value}
   }
-  manualDoneFunc!: () => void;
-  manualDone() {
-    this.manuButton.activate(false); // vis = false
-    this.manualDoneFunc()
-  }
-  manualBumpAndCascade() {
 
-  }
   // TODO: set isLegal on the AdvDir cards
   /** manual mode for ResolveWinnerAndAdvance, BumpAndCascade */
   adviseMeepleDropFunc(meep: ColMeeple, targetHex: ColHex2, ctx: DragContext, xy: XY) {
-    if (this.useRobo ) return false;
-    if (!this.meepsToMove.includes(meep)) return false;
-    if (!this.cb_moveMeeps) return false;
-    if (!ctx.gameState.isPhase('ResolveWinner')
-      && !ctx.gameState.isPhase('BumpAndCascade')) return false;
+    const gamePlay = this.gamePlay;
+    if (gamePlay.curPlayer.useRobo ) return false;
+    if (!meep.isMoveMeep) return false;
+    if (!gamePlay.isMovePhase) return false;
+    if (!gamePlay.cb_moveMeeps) return false;
     const isLegit = meep.isLegalTarget(targetHex, { ...ctx, lastCtrl: false, lastShift: false })
     if (!isLegit) return false; // ctl/shift breaks assertions.
 
@@ -489,16 +480,13 @@ export class Player extends PlayerLib implements ColPlayer {
     }
     const card = targetHex.card
     const ndx = (card.maxCells == 2) ? (xy.x <= 0 ? 0 : 1) : 0;
-    this.gamePlay.moveMeep(meep, card, ndx);
-    return this.cb_moveMeeps(asStep<AdvDir>(dir as AdvDir));
+    gamePlay.moveMeep(meep, card, ndx);
+    const step = asStep<AdvDir>(dir as AdvDir)
+    console.log(stime(this, `.adviseDrop: fromCard=${fromCard}#${ndx}[${dir}] -> ${meep}`))
+    return gamePlay.cb_moveMeeps(step);
   }
 
   readonly bumpDirsA = ['SS', 'S', 'N'] as BumpDirA[]; // pro-forma default
-  meepsToMove!: ColMeeple[]
-  dragDirs: BumpDir2[] = [];
-  // legal drop spots for manuMoveBumpee
-  cardNdxs: { card: ColCard, ndxs: number[] }[] = [];  // allowed bumpDirsA during manual move
-  cb_moveMeeps?: (step: Step<AdvDir> | Step<BumpDir2>) => boolean;
 
   /** true: Player delgates to SubPlayer; false: Player delegates to GUI */
   setAutoPlay(v = !this.useRobo): void {
@@ -572,32 +560,26 @@ export class Player extends PlayerLib implements ColPlayer {
    *
    * gameState.isPhase('BumpAndCascade')
    *
-   * @param meep advance or bumpee
-   * @param dirAs [this.bumpDirsA: ['N'] or ['SS', 'S']] OR cascade: ['S'] or ['N']
-   * @param cb (ndx, bumpDir) -> gamePlay for advanceMeeple -> bumpAndCascade()
+   * @param meep to advance or bump
+   * @param dirA: 'N' | 'SS' | 'S'
+   * @param cb CB_Step\<any> --> gamePlay for advanceMeeple -> bumpAndCascade()
    */
   manuMoveMeeps(meeps: ColMeeple[], dirA: BumpDirA, doneStr: string
     , cb?: CB_Step<BumpDir2> | CB_Step<AdvDir> | CB_Step<BumpDn>) {
-    meeps = this.meepsToMove = meeps.filter(m => m) as ColMeeple[];
-    meeps.forEach(m => m.highlight(true, true)); // light them up!
-    if (doneStr) this.gamePlay.gameState.doneButton(doneStr, this.color);
-    this.dragDirs = this.allDirs(dirA);
-    this.cb_moveMeeps = (step: Step<BumpDir2>) => {
-      this.meepsToMove.forEach(m => m.highlight(false))
-      this.cb_moveMeeps = undefined; // one time only
-      if (cb) (cb as CB_Step<BumpDir2>)(step)
+    this.gamePlay.meepsToMove = meeps.filter(m => m) as ColMeeple[];
+    this.gamePlay.dragDirs = this.allDirs(dirA);
+    this.gamePlay.cb_moveMeeps = (step: Step<BumpDir2>) => {
+      this.gamePlay.cb_moveMeeps = undefined; // one time only
+      if (cb) (cb as CB_Step<BumpDir2>)(step); // pretty sure cb must be defined
       return true;
     }
+    if (doneStr) {
+      this.gamePlay.gameState.doneButton(doneStr, this.color);
+      this.gamePlay.gameState.whenDoneClicked(() => {
+        console.log(stime(`manuMoveMeeps.doneClicked: meepsToMove =`), this.gamePlay.meepsToMove)
+      })
+    }
     return undefined;
-  }
-  /** invoked from dragStart -> setLegalMark */
-  setCardNdxs(fromCard: ColCard, dirs = this.dragDirs) {
-    // for ColMeeple.isLegalTarget()
-    return this.cardNdxs = dirs.map(dir => {
-      const nextCard = fromCard.nextCard(dir);
-      if (!nextCard) return undefined;
-      return this.gamePlay.cellsForBumpee(nextCard, dir);
-    }).flat().filter(cardNdx => !!cardNdx);
   }
 
   /** From gamPlay.ResolveWinnerAndAdvance: choose a meeple and advance it one rank.
@@ -609,11 +591,13 @@ export class Player extends PlayerLib implements ColPlayer {
    */
   advanceOneMeeple(meeps: ColMeeple[], cb_advanceMeep?: CB_Step<AdvDir>): Step<AdvDir> | undefined {
     if (!this.useRobo || !cb_advanceMeep) {
-      return this.manuMoveMeeps(meeps, BD_N, `advance meeple`, cb_advanceMeep)
+      this.manuMoveMeeps(meeps, BD_N, `advance meeple`, cb_advanceMeep)
+      return
     }
     this.syncSubGame();
     const subMeeps = this.subMeeps(...meeps);
-    console.groupCollapsed(stime(this, `.advanceOneMeeple: ${this.Aname}@${this.gamePlay.turnId}`), meeps.map(m => m?.toString()))
+    console.groupCollapsed(`${this.Aname}@${this.gamePlay.turnId} advanceOneMeeple`)
+    console.log(stime(this, `.advanceOneMeeple: meep =`), meeps.map(m => m?.toString()))
     const subStep = this.subPlyr.advanceOneMeeple(subMeeps)
     console.groupEnd()
     const step = this.myStep(subStep);
@@ -636,10 +620,10 @@ export class Player extends PlayerLib implements ColPlayer {
     return step;
   }
   /** choose bumpee, card & cellNdx */
-  bumpDn2(other: ColMeeple, cb_bump?: CB_Step<BumpDir2>) {
+  bumpDn2(other: ColMeeple, meep?: ColMeeple, cb_bump?: CB_Step<BumpDir2>) {
     // is bumpFromAdvance; cannot bump your own meep down/down2
     if (!this.useRobo) {
-      this.manuMoveMeeps([other], BD_N, 'bumpDn2', cb_bump);
+      this.manuMoveMeeps([other], BD_SS, 'bumpDn2', cb_bump);
       return;
     }
     this.syncSubGame();
@@ -655,7 +639,7 @@ export class Player extends PlayerLib implements ColPlayer {
   /** choose bumpee, card & cellNdx */
   bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>) {
     if (!this.useRobo) {
-      this.manuMoveMeeps([meep, other], BD_N, 'bumpDn', cb_bump);
+      this.manuMoveMeeps([meep, other], BD_S, 'bumpDn', cb_bump);
       return;
     }
     this.syncSubGame();
@@ -669,7 +653,11 @@ export class Player extends PlayerLib implements ColPlayer {
   }
 
   // advanceMeeple will need to decide who/how to bump:
-  bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
+  bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC, bumpDone?: () => void): Step<BumpDir> | undefined {
+    if (!this.useRobo) {
+      this.manuMoveMeeps([meep, other], bumpDirC, bumpDirC == BD_S ? 'bumpDn' : 'bumpUp', bumpDone);
+      return undefined;
+    }
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
     console.groupCollapsed(stime(this, `.bumpInCascade: ${this.Aname}@${this.gamePlay.turnId} ${[meep, other].map(m => m.toString())}`))
@@ -785,6 +773,7 @@ export class SubPlayer extends Player {
           let bumpee = meep;
           if (isAdv) { // set winnerMeep, and cascadeDir (if bumping)
             this.gamePlay.gameState.winnerMeep = meep;
+            console.log(stime(this, `.evalMove.isAdv: ${meep} & ${other ?? '-'}`))
             if (other) {
               // bump & move meep or other, and set cascadeDir:
               const bStep = gamePlay.bumpAfterAdvance(meep, other)!
