@@ -39,10 +39,6 @@ export class RectHex extends Hex1Lib {
   get card() { return super.tile as ColCard }
   set card(card) { super.tile = card; }
 
-  /** easy reference from Hex -> card.isInCol() */
-  isInCol(colId: ColId) {
-    return this.card?.isInCol[colId] ?? false
-  }
 }
 
 class RectHex2Mixed extends Hex2Mixin(RectHex) {};
@@ -124,7 +120,7 @@ export class DualLegalMark extends LegalMark {
   // replace original legalMark with multiple circles
   doGraphicsDual(card: ColCard) {
     const xy = card.factions.map((f, i) => card.meepleLoc(i))
-    const radius = this.hex2.radius * .27;
+    const radius = this.hex2.radius * .37;
     this.removeAllChildren();
     xy.forEach(({ x, y }) => {
       const cs = new CircleShape(this.pc[1], radius, '');

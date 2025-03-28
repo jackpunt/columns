@@ -87,10 +87,6 @@ export class ColMeeple extends Meeple {
     return false;
   }
 
-  isInCol(colId: ColId) {
-    return this.card.isInCol[colId]
-  }
-
   // hex.card.addMeep(this)
   override dropFunc(targetHex: IHex2, ctx: DragContext): void {
     if (targetHex == this.fromHex) {

@@ -19,9 +19,9 @@ export class TileExporter extends TileExporterLib {
     const cardSingle_1_75_base = [
       ...BlackCard.countClaz(8),
       ...BlackCard.countClaz(8),
-      // ...PrintDual.countClaz(16),
-      // ...PrintCol.countClaz(4),
-      // ...PrintCol.countClaz(36),
+      ...PrintDual.countClaz(16),
+      ...PrintCol.countClaz(4),
+      ...PrintCol.countClaz(36),
     ]
     const cardSingle_1_75_hand = [
       // ...PrintBidValue.countClaz(4, 0, 525),
@@ -57,10 +57,10 @@ export class TileExporter extends TileExporterLib {
     ];
 
     const pageSpecs: PageSpec[] = [];
-    this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
+    // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
+    // this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }

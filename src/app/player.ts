@@ -69,6 +69,13 @@ export class Player extends PlayerLib implements ColPlayer {
     return Math.sum(...myScores)
   }
 
+  /**
+   * @param colId
+   * @returns meeples of Player in column, candidates for winner.meep
+   */
+  meepsInCol(colId: ColId) {
+    return this.meeples.filter(meep => meep.card.isInCol[colId]);
+  }
 
   // 2 score counters (advancing on track)
   // [AvailGreen, ChoosenYellow, UsedRed-disabled]
@@ -678,7 +685,7 @@ export class Player extends PlayerLib implements ColPlayer {
   /** count of meeples on each Faction [B, r, g, b, v] */
   get meepFactions() {
     const counts = arrayN(1 + nFacs, i => 0); // B + 4
-    this.meeples.forEach(meep => counts[meep.faction as number]++)// ASSERT: faction is defined
+    this.meeples.forEach(meep => counts[meep.faction!]++)// ASSERT: faction is defined
     return counts;
   }
   /** Put Meeple.faction count into panel.factionCounters */
@@ -692,7 +699,7 @@ export class Player extends PlayerLib implements ColPlayer {
 /** A fully automated player; lives in a SubGame */
 export class SubPlayer extends Player {
 
-  /** play all the (clear) cards, return list with each result */
+  /** play each combo of (clear) Sel & Bid cards, return list of bestMove score */
   collectScores() {
     const colCards = this.colSelButtons.filter(sel => (sel.state === CB.clear));
     const bidCards = this.colBidButtons.filter(bid => (bid.state === CB.clear));
@@ -703,7 +710,7 @@ export class SubPlayer extends Player {
         ccard.setState(CB.selected, false);
         bcard.setState(CB.selected, false);
         const colId = ccard.colId;
-        const meepsInCol = this.gamePlay.meepsInCol(colId, this);
+        const meepsInCol = this.meepsInCol(colId);
         /** pretend ccard,bcard win, and advance in col */
         const vec = (meepsInCol.length == 0)
           ? [-1, {}, `${this.Aname}: no meep in col-${colId}`, ''] as ReturnType<SubPlayer['bestMove']>
@@ -729,11 +736,11 @@ export class SubPlayer extends Player {
   /**
    * record meeps; rankScore0;
    *
-   * move each meep in dir, trying all cards & ndxs; record score.
+   * move each meep in dir, trying all cards & ndxs; calc & record score.
    *
-   * calc Score; restore meeps
+   * restore meeps
    *
-   * Will be called reentrantly, that's how we get min-max at each move.
+   * Will be called reentrantly, by bumpee.player; so we get min-max at each move.
    * @param meeps isAdv ? meepsInCol : [meep, other]
    * @param dir N, S, SS
    * @param isAdv [false] true when advanceOneMeeple

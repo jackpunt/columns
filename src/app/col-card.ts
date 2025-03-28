@@ -13,8 +13,6 @@ import { TP } from "./table-params";
 // import type { CountClaz } from "./tile-exporter";
 
 export class ColCard extends Tile {
-  static cardN = 0;
-  static allCols = 0
 
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
   static nextRadius = CardShape.onScreenRadius; // when super() -> this.makeShape()
@@ -32,14 +30,13 @@ export class ColCard extends Tile {
   maxCells: number;
 
   constructor(aname: string, ...factions: Faction[]) {
-    const Aname = aname.startsWith(':') ? `${ColCard.cardN++}${aname}` : aname;
-    super(Aname);
+    super(aname);
     this.factions = factions;
     this.maxCells = factions.length;
     this.addChild(this.meepCont);
     const color = ColCard.factionColors[factions[0]], tColor = C.pickTextColor(color);
     this.nameText.color = tColor;
-    this.setNameText(Aname, this.radius * .35);
+    this.setNameText(aname, this.radius * .35);
     this.paint(color)
   }
 
@@ -207,22 +204,22 @@ export class ColCard extends Tile {
   static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
     const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
 
+    let nb = 0;
     const ncb = TP.usePyrTopo ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
-    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`:0`, i)); // row 0
-    const blackN = arrayN(ncb, 1).map(i => new BlackCard(`:0`, i)); // row N (rank-0)
+    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, i)); // row 0
+    const blackN = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, i)); // row N (rank-0)
 
-    ColCard.cardN = 0;
     const allCols = arrayN(nCards).map(n => {
-      const fact = 1 + (n % nFacs) as Faction, aname = `:${fact}`;
+      const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
       return new ColCard(aname, fact);
     })
 
-    DualCard.dualN = 0;
     const allDuals = arrayN(nFacs * nFacs).map(n => {
       const n4 = Math.floor(n / nFacs)
       const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
       return new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
     })
+
     return { black0, blackN, allCols, allDuals }
   }
 
@@ -236,7 +233,6 @@ export class ColCard extends Tile {
 }
 
 export class DualCard extends ColCard {
-  static dualN = 0;
 
   declare baseShape: CardShape;
 
@@ -338,8 +334,11 @@ export class BlackNull extends BlackCard {
 }
 
 /** dead card where Col-C is not playable && rank > 0 */
-export class BlackDead extends BlackNull {
-
+export class SpecialDead extends ColCard {
+  /** single cell with faction=5 */
+  constructor(aname: string) {
+    super(aname, 5)
+  }
 }
 
 export class PrintCol extends ColCard {

@@ -235,7 +235,7 @@ export class GamePlay extends GamePlayLib {
     const plyr =  this.winningBidder(colId);
     if (plyr) {
       this.setCurPlayer(plyr); // so we know plyr.useRobo
-      const meepsInCol = this.meepsInCol(colId, plyr);
+      const meepsInCol = plyr.meepsInCol(colId);
       this.meepsToMove = meepsInCol;
       // in pyramid games, is possible to bid & win a column where you have no meeps!
       if (meepsInCol.length > 0) {
@@ -246,15 +246,6 @@ export class GamePlay extends GamePlayLib {
     return
   }
 
-  /**
-   *
-   * @param colId
-   * @param player
-   * @returns meeples of Player in column, suitable for winner.meep
-   */
-  meepsInCol(colId: ColId, player: Player) {
-    return player.meeples.filter(meep => meep.card.isInCol[colId]);
-  }
   /** set by Player.manuMoveMeeps(,dirA,) */
   dragDirs: BumpDir2[] = [];
   cascadeDir(bumpDir?: BumpDir2) {
@@ -372,7 +363,7 @@ export class GamePlay extends GamePlayLib {
   /**
    * cards with .isInCol(colId)
    * @param colId
-   * @param andBlack include top & bottom rows (other blacks always included)
+   * @param andBlack include top & bottom rows (dead-ends always included)
    * @returns
    */
   cardsInCol(colId: ColId, andBlack = true) {
@@ -390,36 +381,17 @@ export class GamePlay extends GamePlayLib {
 
   /** on each Hex[row, col] test & set Card.isInCol() */
   setCardIsInCol() {
-    const colIdsInPlay = this.colIdsInPlay;
+    const colIdsInPlay = this.colIdsInPlay, deadCards: ColCard[] = [];
+    const w = this.hexMap.xywh().dxdc * .9 * (TP.usePyrTopo ? 1 : 1 );
     this.hexMap.forEachHex(hex => {
-      const w = hex.xywh0.dxdc * .9 * (TP.usePyrTopo ? 1 : 1 )
       const card = hex.card;
       colIdsInPlay.map(([colId, x]) => card.isInCol[colId] = Math.abs(card.x - x) <= w);
-      if (!colIdsInPlay.find(([id, x]) => card.isInCol[id])) card.isDead = true;
+      if (!colIdsInPlay.find(([id, x]) => card.isInCol[id])) {
+        card.isDead = true;
+        deadCards.push(card)
+      }
     })
-  }
-
-  // TOOO: cache the set of cards for a given col (& row); they never move.
-  cardsInColId(colId: ColId, andBlack = true) {
-    const cards = [] as ColCard[];
-    this.hexMap.forEachHex(hex => {
-      const card = hex.card, isBlack = (card.maxCells == 0) || (card.maxCells > 2);
-      if (hex.card.isInCol[colId] && (andBlack ? true : !isBlack)) cards.push(hex.card)
-    })
-    return cards;
-  }
-
-  /** move meeple from bumpLoc to center of cell;
-   * Expect cell is unoccupied; but maybe not for manu moves?
-   * @param bumpees the meeps [bumpee] that were movable (may be some undef's)
-   * @returns a meep to BumpInCascade
-   */
-  meeplesToCell(bumpees: ColMeeple[]) {
-    const bumps = bumpees.filter(meep => {
-      meep?.highlight(false);
-      return meep?.card.addMeep(meep, meep.cellNdx)
-    });
-    return bumps[0];
+    return deadCards;
   }
 
   /** EndOfTurn: score for color to meep.player; and advanceMarker(score) */
@@ -429,11 +401,11 @@ export class GamePlay extends GamePlayLib {
     const player = meep.player;
     const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected);
     if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return [0, 'noBid'] };
-    const colScore = player.meeples.filter(meep => (meep.faction == faction)).length;
+    const meepScore = player.meeples.filter(meep => (meep.faction == faction)).length;
     const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
-    const score = colScore + cardScore + trackScore
-    const scoreStr = `${player.Aname}: ${colScore}+${cardScore}+${trackScore} = ${score}`;
+    const score = meepScore + cardScore + trackScore
+    const scoreStr = `${player.Aname}: ${meepScore}+${cardScore}+${trackScore} = ${score}`;
     const tlog = TP.logFromSubGame || this.table.stage.canvas
     const anno = (this.table.stage.canvas) ? '' : 'R ';
     tlog && this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)

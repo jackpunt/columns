@@ -1,7 +1,7 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
 import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter, TP as TPLib } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { BlackCard, BlackNull, ColCard } from "./col-card";
+import { BlackCard, BlackNull, ColCard, SpecialDead } from "./col-card";
 import type { ColTable } from "./col-table";
 import { type CardContent, type GamePlay } from "./game-play";
 import type { HexMap2 } from "./ortho-hex";
@@ -123,15 +123,16 @@ export class ScenarioParser extends SPLib {
         const c0 = hexRow.findIndex(hex => !!hex);
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
+          const hex = hexRow[col]; // TODO: match on card.Aname!
           const cards = (row == 0 || row == rank0) ? black
               : (row == 1 && nr == 8 && col == 3) ? [new BlackCard(`Fill:${col}`)]
               : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
+            : (fac[0] == 5) ? new SpecialDead(`${row}:${col}`)
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           if (!card) debugger; // ASSERT: cards.includes(card)
           removeEltFromArray(card, cards);
-          const hex = hexRow[col];
           card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
           if (!card.hex) debugger;
           hex.legalMark.doGraphicsDual(card)
@@ -160,6 +161,13 @@ export class ScenarioParser extends SPLib {
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
         hex.legalMark.doGraphicsDual(card)
         return;
+      })
+      const deadCards = this.gamePlay.setCardIsInCol();
+      deadCards.forEach(card => {
+        if (card.hex.row == 0 || card.rank == 0) return;
+        const hex = card.hex, { row, col } = hex;
+        hex.tile = undefined; // rmCard
+        new SpecialDead(`${row}:${col}`).moveTo(hex);
       })
       gamePlay.gameSetup.update()
     }
