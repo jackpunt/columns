@@ -241,6 +241,7 @@ export class GameState extends GameStateLib {
         // update faction counters for each Player:
         this.gamePlay.allPlayers.forEach(plyr => plyr.setFactionCounters())
         this.gamePlay.scoreForColor(this.winnerMeep, () => {
+          this.winnerMeep?.player.doneifyCards()
           setTimeout(() => this.phase('ResolveWinner', col + 1), TP.flipDwell) // Resolve next col
         });
       }

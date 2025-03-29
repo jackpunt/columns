@@ -256,6 +256,8 @@ export class Player extends PlayerLib implements ColPlayer {
     if (this.gamePlay.gameState.turnOfRound == 1 && bid == 1) {
       this.selectBid(scores); // try save (bid == 1) for later; see also score2
     }
+    this.autoButton.paint('#c5e1a5')
+    this.gamePlay.table.stage.update()
   }
   latestScores!: ReturnType<SubPlayer['collectScores']>
 
@@ -295,7 +297,6 @@ export class Player extends PlayerLib implements ColPlayer {
     console.log(stime(this, `.selectBid: ${plyrId} [${ndxStr}] ${colId}-${colBid} => ${score0} meep=${meep}\n`), scc, sc5)
     colCard.select()
     bidCard.select()
-    this.gamePlay.table.stage.update()
     return [colCard.colNum, bidCard.colBid]
   }
 
@@ -471,7 +472,7 @@ export class Player extends PlayerLib implements ColPlayer {
   /** true: Player delgates to SubPlayer; false: Player delegates to GUI */
   setAutoPlay(v = !this.useRobo): void {
     this.useRobo = v; // TODO: set autoScore = v; ??
-    this.autoButton.paint(v ? '#c5e1a5' : C.WHITE)
+    this.autoButton.paint(v ? C.YELLOW : C.WHITE)
     this.autoButton.stage?.update();
     if (!v) return;
     afterUpdate(this.autoButton, () => {
