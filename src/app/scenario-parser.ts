@@ -31,7 +31,7 @@ export class ScenarioParser extends SPLib {
 
   // from gameSetup.parseScenario:
   override parseScenario(setup: SetupElt & { start?: StartElt }) {
-    const clog = TP.logFromSubGame || this.gamePlay.table.stage.canvas;
+    const clog = TP.logFromSubGame || this.gamePlay.isGUI;
     clog && console.log(stime(this, `.parseScenario: newState =`), setup);
     Tile.gamePlay = this.gamePlay;
     if (setup.start) {
@@ -49,7 +49,6 @@ export class ScenarioParser extends SPLib {
     const { scores, turn, pStates, layout, gameState, update } = setup;
     const newCards = !update; // newCards -> makeAllCards & Meeples; update -> just move them
     const gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
-    const isGUI = gamePlay.gameState.isGUI
     // validate number of players:
     const n = allPlayers.length, ns = scores?.length ?? n, np = pStates?.length ?? n;
     if ((ns !== n) || (np !== n)) {
@@ -129,7 +128,7 @@ export class ScenarioParser extends SPLib {
               : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
-            : (fac[0] == 5) ? new SpecialDead(`${row}:${col}`)
+            : (fac[0] == 5) ? (cards.unshift(new SpecialDead(`${row}:${col}`)), cards[0])
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           if (!card) debugger; // ASSERT: cards.includes(card)
           removeEltFromArray(card, cards);

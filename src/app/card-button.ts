@@ -206,7 +206,7 @@ export class ColSelButton extends CardButton {
 
 export class ColBidButton extends CardButton {
   // indices into ColCard.factionColors
-  static coinFactions: Faction[][] = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
+  static bidFactions: Faction[][] = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
 
   override get plyrButtons(): CardButton[] { return this.player.colBidButtons }
 
@@ -230,16 +230,8 @@ export class ColBidButton extends CardButton {
   factions!: Faction[];
   facShape!: Shape;
   addFactionColors(colBid = 0, width = 20, y = 0) {
-    const factions = this.factions = ColBidButton.coinFactions[colBid];
-    const colors = factions.map(n => ColCard.factionColors[n])
-    const facShape = this.facShape = new Shape(), n = colors.length, g = facShape.graphics;
-    const d2 = width;
-    switch (n) {
-      case 1: this.oneRect(g, colors, d2); break;
-      case 2: this.twoRect(g, colors, d2); break;
-      case 4: this.fourRect(g, colors, d2); break;
-    }
-    facShape.y = y;
+    const facShape = this.facShape = new FacShape();
+    this.factions = facShape.facRect(colBid, width, y);
     this.addChild(facShape)
   }
 
@@ -250,6 +242,23 @@ export class ColBidButton extends CardButton {
     fIcon.y = -.28 * 5/3 * this.radius;
     this.addChild(fIcon)
 
+  }
+}
+
+export class FacShape extends Shape {
+
+  /** a square of faction colors at [0,0] */
+  facRect(bidCol: number, d2 = 20, y = 0, g = this.graphics) {
+    const factions = ColBidButton.bidFactions[bidCol];
+    const colors = factions.map(n => ColCard.factionColors[n])
+
+    switch (colors.length) {
+      case 1: this.oneRect(g, colors, d2); break;
+      case 2: this.twoRect(g, colors, d2); break;
+      case 4: this.fourRect(g, colors, d2); break;
+    }
+    this.y += y;
+    return factions;
   }
 
   fourRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {

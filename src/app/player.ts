@@ -660,7 +660,8 @@ export class Player extends PlayerLib implements ColPlayer {
     }
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
-    console.groupCollapsed(stime(this, `.bumpInCascade: ${this.Aname}@${this.gamePlay.turnId} ${[meep, other].map(m => m.toString())}`))
+    console.groupCollapsed(stime(this, `.bumpInCascade: ${this.Aname}@${this.gamePlay.turnId}`))
+    console.log(stime(this, `.bumpInCascade: ${[meep, other].map(m => m.toString())}`))
     const subStep = this.subPlyr.bumpInCascade(subMeep, subOther, bumpDirC)
     console.groupEnd()
     const step = this.myStep(subStep);
@@ -682,10 +683,11 @@ export class Player extends PlayerLib implements ColPlayer {
     return (TP.usePyrTopo || dir == BD_SS) ? this._allDirs[dir] : [dir];
   }
 
-  /** count of meeples on each Faction [B, r, g, b, v] */
+  /** count of meeples on each Faction [B, r, g, b, v, W] */
   get meepFactions() {
-    const counts = arrayN(1 + nFacs, i => 0); // B + 4
+    const counts = arrayN(2 + nFacs, i => 0); // B + 4
     this.meeples.forEach(meep => counts[meep.faction!]++)// ASSERT: faction is defined
+    counts.forEach((cnt, ndx) => ndx > 0 && (counts[ndx] += counts[5]))
     return counts;
   }
   /** Put Meeple.faction count into panel.factionCounters */

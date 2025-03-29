@@ -2,7 +2,7 @@ import { C, F, type XY } from "@thegraid/common-lib";
 import { CenterText, NamedContainer, type CountClaz, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import { Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
-import { ColSelButton, type ColId } from "./card-button";
+import { ColSelButton, FacShape, type ColId } from "./card-button";
 import { CardShape } from "./card-shape";
 import { ColMeeple } from "./col-meeple";
 import { arrayN, nFacs, type BumpDir, type BumpDir2, type Faction, type GamePlay } from "./game-play";
@@ -338,6 +338,10 @@ export class SpecialDead extends ColCard {
   /** single cell with faction=5 */
   constructor(aname: string) {
     super(aname, 5)
+    const facShape = new FacShape(), rad = this.radius * .5
+    facShape.facRect(1, rad, -rad / 2);
+    this.addChildAt(facShape, 1)
+    this.paint(C.grey128)
   }
 }
 

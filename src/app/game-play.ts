@@ -1,7 +1,7 @@
 import { json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type SetupElt } from "@thegraid/hexlib";
-import { CB, ColSelButton, type ColId } from "./card-button";
+import { CB, type ColId } from "./card-button";
 import type { BlackCard, ColCard, DualCard } from "./col-card";
 import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
@@ -105,6 +105,7 @@ export class GamePlay extends GamePlayLib {
       .concat(indent + this.cardsInRow(this.nRows - 1).map(card => `${`${card.cellsInUse.length}`.padEnd(3)}`).join(' | '))
       .join('\n ')
   }
+  get isGUI() { return !!this.table.stage.canvas }
 
   override get turnId() {
     return `${this.gameState.turnId}`; // turnId as string
@@ -399,15 +400,18 @@ export class GamePlay extends GamePlayLib {
     if (!meep) { cb && cb(); return [0, '!meep'] };
     const faction = meep.faction as Faction; // by now, meeplesOnCard has resolved.
     const player = meep.player;
-    const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected);
-    if (TP.bidReqd && !bidCard?.factions.includes(faction)) { cb && cb(); return [0, 'noBid'] };
-    const meepScore = player.meeples.filter(meep => (meep.faction == faction)).length;
+    const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected)!;
+    if (TP.bidReqd
+      && !(bidCard.factions.includes(faction))
+      && !(faction == 5 && !bidCard.factions.includes(0))
+    ) { cb && cb(); return [0, `factionNotBid-${faction}`] }
+    const meepScore = player.meeples.filter(meep => (meep.faction == faction || meep.faction == 5)).length;
     const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = meepScore + cardScore + trackScore
     const scoreStr = `${player.Aname}: ${meepScore}+${cardScore}+${trackScore} = ${score}`;
-    const tlog = TP.logFromSubGame || this.table.stage.canvas
-    const anno = (this.table.stage.canvas) ? '' : 'R ';
+    const tlog = TP.logFromSubGame || this.isGUI;
+    const anno = (this.isGUI) ? '' : 'R ';
     tlog && this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
     if (advMrk) player.advanceMarker(score, [], cb)
     return [score, scoreStr];

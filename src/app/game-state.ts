@@ -277,7 +277,9 @@ export class GameState extends GameStateLib {
       start: () => {
         // score for rank:
         const rowScores = this.gamePlay.scoreForRank(), nRows = this.gamePlay.nRows;
-        this.state.rowScores = rowScores; // for AutoPlayer to consider
+        this.state.rowScores = rowScores.map(rows => rows.slice()); // orig/full rowScores
+        const tlog = TP.logFromSubGame || this.isGUI;
+        tlog && console.log(stime(this, `.EndRound: rowScores=`), this.state.rowScores)
         const advanceNextScore = (row: number) => {
           if (this.gamePlay.isEndOfGame()) { this.done(true); return }
           const rank = nRows - 1 - row;
