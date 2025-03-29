@@ -82,9 +82,9 @@ export class GamePlay extends GamePlayLib {
   declare curPlayer: Player;
   override get allPlayers() { return super.allPlayers as Player[] }
   override setCurPlayer(player: Player) {
-    this.curPlayer.panel.showPlayer(false);
+    this.isGUI && this.curPlayer.panel.showPlayer(false);
     super.setCurPlayer(player)
-    this.curPlayer.panel.showPlayer(true);
+    this.isGUI && this.curPlayer.panel.showPlayer(true);
   }
 
   declare scenarioParser: ScenarioParser; // ReturnType<GamePlay['makeScenarioParser']>
@@ -320,8 +320,8 @@ export class GamePlay extends GamePlayLib {
     const plyr = meep.player;
     console.log(stime(this, `.bumpAfterAdvance(${meep.toString()} ${other.toString()} cascDir=${cascDir})`))
     const step = (cascDir == BD_N)
-      ? plyr.bumpUp(meep, other, cb_bumpAdvance)
-      : plyr.bumpDn2(other, undefined, cb_bumpAdvance)
+      ? plyr.bumpUp(meep, other, cb_bumpAdvance)       // plyr == meep.player
+      : plyr.bumpDn2(other, undefined, cb_bumpAdvance) // plyr == meep.player
     return step;
   }
   /** signal all bumps from this advance are cascDir */

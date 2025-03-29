@@ -29,7 +29,7 @@ export interface ColPlayer extends PlayerLib {
   /** choose bumpee, card & cellNdx */
   bumpDn2(other: ColMeeple, meep?: ColMeeple, cb_bump?: CB_Step<BumpDir2>): Step<BumpDir2> | undefined;
   /** choose bumpee, card & cellNdx */
-  bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>): Step<BumpDn> | undefined;
+  bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC, cb_done?: ()=>void): Step<BumpDir> | undefined;
   doneifyCards(): void;
 }
 
@@ -606,7 +606,7 @@ export class Player extends PlayerLib implements ColPlayer {
     return step;
   }
 
-  /** choose bumpee, card & cellNdx -> Step<AdvDir> */
+  /** choose bumpee, card & cellNdx after advance on self (or row1) */
   bumpUp(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<AdvDir>) {
     if (!this.useRobo) {
       this.manuMoveMeeps([meep, other], BD_N, 'bumpUp', cb_bump);
@@ -619,7 +619,7 @@ export class Player extends PlayerLib implements ColPlayer {
     cb_bump && cb_bump(step);
     return step;
   }
-  /** choose bumpee, card & cellNdx */
+  /** choose bumpee, card & cellNdx; after advance on other */
   bumpDn2(other: ColMeeple, meep?: ColMeeple, cb_bump?: CB_Step<BumpDir2>) {
     // is bumpFromAdvance; cannot bump your own meep down/down2
     if (!this.useRobo) {
@@ -629,35 +629,21 @@ export class Player extends PlayerLib implements ColPlayer {
     this.syncSubGame();
     const [subOther] = this.subMeeps(other);
     console.groupCollapsed(stime(this, `.bumpDn2: ${this.Aname}@${this.gamePlay.turnId} ${other.toString()}`))
-    const subStep = this.subPlyr.bumpDn2(subOther)
+    // from advance: not allowed to bump own meep down
+    const subStep = this.subPlyr.bumpDn2(subOther); // meep.player.subPlayer;
     console.groupEnd();
     const step = this.myStep(subStep);
     cb_bump && cb_bump(step);
     return step;
   }
 
-  /** choose bumpee, card & cellNdx */
-  bumpDn(meep: ColMeeple, other: ColMeeple, cb_bump?: CB_Step<BumpDn>) {
-    if (!this.useRobo) {
-      this.manuMoveMeeps([meep, other], BD_S, 'bumpDn', cb_bump);
-      return;
-    }
-    this.syncSubGame();
-    const [subMeep, subOther] = this.subMeeps(meep, other);
-    console.groupCollapsed(stime(this, `.bumpDn: ${this.Aname}@${this.gamePlay.turnId} ${[meep, other].map(m => m.toString())}`))
-    const subStep = this.subPlyr.bumpDn(subMeep, subOther)
-    console.groupEnd();
-    const step = this.myStep(subStep);
-    cb_bump && cb_bump(step);
-    return step;
-  }
-
-  // advanceMeeple will need to decide who/how to bump:
+  /** could be bumpUp or bumpDn; meep.player.bumpInCascade(meep, ...) */
   bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC, bumpDone?: () => void): Step<BumpDir> | undefined {
     if (!this.useRobo) {
       this.manuMoveMeeps([meep, other], bumpDirC, bumpDirC == BD_S ? 'bumpDn' : 'bumpUp', bumpDone);
       return undefined;
     }
+    // auto-mode: subPlyr.bumpInCascade -> gamePlay.bumpAndCascade -> plyr.bumpInCascade
     this.syncSubGame();
     const [subMeep, subOther] = this.subMeeps(meep, other);
     console.groupCollapsed(stime(this, `.bumpInCascade: ${this.Aname}@${this.gamePlay.turnId}`))
@@ -716,7 +702,7 @@ export class SubPlayer extends Player {
         /** pretend ccard,bcard win, and advance in col */
         const vec = (meepsInCol.length == 0)
           ? [-1, {}, `${this.Aname}: no meep in col-${colId}`, ''] as ReturnType<SubPlayer['bestMove']>
-          : this.bestMove(meepsInCol, BD_N, true);
+          : this.bestMove(meepsInCol, BD_N, true); // this == meep.this
         let [score, step, scoreStr, meepStr] = vec;
         if (this.gamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
@@ -744,13 +730,13 @@ export class SubPlayer extends Player {
    *
    * Will be called reentrantly, by bumpee.player; so we get min-max at each move.
    * @param meeps isAdv ? meepsInCol : [meep, other]
-   * @param dir N, S, SS
+   * @param dirA N, S, SS
    * @param isAdv [false] true when advanceOneMeeple
    * @returns [step, score, scoreStr, meepStr][]
    */
-  evalMoves(meeps: ColMeeple[], dir: BumpDirA, isAdv = false) {
+  evalMoves(meeps: ColMeeple[], dirA: BumpDirA, isAdv = false) {
     const plyr = this, gamePlay = this.gamePlay;
-    const dirs = this.allDirs(dir); // assert either isAdv OR dir already constrained by cascDir
+    const dirs = this.allDirs(dirA); // assert either isAdv OR dir already constrained by cascDir
 
     const plyrsRanked = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score);
     const tPlyr = plyrsRanked.find(p => p !== this)!; // highest scoring *other* player.
@@ -785,14 +771,17 @@ export class SubPlayer extends Player {
           // loop if bumpee while bumpee has an other:
           gamePlay.bumpAndCascade(bumpee); // --> meep.player.bumpAndCascade()
           // ASSERT: moves and cascades have stopped; score the move of winnerMeep
-          const winMeep = this.gamePlay.gameState.winnerMeep!
-          if (!winMeep) debugger;
-          const [scorec, scoreStr] = gamePlay.scoreForColor(winMeep, undefined, false)
           const tRankDiff = Math.round((tPlyr.rankScoreNow - tScore0) * perTurn);
           const myRankDiff = Math.round((plyr.rankScoreNow - myScore0) * perTurn);
-          const rd = Math.max(0, myRankDiff - tRankDiff); // good if I go up or T goes down;
-          const score = scorec + rd, sum = `${scoreStr}+${rd}`;
-          const meepStr = winMeep.toString();  // final location of meep;
+          const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
+          let score = rd, sum = `^+${rd}`;
+          if (isAdv) {
+            const winMeep = this.gamePlay.gameState.winnerMeep!
+            if (!winMeep) debugger;
+            const [scorec, scoreStr] = gamePlay.scoreForColor(winMeep, undefined, false)
+            score += scorec, sum = `${scoreStr}+${rd}`;
+          }
+          const meepStr = meep.toString();  // final location of meep;
           this.gamePlay.restoreMeeps();
           return [score, step, sum, meepStr] as [score: number, step: Step<BumpDir2>, sum: string, meepStr: string]
         })
@@ -804,7 +793,7 @@ export class SubPlayer extends Player {
     return scores;
   }
 
-  /** From gamePlay.ResolveWinnerAndAdvance (or pseudoWin): choose a meeple and advance it one rank.
+  /** From gamePlay.ResolveWinnerAndAdvance (or collectScores): choose a meeple and advance it one rank.
    * @param meeps the available meepsInCol that can be advanced
    * @param cb_advanceMeep callback not used
    * @return Step meep moved to fromCard.nextCard(dir, ndx)
@@ -835,16 +824,7 @@ export class SubPlayer extends Player {
     return step;
   }
 
-  /** choose bumpee, card & cellNdx */
-  override bumpDn(meep: ColMeeple, other: ColMeeple) {
-    const step = this.bestMove([meep, other], BD_S)?.[1] as Step<BumpDn>;
-    if (!step) debugger;
-    const toCard = step.fromCard.nextCard(step.dir)!;
-    this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
-    return step;
-  }
-
-  // advanceMeeple will need to decide who/how to bump:
+  /** could be bumpUp or bumpDn */
   override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
     const step = this.bestMove([meep, other], bumpDirC)?.[1] as Step<BumpDir>;
     if (!step) debugger;
