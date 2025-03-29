@@ -461,7 +461,7 @@ export class Player extends PlayerLib implements ColPlayer {
     // cross the finish line:
     const maxes = allClkrs.filter(clk => clk.value == max);
     const clicker = (maxes.length > 0)
-      ? maxes.sort((a, b) => a.value - b.value)[0] // lowest mrkr that reaches max value
+      ? allClkrs.sort((a, b) => a.marker!.value - b.marker!.value)[0] // lowest mrkr (was maxes.sort..)
       : allClkrs[0];     // lowest mrkr of the most present faction
     if (!clicker) debugger; // Player maxed out
     clicker?.onClick();    // {clicker.marker.value} -> {clicker.value}

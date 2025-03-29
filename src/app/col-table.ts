@@ -410,7 +410,7 @@ export class MarkerShape extends CircleShape {
 
   /** clicker was clicked: move its marker to match; then marker.clickDone() */
   onClick() {
-    const marker = this.marker as MarkerShape; // ASSERT: each clicker has a marker
+    const marker = this.marker!; // ASSERT: each clicker has a marker
     marker.setValue(this.value, this.track);
     marker.scoreTrack.overlayCont.removeAllChildren(); // circles & rays
     afterUpdate(marker.scoreTrack, () => marker.clickDone(), this, 10)
