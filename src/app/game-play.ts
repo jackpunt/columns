@@ -339,7 +339,8 @@ export class GamePlay extends GamePlayLib {
   bumpAndCascade(meep: ColMeeple, other = meep.card.otherMeepInCell(meep), bumpDone?: () => void, depth = 0) {
     this.setCurPlayer(meep.player); // light up the PlayerPanel
     const cascDir = this.cascadeDir()
-    console.log(stime(this, `.bumpAndCascade ->(${meep.toString()} ${other?.toString()} cascDir=${cascDir})`))
+    const tlog = TP.logFromSubGame || this.isGUI;
+    tlog && console.log(stime(this, `.bumpAndCascade ->(${meep.toString()} ${other?.toString()} cascDir=${cascDir})`))
     if (!!other) {
       const step = meep.player.bumpInCascade(meep, other, cascDir, bumpDone)
       if (!step) return;  // manual mode returns undefined, will call bumpDone
@@ -400,7 +401,9 @@ export class GamePlay extends GamePlayLib {
     if (!meep) { cb && cb(); return [0, '!meep'] };
     const faction = meep.faction as Faction; // by now, meeplesOnCard has resolved.
     const player = meep.player;
+    const colCard = player.colSelButtons.find(csb => csb.state == CB.selected)!;
     const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected)!;
+    const plyrBid = `${colCard.colId}-${bidCard.colBid}`;
     if (TP.bidReqd
       && !(bidCard.factions.includes(faction))
       && !(faction == 5 && !bidCard.factions.includes(0))
@@ -409,7 +412,7 @@ export class GamePlay extends GamePlayLib {
     const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = meepScore + cardScore + trackScore
-    const scoreStr = `${player.Aname}: ${meepScore}+${cardScore}+${trackScore} = ${score}`;
+    const scoreStr = `${player.Aname}: ${plyrBid} ${meepScore}+${cardScore}+${trackScore} = ${score}`;
     const tlog = TP.logFromSubGame || this.isGUI;
     const anno = (this.isGUI) ? '' : 'R ';
     tlog && this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
