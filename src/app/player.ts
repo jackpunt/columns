@@ -93,6 +93,7 @@ export class Player extends PlayerLib implements ColPlayer {
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
     const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
     redoBut.on(S.click, () => this.selectBid(), this); // select alt bid
+    if (this.index < this.gamePlay.allPlayers.length - TP.startAuto) this.setAutoPlay(true)
   }
 
   makeCardButtons(nCols = 4, nbid = 4) {
@@ -147,6 +148,11 @@ export class Player extends PlayerLib implements ColPlayer {
   clearButtons() {
     this.colSelButtons.forEach(b => (b.setState(CB.clear)))
     this.colBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
+  }
+  showMeepsInCol(show = true) {
+    const colId = this.curSelCard?.colId;
+    const meeps = (show && colId) ? this.meepsInCol(colId) : []
+    this.gamePlay.meepsToMove = meeps; // highlight
   }
 
   /** used to select xtraCol  [{ sndx: 0, score}, {sndx: 1, score, ... }] */
@@ -211,12 +217,14 @@ export class Player extends PlayerLib implements ColPlayer {
   get currentBid() { return this.curBidCard.colBid; }
   /** The current CB.selected ColBidButton */
   get curBidCard() {
-    return this.colBidButtons.find(b => (b.state === CB.selected)) as ColBidButton;
+    return this.colBidButtons.find(b => (b.state === CB.selected))!;
   }
   get curSelCard() {
-    return this.colSelButtons.find(b => (b.state === CB.selected)) as ColSelButton;
+    return this.colSelButtons.find(b => (b.state === CB.selected))!;
   }
-
+  get bidStr() {
+    return `${this.curSelCard.colId}-${this.curBidCard.colBid}`;
+  }
   /** End of turn: mark Sel & Bid cards from CB.selected to CB.done */
   doneifyCards() {
     const csb = this.colSelButtons.find(b => b.state === CB.selected);
@@ -741,7 +749,7 @@ export class SubPlayer extends Player {
 
     const plyrsRanked = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score);
     const tPlyr = plyrsRanked.find(p => p !== this)!; // highest scoring *other* player.
-    const tScore0 = tPlyr?.rankScoreNow;
+    const tScore0 = tPlyr.rankScoreNow;
     const myScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
     gamePlay.recordMeeps();   // start new record
 
@@ -772,8 +780,8 @@ export class SubPlayer extends Player {
           // loop if bumpee while bumpee has an other:
           gamePlay.bumpAndCascade(bumpee); // --> meep.player.bumpAndCascade()
           // ASSERT: moves and cascades have stopped; score the move of winnerMeep
-          const tRankDiff = Math.round((tPlyr.rankScoreNow - tScore0) * perTurn);
-          const myRankDiff = Math.round((plyr.rankScoreNow - myScore0) * perTurn);
+          const tRankDiff: number = ((tPlyr.rankScoreNow - tScore0) * perTurn);
+          const myRankDiff: number = ((plyr.rankScoreNow - myScore0) * perTurn);
           const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
           let score = rd, sum = `^+${rd}`;
           if (isAdv) {

@@ -183,6 +183,8 @@ export class GamePlay extends GamePlayLib {
   winningBidder(colId: ColId) {
     const bidsOnCol = this.allPlayers.map(plyr => plyr.bidOnCol(colId));
     const plyrBids = bidsOnCol.filter(pbid => pbid !== undefined);
+    const bidStr = plyrBids.map(pb => `${pb.plyr.Aname}:${pb.plyr.bidStr}`).join(', ');
+    console.log(stime(this, `.winningBidder: Col-${colId}, bids=`), bidStr)
     plyrBids.sort((a, b) => b.bid - a.bid); // descending order of bid
     do {
       const bid = plyrBids[0]?.bid; // the highest bid value
@@ -401,13 +403,12 @@ export class GamePlay extends GamePlayLib {
     if (!meep) { cb && cb(); return [0, '!meep'] };
     const faction = meep.faction as Faction; // by now, meeplesOnCard has resolved.
     const player = meep.player;
-    const colCard = player.colSelButtons.find(csb => csb.state == CB.selected)!;
-    const bidCard = player.colBidButtons.find(cbb => cbb.state == CB.selected)!;
-    const plyrBid = `${colCard.colId}-${bidCard.colBid}`;
+    const plyrBid = player.bidStr;
+    const bidCard = player.curBidCard;
     if (TP.bidReqd
       && !(bidCard.factions.includes(faction))
       && !(faction == 5 && !bidCard.factions.includes(0))
-    ) { cb && cb(); return [0, `factionNotBid-${faction}`] }
+    ) { cb && cb(); return [0, `${plyrBid} NotFaction-${faction}`] }
     const meepScore = player.meeples.filter(meep => (meep.faction == faction || meep.faction == 5)).length;
     const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;

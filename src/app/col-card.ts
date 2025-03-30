@@ -335,6 +335,10 @@ export class BlackNull extends BlackCard {
 
 /** dead card where Col-C is not playable && rank > 0 */
 export class SpecialDead extends ColCard {
+  static countClaz(n = 0, rad = 525): CountClaz[] {
+    return arrayN(n).map(colNum => [1, PrintSpecial, 'Special', rad])
+  }
+
   /** single cell with faction=5 */
   constructor(aname: string) {
     super(aname, 5)
@@ -342,6 +346,9 @@ export class SpecialDead extends ColCard {
     facShape.facRect(1, rad, -rad / 2);
     this.addChildAt(facShape, 1)
     this.paint(C.grey128)
+  }
+  override get bleedColor(): string {
+    return C.black;
   }
 }
 
@@ -380,6 +387,13 @@ export class PrintBlack extends BlackCard {
   constructor(Aname: string, seqLim = 0, fs?: number) {
     ColCard.nextRadius = 525
     super(Aname, seqLim, fs)
+  }
+}
+
+export class PrintSpecial extends SpecialDead {
+  constructor(Aname: string, radius = 525) {
+    ColCard.nextRadius = radius;
+    super(Aname)
   }
 }
 

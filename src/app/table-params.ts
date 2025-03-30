@@ -29,7 +29,7 @@ export class TP extends TPLib {
   static override meepleY0 = 0;
 
   /** ratio of 'dual' 2-in-a-box Cards */
-  static rDuals = .0;
+  static rDuals = .3;
   /** [true] no scoreForColor unless winnerMeep lands on a faction of bidCard. */
   static bidReqd = true;
   static nEltsPerPlayer = [4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6];
@@ -45,15 +45,15 @@ export class TP extends TPLib {
   /** score only for your highest rank */
   static topRankOnly = false;
   /** score only the top n meeps */
-  static nTopMeeps = 3;
+  static nTopMeeps = 2;
   /** enable textLog in scoreForColor & parseScenario */
   static logFromSubGame = false;
   /** true -> show auto_bids when selected; false -> show after make-bids done click. */
   static showAllBids = false;
   /** use extra meeple if player count <= useXtraMeep */
   static useXtraMeep = 4;
-  /** setAutoPlay if player.index < startAuto */
-  static startAuto = 0;
+  /** setAutoPlay if player.index < numPlayers - startAuto */
+  static startAuto = 1;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */
   static autoDrop = true;
   /** true to use PryTopo and layout */

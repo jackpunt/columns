@@ -1,5 +1,5 @@
 import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
-import { BlackCard, PrintCol, PrintDual, SetupCard, SummaryCard } from "./col-card";
+import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SummaryCard } from "./col-card";
 import { PrintBidValue, PrintColSelect } from "./card-button";
 import { TrackLabel, TrackSegment } from "./col-table";
 // end imports
@@ -17,12 +17,14 @@ export class TileExporter extends TileExporterLib {
       [36, SetupCard, '"利刃出击"'],   // card back if we want it.
     ] as CountClaz[];
     const cardSingle_1_75_base = [
-      ...BlackCard.countClaz(8),
-      ...BlackCard.countClaz(8),
+      ...[[4, PrintSpecial, 'Special', 525]],
+      ...BlackCard.countClaz(1),
+      ...BlackCard.countClaz(7),
+      ...BlackCard.countClaz(1),
+      ...BlackCard.countClaz(7),
       ...PrintDual.countClaz(16),
-      ...PrintCol.countClaz(4),
       ...PrintCol.countClaz(36),
-    ]
+    ] as CountClaz;
     const cardSingle_1_75_hand = [
       // ...PrintBidValue.countClaz(4, 0, 525),
       // ...PrintBidValue.countClaz(4, 1, 525),

@@ -61,7 +61,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
 
   /** onClick: Select this card/button for CollectBids: all Players in parallel */
-  select() {
+  select(show = false) {
     // radio button
     if (this.state === CB.selected) {
       this.setState(CB.clear); // toggle from selected to not selected
@@ -72,7 +72,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   onClick(evt: any, player: Player) {
     const gs = this.player.gamePlay.gameState;
     if (!(gs.isPhase('CollectBids') || gs.isPhase('SelectCol'))) return;
-    this.select()
+    this.select(); // actual/physical click (vs robo select)
     console.log(stime(`CardButton.onClick:`), this.Aname, this.state)
   }
   abstract get plyrButtons(): CardButton[]
@@ -202,6 +202,10 @@ export class ColSelButton extends CardButton {
     this.paint();
   }
   colId!: ColId;
+  override onClick(evt: any, player: Player): void {
+    super.onClick(evt, player);
+    player.showMeepsInCol()
+  }
 }
 
 export class ColBidButton extends CardButton {
@@ -224,6 +228,11 @@ export class ColBidButton extends CardButton {
     this.border = 0;
     this.addSideNum('', .3);
     this.paint();
+  }
+
+  override onClick(evt: any, player: Player): void {
+    super.onClick(evt, player);
+    player.showMeepsInCol(this.state == CB.clear);
   }
 
   bidOnCol?: number; // debug or post-hoc analysis
