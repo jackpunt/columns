@@ -149,7 +149,7 @@ export class Player extends PlayerLib implements ColPlayer {
     this.colSelButtons.forEach(b => (b.setState(CB.clear)))
     this.colBidButtons.forEach(b => (b.setState(CB.clear), b.bidOnCol = undefined))
   }
-  showMeepsInCol(show = true) {
+  showMeepsInCol(show = !this.isDoneSelecting()) {
     const colId = this.curSelCard?.colId;
     const meeps = (show && colId) ? this.meepsInCol(colId) : []
     this.gamePlay.meepsToMove = meeps; // highlight
@@ -466,7 +466,8 @@ export class Player extends PlayerLib implements ColPlayer {
     if (!useBlack) factionTotals[0] = 0;
     allClkrs.sort((a, b) => factionTotals[b.faction] - factionTotals[a.faction]); // descending
 
-    // cross the finish line:
+    // cross the finish line: sometimes is better to get one across, so one [big] score can finish.
+    // other times maximise income by bringing up the rear so both are in range for next 2 scores.
     const maxes = allClkrs.filter(clk => clk.value == max);
     const clicker = (maxes.length > 0)
       ? allClkrs.sort((a, b) => a.marker!.value - b.marker!.value)[0] // lowest mrkr (was maxes.sort..)

@@ -232,7 +232,7 @@ export class ColBidButton extends CardButton {
 
   override onClick(evt: any, player: Player): void {
     super.onClick(evt, player);
-    player.showMeepsInCol(this.state == CB.clear);
+    player.showMeepsInCol();
   }
 
   bidOnCol?: number; // debug or post-hoc analysis
