@@ -51,7 +51,8 @@ export interface Step<T extends AdvDir | BumpDir2> {
   ndx: number;       // started fromCard.ndx
   meepStr?: string;  // showing meep location at this point
   score?: number;    // min-max change in score from this step
-  scoreStr?: string;   // scoreStr: 0|(meeps + cards + tracks) + rankDiff
+  scoreStr?: string; // scoreStr: 0|(meeps + cards + tracks) + rankDiff
+  bump?: Step<T>;    // next bump is in same direction
 }
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
 export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
@@ -435,7 +436,7 @@ export class GamePlay extends GamePlayLib {
   }
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
-  scoreForRank() {
+  scoreForRank(tp_nTopMeeps = TP.nTopMeeps) {
     const nPlayers = this.allPlayers.length;
     const sRows = this.nRows - 2; // score rows [1 .. nRows-1]
     const scoreAllMeeps = arrayN(sRows, 1)
@@ -453,7 +454,7 @@ export class GamePlay extends GamePlayLib {
         : topRankByPid[plyr.index] == rank)
       : onePerRank;
     const nOfPlyr = arrayN(nPlayers, i => TP.nTopMeeps); // decrement counter
-    const nTopMeeps = (TP.nTopMeeps > 0)
+    const nTopMeeps = (tp_nTopMeeps > 0)
       ? topRankOnly.filter(({ plyr, rank }) => nOfPlyr[plyr.index]-- > 0)
       : topRankOnly;
     const oneScorePerRank = [] as ({ plyr: Player, rank: number, score: number })[];

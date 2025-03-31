@@ -63,8 +63,10 @@ export class Player extends PlayerLib implements ColPlayer {
   }
 
   /** Sum of this player's scoreForRank */
-  get rankScoreNow() {
-    const scores = this.gamePlay.scoreForRank(); // all players, ranks, scores
+  get rankScoreNow() { return this.rankScore() }
+  /** parameterized */
+  rankScore(tp_nTopMeeps = TP.nTopMeeps) {
+    const scores = this.gamePlay.scoreForRank(tp_nTopMeeps); // all players, ranks, scores
     const myScores = scores.filter(ps => ps.plyr == this).map(ps => ps.score);
     return Math.sum(...myScores)
   }
@@ -467,11 +469,16 @@ export class Player extends PlayerLib implements ColPlayer {
     allClkrs.sort((a, b) => factionTotals[b.faction] - factionTotals[a.faction]); // descending
 
     // cross the finish line: sometimes is better to get one across, so one [big] score can finish.
-    // other times maximise income by bringing up the rear so both are in range for next 2 scores.
-    const maxes = allClkrs.filter(clk => clk.value == max);
-    const clicker = (maxes.length > 0)
-      ? allClkrs.sort((a, b) => a.marker!.value - b.marker!.value)[0] // lowest mrkr (was maxes.sort..)
-      : allClkrs[0];     // lowest mrkr of the most present faction
+    // other times maximize income by bringing up the rear so both are in range for next 2 scores.
+    const anticipatedBigScore = 0; // TODO: look ahead...
+    const maxes = allClkrs.filter(clk => clk.value == max)
+    maxes.sort((a, b) => a.marker!.value - b.marker!.value); // ascending
+    const clicker = (maxes.length == 1 && (maxes[0].marker!.value + dScore) == max)
+      ? maxes[0] // exactly hits max; can't do better than that.
+      : (maxes.length > 1)
+        ? ((maxes[0].marker!.value + anticipatedBigScore) >= max)
+          ? maxes[1] : maxes[0]
+        : allClkrs[0];      // lowest mrkr of the most present faction
     if (!clicker) debugger; // Player maxed out
     clicker?.onClick();    // {clicker.marker.value} -> {clicker.value}
   }
@@ -514,6 +521,7 @@ export class Player extends PlayerLib implements ColPlayer {
     const stateInfo = this.gamePlay.scenarioParser.saveState(false);
     stateInfo.update = update;
     this.subGame.parseScenario(stateInfo);
+    this.subGame.gameState.winnerMeep = this.gamePlay.gameState.winnerMeep;
     if (update) {
       // this.subGame.scenarioParser.placeMeeplesOnMap(layout, false);
       this.subGame.recordMeeps(false);
@@ -731,6 +739,10 @@ export class SubPlayer extends Player {
   bestMove(meeps: ColMeeple[], dir: BumpDirA, isAdv = false) {
     return this.evalMoves(meeps, dir, isAdv)[0];
   }
+  tRankScore0 = 0;  // score for current leader/threat
+  myRankScore0 = 0;
+  myColorScore = 0;
+  myColorStr = '';
   /**
    * record meeps; rankScore0;
    *
@@ -747,11 +759,19 @@ export class SubPlayer extends Player {
   evalMoves(meeps: ColMeeple[], dirA: BumpDirA, isAdv = false) {
     const plyr = this, gamePlay = this.gamePlay;
     const dirs = this.allDirs(dirA); // assert either isAdv OR dir already constrained by cascDir
+    const uberPhase = (gamePlay.gameSetup as SubGameSetup).gs.gamePlay.gamePhase.Aname
+    const isCollect = uberPhase == 'CollectBids';   // analyze all my meeps
+    const isAdvance = uberPhase == 'ResolveWinner'; // analyze my meepsInCol
+    const bumpAdv = uberPhase == 'BumpFromAdvance'; // other(SS, S) or either(N)
+    const bumpCasc = uberPhase == 'BumpAndCascade'; // either(S, N)
 
     const plyrsRanked = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score);
     const tPlyr = plyrsRanked.find(p => p !== this)!; // highest scoring *other* player.
-    const tScore0 = tPlyr.rankScoreNow;
-    const myScore0 = plyr.rankScoreNow, perTurn = 1 / gamePlay.gameState.turnOfRound
+    if (isCollect || isAdvance) {
+      this.tRankScore0 = tPlyr.rankScore(0);
+      this.myRankScore0 = plyr.rankScore(0);
+    }
+    const perTurn = 1 / gamePlay.gameState.turnOfRound;
     gamePlay.recordMeeps();   // start new record
 
     const scores = meeps.filter(m => m).map(meep => {
@@ -778,24 +798,25 @@ export class SubPlayer extends Player {
           }
           // loop if bumpee while bumpee has an other:
           gamePlay.bumpAndCascade(bumpee); // --> meep.player.bumpAndCascade()
-          // ASSERT: moves and cascades have stopped; score the move of winnerMeep
-          const tRankDiff: number = ((tPlyr.rankScoreNow - tScore0) * perTurn);
-          const myRankDiff: number = ((plyr.rankScoreNow - myScore0) * perTurn);
-          const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
-          let score = rd, scoreStr = `0+${rd}`;
-          if (isAdv) {
-            const winMeep = this.gamePlay.gameState.winnerMeep!
-            if (!winMeep) debugger;
-            const [scorec, colorStr] = gamePlay.scoreForColor(winMeep, undefined, false)
-            score += scorec, scoreStr = `${colorStr}+${rd}`;
+          // ASSERT: moves and cascades have stopped;
+          if (meep == this.gamePlay.gameState.winnerMeep) {
+            const [scorec, colorStr] = gamePlay.scoreForColor(meep, undefined, false)
+            this.myColorScore = scorec;
+            this.myColorStr = colorStr;
+          } else if (meep.player.index !== this.gamePlay.gameState.winnerMeep?.player.index) {
+            this.myColorScore = 0;
+            this.myColorStr = '0';
           }
+          const tRankDiff: number = ((tPlyr.rankScore(0) - this.tRankScore0) * perTurn);
+          const myRankDiff: number = ((plyr.rankScore(0) - this.myRankScore0) * perTurn);
+          const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
+          const score = this.myColorScore + rd, scoreStr = `${this.myColorStr}+${rd}`;
           const meepStr = meep.toString();  // final location of meep;
           this.gamePlay.restoreMeeps();
           step.meepStr = meepStr;
           step.score = score;
           step.scoreStr = scoreStr;
           return step
-          // return [score, step, sumStr, meepStr] as [score: number, step: Step<BumpDir2>, sum: string, meepStr: string]
         })
       }).flat().filter(v => !!v)
     }).flat()

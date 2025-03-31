@@ -252,7 +252,7 @@ export class GameState extends GameStateLib {
       // secondary: meepsToCol -> advDir: {N}
       draggable: true,
       start: (col: number, meep: ColMeeple) => {
-          const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
+        const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
         const colId = ColSelButton.colNames[col];
         const other = meep.card.otherMeepInCell(meep)!; // MeepsToCell would not invoke unless other
         const ex = `Col-${colId} from ${step.fromCard}#${step.ndx}[${step.dir}] --> ${meep} & ${other?.toString() ?? '-'}`
