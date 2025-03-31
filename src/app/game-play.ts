@@ -50,6 +50,8 @@ export interface Step<T extends AdvDir | BumpDir2> {
   dir: T;            // fromCard -> meep.crd
   ndx: number;       // started fromCard.ndx
   meepStr?: string;  // showing meep location at this point
+  score?: number;    // min-max change in score from this step
+  scoreStr?: string;   // scoreStr: 0|(meeps + cards + tracks) + rankDiff
 }
 /** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
 export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
@@ -145,18 +147,27 @@ export class GamePlay extends GamePlayLib {
     const n = gp.allPlayers.length;
     const playerColors = gp.allPlayers.map(plyr => plyr.cname); // canonical color
     const turn = Math.max(0, gp.turnNumber);
+    // everything from addStateElements:
     const tableElts = gp.table.saveState();
+    const pStates = this.getPlayerState();
+    const scores = this.allPlayers.map(plyr => plyr.markers.map(m => [m.value, m.track] as [v: number, t: number]))
     const layout = this.getLayout()
-    line = {
-      turn, n, time, playerColors, ...tableElts, layout,
+    const setupElt = {
+      turn, n, time, playerColors, ...tableElts, pStates, scores, layout,
     }
 
-    const line00 = json(line, true); // machine readable starting conditions
-    const line01 = line00.replace(/\],(layout)/g, '],\n$1')
-    const line02 = line01.replace(/\],(\[)/g, '],\n        $1')
+    const line00 = json(setupElt, true); // machine readable starting conditions
+    const line10 = line00.replace(/(playerColors:)/, '\n$1')
+    const line20 = line10.replace(/(trackSegs:)/, '\n$1')
+    const line30 = line20.replace(/(pStates:)/, '\n$1')
+    const line40 = line30.replace(/(scores:)/, '\n$1')
+    const line01 = line40.replace(/(layout:)/, '\n$1')
+    const line02 = line01.replace(/\],(\[{fac)/g, '],\n        $1')
     const line03 = line02.replace(/^{/, '{ ')
     const line0 = line03.replace(/}$/, '\n}')
-    console.log(stime(this, `.logWriterLine0: --------------------\n ${line0}`))
+    const slog = TP.logFromSubGame;
+    const tlog = slog || this.isGUI;
+    tlog && console.log(stime(this, `.logWriterLine0: --------------------\n ${line0}`))
     this.logWriter?.writeLine(`{${key}: ${line0}},`)
   }
   override logNextPlayer(from: string): void {  } // no log
@@ -341,7 +352,8 @@ export class GamePlay extends GamePlayLib {
   bumpAndCascade(meep: ColMeeple, other = meep.card.otherMeepInCell(meep), bumpDone?: () => void, depth = 0) {
     this.setCurPlayer(meep.player); // light up the PlayerPanel
     const cascDir = this.cascadeDir()
-    const tlog = TP.logFromSubGame || this.isGUI;
+    const slog = TP.logFromSubGame;
+    const tlog = slog || this.isGUI;
     tlog && console.log(stime(this, `.bumpAndCascade ->(${meep.toString()} ${other?.toString()} cascDir=${cascDir})`))
     if (!!other) {
       const step = meep.player.bumpInCascade(meep, other, cascDir, bumpDone)
@@ -414,7 +426,8 @@ export class GamePlay extends GamePlayLib {
     const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
     const score = meepScore + cardScore + trackScore
     const scoreStr = `${player.Aname}: ${plyrBid} ${meepScore}+${cardScore}+${trackScore} = ${score}`;
-    const tlog = TP.logFromSubGame || this.isGUI;
+    const slog = TP.logFromSubGame;
+    const tlog = slog || this.isGUI;
     const anno = (this.isGUI) ? '' : 'R ';
     tlog && this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
     if (advMrk) player.advanceMarker(score, [], cb)
@@ -423,32 +436,35 @@ export class GamePlay extends GamePlayLib {
 
   /** for each row (0 .. nRows-1 = top to bottom) player score in order left->right */
   scoreForRank() {
-    const nRows = this.nRows, nScored = arrayN(this.allPlayers.length, i => 0)
-    // include top row (so ndx == row), but score = 0;
-    const playersInRow = arrayN(nRows - 1).map(row =>
-      this.cardsInRow(row, false).map(card => card.meepsOnCard.map(meep => meep.player))
-        .flat().filter((plyr, n, ary) => !ary.slice(0, n).find(lp => lp == plyr))
-      // retain first occurence of player on row
-    )
-
-    /** score for presence of player on the given row */
-    const scoreForRow = (plyr: Player, row: number) => {
-      const meeps = this.cardsInRow(row)
-        .map(card => card.meepsOnCard
-          .filter(meep => meep.player == plyr)).flat()
-      const rank = this.nRows - 1 - row;
-      const nMeep0 = meeps.length;
-      const nMeep1 = (TP.onePerRank ? Math.min(1, nMeep0) : nMeep0)
-      const nMeeps = Math.min(nMeep1, Math.max(0, TP.nTopMeeps - nScored[plyr.index]));
-      const scored = nScored[plyr.index] > 0;
-      const score = (row == 0 ? 0 : rank) * nMeeps;
-      if (score > 0) nScored[plyr.index] += nMeeps;  // number of meeps this player has scored
-      return (TP.topRankOnly && scored) ? 0 : score;
-    }
-    return playersInRow.map((plyrsInRow, row) =>
-      plyrsInRow.map(plyr =>
-        ({ plyr, score: scoreForRow(plyr, row) }))
-    )
+    const nPlayers = this.allPlayers.length;
+    const sRows = this.nRows - 2; // score rows [1 .. nRows-1]
+    const scoreAllMeeps = arrayN(sRows, 1)
+      .map(row => this.cardsInRow(row, false).flat()
+        .map(card => card.meepsOnCard.sort((a, b) => a.cellNdx! - b.cellNdx!)).flat()).flat()
+      .map(meep => ({ plyr: meep.player, rank: meep.card.rank, score: meep.card.rank }))
+    const nByPidByRank = this.allPlayers.map(plyr => arrayN(sRows, i => 0))
+    const onePerRank = TP.onePerRank
+      ? scoreAllMeeps.filter(({ plyr, rank }) => (nByPidByRank[plyr.index][rank]++ == 0))
+      : scoreAllMeeps;
+    const topRankByPid = arrayN(nPlayers, i => 0); //
+    const topRankOnly = TP.topRankOnly
+      ? onePerRank.filter(({ plyr, rank }) => (topRankByPid[plyr.index] == 0)
+        ? (topRankByPid[plyr.index] = rank, true)
+        : topRankByPid[plyr.index] == rank)
+      : onePerRank;
+    const nOfPlyr = arrayN(nPlayers, i => TP.nTopMeeps); // decrement counter
+    const nTopMeeps = (TP.nTopMeeps > 0)
+      ? topRankOnly.filter(({ plyr, rank }) => nOfPlyr[plyr.index]-- > 0)
+      : topRankOnly;
+    const oneScorePerRank = [] as ({ plyr: Player, rank: number, score: number })[];
+    const rv = TP.oneScorePerRank
+      ? (nTopMeeps.forEach(eltN => {
+        const eltForPlyrRank = oneScorePerRank.find(elt => elt.plyr == eltN.plyr && elt.rank == eltN.rank)
+        if (eltForPlyrRank) { eltForPlyrRank.score += eltN.rank }
+        else { oneScorePerRank.push({...eltN, score: eltN.rank })}
+      }), oneScorePerRank)
+      : nTopMeeps;
+    return rv;
   }
 
   brake = false; // for debugger
@@ -459,8 +475,18 @@ export class GamePlay extends GamePlayLib {
     ;(this.hexMap.mapCont.markCont as any)['brake'] = brake;
     console.log(stime(this, `.toggleBreak:`), brake)
   }
+  tp = TP
+  tpl = TPLib
 
-  override bindKeys(): void {
+  override showGameSave() {
+    const setupElt = this.scenarioParser.saveState(false)
+    const lines = this.scenarioParser.logState(setupElt, false);
+    console.log(stime(this, `.showGameSave:`));
+    console.log(` ${lines}`);
+    return lines;
+  }
+
+override bindKeys(): void {
     super.bindKeys();
     const table = this.table;
     KeyBinder.keyBinder.setKey('M-s', () => this.showGameSave());

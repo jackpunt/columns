@@ -44,8 +44,10 @@ export class TP extends TPLib {
   static onePerRank = false;
   /** score only for your highest rank */
   static topRankOnly = false;
-  /** score only the top n meeps */
+  /** score only the top/first n meeps */
   static nTopMeeps = 2;
+  /** move one ScoreMarker per rank (vs one per meep) */
+  static oneScorePerRank = true;
   /** enable textLog in scoreForColor & parseScenario */
   static logFromSubGame = false;
   /** true -> show auto_bids when selected; false -> show after make-bids done click. */

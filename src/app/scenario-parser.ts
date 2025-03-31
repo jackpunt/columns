@@ -31,8 +31,9 @@ export class ScenarioParser extends SPLib {
 
   // from gameSetup.parseScenario:
   override parseScenario(setup: SetupElt & { start?: StartElt }) {
-    const clog = TP.logFromSubGame || this.gamePlay.isGUI;
-    clog && console.log(stime(this, `.parseScenario: newState =`), setup);
+    const slog = TP.logFromSubGame;
+    const tlog = slog || this.gamePlay.isGUI;
+    tlog && console.log(stime(this, `.parseScenario: newState =`), setup);
     Tile.gamePlay = this.gamePlay;
     if (setup.start) {
       const { n: nPlayers, trackSegs } = (setup.start as StartElt)

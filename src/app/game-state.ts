@@ -4,12 +4,12 @@ import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
 import { ColSelButton, type CardButton } from "./card-button";
 import { type ColMeeple } from "./col-meeple";
 import { ColTable as Table } from "./col-table";
-import type { AdvDir, BumpDir2, BumpDirA, BumpDirC, GamePlay, Step } from "./game-play";
+import type { AdvDir, BumpDir2, BumpDirC, GamePlay, Step } from "./game-play";
 import { Player } from "./player";
 import { TP } from "./table-params";
 
 interface Phase extends PhaseLib {
-  rowScores?: {plyr: Player, score: number}[][],
+  rowScores?: ReturnType<GamePlay["scoreForRank"]>,
   draggable?: boolean,
 }
 namespace GS {
@@ -47,7 +47,7 @@ export class GameState extends GameStateLib {
     super.phase(phase, ...args)
   }
   override saveState(): any[] {
-    return [this.state.Aname] as [string];
+    return [this.state?.Aname ?? this.startPhase] as [string];
   }
 
   override parseState(gameState: any[]): void {
@@ -151,13 +151,13 @@ export class GameState extends GameStateLib {
     BeginTurn: {
       start: () => {
         this.gamePlay.setNextPlayer();  // advance turnNumber & turnOfRound
-        this.gamePlay.saveGame(); // --> gamePlay.scenarioParser.saveState(gamePlay)
         console.log(stime(this, `.BeginTurn.start: ${this.turnId} \n`), this.gamePlay.mapString);
         setTimeout(() => this.phase('CollectBids'), 0);
       }
     },
     CollectBids: {
       start: () => {
+        this.gamePlay.saveGame(); // --> gamePlay.scenarioParser.saveState(gamePlay)
         this.doneButton(`Make Bids ${this.turnId}`, C.YELLOW, () => {
           this.gamePlay.allPlayers.forEach(plyr => plyr.collectBid()) // cb --> cardDone
         })
@@ -277,26 +277,23 @@ export class GameState extends GameStateLib {
     EndRound: {
       start: () => {
         // score for rank:
-        const rowScores = this.gamePlay.scoreForRank(), nRows = this.gamePlay.nRows;
-        this.state.rowScores = rowScores.map(rows => rows.slice()); // orig/full rowScores
-        const tlog = TP.logFromSubGame || this.isGUI;
+        const rowScores = this.gamePlay.scoreForRank(), ndxMax = rowScores.length - 1;
+        this.state.rowScores = rowScores.slice(); // orig/full rowScores
+        const slog = TP.logFromSubGame;
+        const tlog = slog || this.isGUI;
         tlog && console.log(stime(this, `.EndRound: rowScores=`), this.state.rowScores)
-        const advanceNextScore = (row: number) => {
-          if (this.gamePlay.isEndOfGame()) { this.done(true); return }
-          const rank = nRows - 1 - row;
-          if (rank < 1) { this.done(); return } // no score for rank0; DONE
-          if (row > rowScores.length - 1) { debugger; } // expect rank = 0
-          if (rowScores[row].length == 0) { advanceNextScore(row + 1); return; }
-          const { plyr, score } = rowScores[row][0]
-          rowScores[row].shift(); // remove {plyr,score}; rowScores.length -> rank
-          this.doneButton(`Advance Markers for Rank ${rank}: ${score}`, plyr.color);
-          plyr.advanceMarker(score, rowScores.slice(), () => advanceNextScore(row))
+        const advanceNextScore = (ndx = 0) => {
+          if (this.gamePlay.isEndOfGame()) { this.done('EndGame'); return }
+          if (ndx > ndxMax) { this.done('BeginRound'); return } // no more scores: DONE
+          const { plyr, rank, score } = rowScores[ndx++]
+          this.doneButton(`Advance Marker ${plyr.Aname} ${rank}: ${score}`, plyr.color);
+          plyr.advanceMarker(score, rowScores.slice(), () => advanceNextScore(ndx))
         }
         advanceNextScore(0)
       },
-      done: (eog = this.gamePlay.isEndOfGame()) => {
+      done: (nextPhase = 'BeginRound') => {
         this.logScores();
-        setTimeout(() => this.phase(eog ? 'EndGame' : 'BeginRound'), TP.flashDwell);
+        setTimeout(() => this.phase(nextPhase), TP.flashDwell);
       }
     },
     EndGame: {
@@ -307,7 +304,7 @@ export class GameState extends GameStateLib {
         playersByscore.sort((a, b) => b.rankScoreNow - a.rankScoreNow); // tie breaker
         playersByscore.sort((a, b) => b.score - a.score )
         const winp = playersByscore[0]
-        this.gamePlay.logWriterLine0('finish', { 'winner': winp.index, 'winColor': winp.Aname })
+        this.table.logText(`winner: ${winp.Aname}`)
         this.doneButton(`End of Game! ${winp.Aname}\n(click for new game)`, winp.color)
       },
       done: () => {

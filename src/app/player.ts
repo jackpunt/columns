@@ -64,8 +64,8 @@ export class Player extends PlayerLib implements ColPlayer {
 
   /** Sum of this player's scoreForRank */
   get rankScoreNow() {
-    const scores = this.gamePlay.scoreForRank(); // all players, each row;
-    const myScores = scores.map(s4row => s4row.filter(ps => ps.plyr == this).map(ps => ps.score)).flat()
+    const scores = this.gamePlay.scoreForRank(); // all players, ranks, scores
+    const myScores = scores.filter(ps => ps.plyr == this).map(ps => ps.score);
     return Math.sum(...myScores)
   }
 
@@ -286,8 +286,8 @@ export class Player extends PlayerLib implements ColPlayer {
     this.colBidButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
     // Sort and select { ccard, bcard } based on score:
     scores = this.filterBlackBids(scores);
-    const scoress = scores.sort((a, b) => b.score - a.score);// descending
-    const score0 = scoress[0].score
+    const scoress = scores.sort((a, b) => b.score! - a.score!);// descending
+    const score0 = scoress[0].score!
     const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;
     // copy the results for logging:
     const scc = scores0.map(({ colId, colBid, score, meep, scoreStr }) => [colId, colBid, score, meep, scoreStr])
@@ -302,7 +302,7 @@ export class Player extends PlayerLib implements ColPlayer {
     const bidCard = this.colBidButtons.find(b => b.colBid == colBid)!
     const plyrId = AT.ansiText(['red', 'bold'], this.Aname)
     const ndxStr = AT.ansiText([slen == 1 ? 'red' : 'blue', 'bold'], `${ndx}/${slen}`)
-    console.log(stime(this, `.selectBid: ${plyrId} [${ndxStr}] ${colId}-${colBid} => ${score0} meep=${meep}\n`), scc, sc5)
+    console.log(stime(this, `.selectBid: ${plyrId} [${ndxStr}] ${colId}-${colBid} => ${score0.toFixed(1)} meep=${meep}\n`), scc, sc5)
     colCard.select()
     bidCard.select()
     return [colCard.colNum, bidCard.colBid]
@@ -310,7 +310,7 @@ export class Player extends PlayerLib implements ColPlayer {
 
   // black in row-[0..1] only if no other bid will score.
   filterBlackBids(scores = this.latestScores) {
-    const altBids = scores.filter(({ colBid, score }) => score == -99 || (colBid !== 4 && score > 0))
+    const altBids = scores.filter(({ colBid, score }) => score == -99 || (colBid !== 4 && score! > 0))
     return altBids.length > 0 ? altBids : scores;
   }
 
@@ -535,7 +535,7 @@ export class Player extends PlayerLib implements ColPlayer {
       return this.manuMoveMeeps([meep, other], dir, doneStr, cb);
     }
     this.syncSubGame();
-    const step = this.subPlyr.bestMove([meep, other], dir)[1];
+    const step = this.subPlyr.bestMove([meep, other], dir);
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
     cb && cb(step);
@@ -710,10 +710,10 @@ export class SubPlayer extends Player {
         const colId = ccard.colId;
         const meepsInCol = this.meepsInCol(colId);
         /** pretend ccard,bcard win, and advance in col */
-        const vec = (meepsInCol.length == 0)
-          ? [-1, {}, `${this.Aname}: no meep in col-${colId}`, ''] as ReturnType<SubPlayer['bestMove']>
+        const step = (meepsInCol.length == 0)
+          ? { score: -1, scoreStr: `${this.Aname}: no meep in col-${colId}`, meepStr: '' } as ReturnType<SubPlayer['bestMove']>
           : this.bestMove(meepsInCol, BD_N, true); // this == meep.this
-        let [score, step, scoreStr, meepStr] = vec;
+        let { score, scoreStr, meepStr } = step;
         if (this.gamePlay.turnNumber > 0 && this.score < 2) {
           if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
         }
@@ -757,8 +757,6 @@ export class SubPlayer extends Player {
     const scores = meeps.filter(m => m).map(meep => {
       const fromCard = meep.card;
       return dirs.map(dir => {
-        // cannot bump own advancing meep down: (vs trick where you scoot sideways, back to black)
-        if (isAdv && dir.startsWith('S') && meep.player == this) return undefined;
         const toCard = fromCard.nextCard(dir)
         if (!toCard) return undefined;
         const ndxs = isAdv ? gamePlay.cellsForAdvance(toCard) : gamePlay.cellsForBumpee(toCard, dir).ndxs;
@@ -784,22 +782,26 @@ export class SubPlayer extends Player {
           const tRankDiff: number = ((tPlyr.rankScoreNow - tScore0) * perTurn);
           const myRankDiff: number = ((plyr.rankScoreNow - myScore0) * perTurn);
           const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
-          let score = rd, sum = `^+${rd}`;
+          let score = rd, scoreStr = `0+${rd}`;
           if (isAdv) {
             const winMeep = this.gamePlay.gameState.winnerMeep!
             if (!winMeep) debugger;
-            const [scorec, scoreStr] = gamePlay.scoreForColor(winMeep, undefined, false)
-            score += scorec, sum = `${scoreStr}+${rd}`;
+            const [scorec, colorStr] = gamePlay.scoreForColor(winMeep, undefined, false)
+            score += scorec, scoreStr = `${colorStr}+${rd}`;
           }
           const meepStr = meep.toString();  // final location of meep;
           this.gamePlay.restoreMeeps();
-          return [score, step, sum, meepStr] as [score: number, step: Step<BumpDir2>, sum: string, meepStr: string]
+          step.meepStr = meepStr;
+          step.score = score;
+          step.scoreStr = scoreStr;
+          return step
+          // return [score, step, sumStr, meepStr] as [score: number, step: Step<BumpDir2>, sum: string, meepStr: string]
         })
       }).flat().filter(v => !!v)
     }).flat()
     // restore meeps to original locations:
     gamePlay.restoreMeeps();
-    scores.sort((a, b) => b[0] - a[0])
+    scores.sort((a, b) => b.score! - a.score!)
     return scores;
   }
 
@@ -810,7 +812,7 @@ export class SubPlayer extends Player {
    */
   override advanceOneMeeple(meeps: ColMeeple[]): Step<AdvDir> {
     if (meeps.length == 0) debugger;
-    const step = this.bestMove(meeps, BD_N, true)?.[1] as Step<AdvDir>;
+    const step = this.bestMove(meeps, BD_N, true) as Step<AdvDir>;
     if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
@@ -819,7 +821,7 @@ export class SubPlayer extends Player {
 
   /** choose bumpee, card & cellNdx -> Step<AdvDir> */
   override bumpUp(meep: ColMeeple, other: ColMeeple) {
-    const step = this.bestMove([meep, other], BD_N)?.[1] as Step<AdvDir>;
+    const step = this.bestMove([meep, other], BD_N) as Step<AdvDir>;
     if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
@@ -827,7 +829,7 @@ export class SubPlayer extends Player {
   }
   /** choose bumpee, card & cellNdx */
   override bumpDn2(other: ColMeeple) {
-    const step = this.bestMove([other], BD_SS)?.[1] as Step<BumpDir2>;
+    const step = this.bestMove([other], BD_SS) as Step<BumpDir2>;
     if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
@@ -836,7 +838,7 @@ export class SubPlayer extends Player {
 
   /** could be bumpUp or bumpDn */
   override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
-    const step = this.bestMove([meep, other], bumpDirC)?.[1] as Step<BumpDir>;
+    const step = this.bestMove([meep, other], bumpDirC) as Step<BumpDir>;
     if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;
     this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
