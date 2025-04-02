@@ -440,7 +440,7 @@ export class GamePlay extends GamePlayLib {
     const nPlayers = this.allPlayers.length;
     const sRows = this.nRows - 2; // score rows [1 .. nRows-1]
     const scoreAllMeeps = arrayN(sRows, 1)
-      .map(row => this.cardsInRow(row, false).flat()
+      .map(row => this.cardsInRow(row, false).flat().filter(card => card.maxCells <= 2) // !Black(Fill)
         .map(card => card.meepsOnCard.sort((a, b) => a.cellNdx! - b.cellNdx!)).flat()).flat()
       .map(meep => ({ plyr: meep.player, rank: meep.card.rank, score: meep.card.rank }))
     const nByPidByRank = this.allPlayers.map(plyr => arrayN(sRows, i => 0))
@@ -478,6 +478,10 @@ export class GamePlay extends GamePlayLib {
   }
   tp = TP
   tpl = TPLib
+  override debug(): void {
+    const log = () => this.logWriter?.showBacklog()
+    super.debug();
+  }
 
   override showGameSave() {
     const setupElt = this.scenarioParser.saveState(false)

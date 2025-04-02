@@ -284,7 +284,8 @@ export class BlackCard extends ColCard {
   get colId() { return this._colId; }
 
   override nextCard(dir: BumpDir): ColCard | undefined {
-    if (!this.colId) return undefined;  // BlackFill: no way out
+    // Advance: only bottom have 'N'; bump: never a collision on Black
+    if (!this.colId) return this;  // BlackFill (override 'N') --> no way out;
     return super.nextCard(dir) ?? this; // back to itself
   }
 

@@ -39,16 +39,16 @@ export class Player extends PlayerLib implements ColPlayer {
   // PlayerLib.playerColor(cname|ndx) --> colorScheme[cname]
   static {
     PlayerLib.colorScheme = {
-      brown: '#784600', // #663300
+      grey: '#8a8a8a',  // #8a8a8a
       pink: '#FF33CC',  // #FF33CC
       orange: '#FF9900',// #FF9900
       green: '#66CC00', // #66CC00
-      grey: '#5c5c5c',  // #5c5c5c
-      yellow: 'yellow',
-      tan: 'tan',
-      purple: '#ab47bc',// #ab47bc
-      blue: 'lightblue',
+      brown: '#643a00', // #643a00
       white: 'white',
+      blue: 'lightblue',
+      tan: 'tan',
+      purple: '#bc4ed0',// #bc4ed0
+      yellow: 'yellow',
     }
   }
 
@@ -95,7 +95,8 @@ export class Player extends PlayerLib implements ColPlayer {
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
     const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
     redoBut.on(S.click, () => this.selectBid(), this); // select alt bid
-    if (this.index < this.gamePlay.allPlayers.length - TP.startAuto) this.setAutoPlay(true)
+    // if (this.index < this.gamePlay.allPlayers.length - TP.startAuto) this.setAutoPlay(true);
+    if (!TP.startManual.includes(Player.colorName(this.color)!)) this.setAutoPlay(true);
   }
 
   makeCardButtons(nCols = 4, nbid = 4) {
@@ -287,18 +288,20 @@ export class Player extends PlayerLib implements ColPlayer {
     this.colSelButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
     this.colBidButtons.forEach(b => (b.state == CB.selected) && b.setState(CB.clear))
     // Sort and select { ccard, bcard } based on score:
-    scores = this.filterBlackBids(scores);
-    const scoress = scores.sort((a, b) => b.score! - a.score!);// descending
-    const score0 = scoress[0].score!
-    const scores0 = scoress.filter(({score}) => (score == score0) || (score == -99)), slen= scores0.length;
+    scores.sort((a, b) => b.score! - a.score!);// descending
+    const score0 = scores[0].score!
+    // when desparate, include playing the black:
+    const desparate = this.gamePlay.turnNumber > 0 && this.score < this.gamePlay.gameState.roundNumber;
+    const scores0 = scores.filter(({ colBid, score }) => (score == score0) || (colBid == 4 && desparate));
+    const slen= scores0.length;
     // copy the results for logging:
     const scc = scores0.map(({ colId, colBid, score, meep, scoreStr }) => [colId, colBid, score, meep, scoreStr])
-    const sc5 = scoress.map(({ colId, colBid, score, meep, scoreStr }) => [colId, colBid, score, meep, scoreStr])
+    const sc5 = scores.map(({ colId, colBid, score, meep, scoreStr }) => [colId, colBid, score, meep, scoreStr])
     // if (scoress.length < 3) debugger;
     // choose a col/bid pair:
     const { colId, colBid, score, meep, ndx } = (slen >= 1)
       ? this.uniformChoice(scores0)
-      : this.fuzzyChoice(scoress);
+      : this.fuzzyChoice(scores);
     // translate to *this* player:
     const colCard = this.colSelButtons.find(b => b.colId == colId)!
     const bidCard = this.colBidButtons.find(b => b.colBid == colBid)!
@@ -308,12 +311,6 @@ export class Player extends PlayerLib implements ColPlayer {
     colCard.select()
     bidCard.select()
     return [colCard.colNum, bidCard.colBid]
-  }
-
-  // black in row-[0..1] only if no other bid will score.
-  filterBlackBids(scores = this.latestScores) {
-    const altBids = scores.filter(({ colBid, score }) => score == -99 || (colBid !== 4 && score! > 0))
-    return altBids.length > 0 ? altBids : scores;
   }
 
   saveCardStates() {
@@ -722,10 +719,7 @@ export class SubPlayer extends Player {
           ? { score: -1, scoreStr: `${this.Aname}: no meep in col-${colId}`, meepStr: '' } as ReturnType<SubPlayer['bestMove']>
           : this.bestMove(meepsInCol, BD_N, true); // this == meep.this
         let { score, scoreStr, meepStr } = step;
-        if (this.gamePlay.turnNumber > 0 && this.score < 2) {
-          if (bcard.colBid == 4) { score = -99; }  // marker: include in scores0
-        }
-        const rv = { colId: ccard.colId, colBid: bcard.colBid, score, meep: step?.meep, scoreStr }
+        const rv = { colId: ccard.colId, colBid: bcard.colBid, score: score!, meep: step?.meep, scoreStr: scoreStr! }
         // prefer to bid 2|3 instead of 1:
         if ([2, 3].includes(bcard.colBid)) { scores2.push(rv); }
         ccard.setState(CB.clear);
@@ -771,7 +765,7 @@ export class SubPlayer extends Player {
       this.tRankScore0 = tPlyr.rankScore(0);
       this.myRankScore0 = plyr.rankScore(0);
     }
-    const perTurn = 1 / gamePlay.gameState.turnOfRound;
+    const perTurn = 1 / (4 - gamePlay.gameState.turnOfRound);
     gamePlay.recordMeeps();   // start new record
 
     const scores = meeps.filter(m => m).map(meep => {
@@ -810,7 +804,7 @@ export class SubPlayer extends Player {
           const tRankDiff: number = ((tPlyr.rankScore(0) - this.tRankScore0) * perTurn);
           const myRankDiff: number = ((plyr.rankScore(0) - this.myRankScore0) * perTurn);
           const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
-          const score = this.myColorScore + rd, scoreStr = `${this.myColorStr}+${rd}`;
+          const score = this.myColorScore + rd, scoreStr = `${this.myColorStr}+${rd.toFixed(1)}`;
           const meepStr = meep.toString();  // final location of meep;
           this.gamePlay.restoreMeeps();
           step.meepStr = meepStr;

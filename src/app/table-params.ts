@@ -56,6 +56,7 @@ export class TP extends TPLib {
   static useXtraMeep = 4;
   /** setAutoPlay if player.index < numPlayers - startAuto */
   static startAuto = 1;
+  static startManual = 'grey';
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */
   static autoDrop = true;
   /** true to use PryTopo and layout */
