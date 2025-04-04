@@ -98,7 +98,7 @@ export class ScenarioParser extends SPLib {
   placeCardsOnMap(layout?: RowElt[]) {
     const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
     const { black0, blackN, allCols, allDuals } = this.makeAllCards(nr, nc,);
-    if (TP.usePyrTopo) {   // use all 5 columns when nPlayers > 4, nc == 5
+    if (TP.usePyrTopo && !TP.fourBase) {   // use all 5 columns when nPlayers > 4, nc == 5
       if (TP.numPlayers == 3) {
         black0.splice(2, 1, new BlackNull('Null:3'));
       } else {
@@ -115,7 +115,7 @@ export class ScenarioParser extends SPLib {
     gamePlay.allDuals = allDuals; // for printing
     const pCards = allCols.slice();
     const dCards = allDuals.slice();
-    const rank0 = nr - 1;
+    const rank0 = nr - 1, midCol = (TP.fourBase && nc == 4) ? 2 : 3;
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
@@ -125,7 +125,7 @@ export class ScenarioParser extends SPLib {
           const col = c0 + ndx;
           const hex = hexRow[col]; // TODO: match on card.Aname!
           const cards = (row == 0 || row == rank0) ? black
-              : (row == 1 && nr == 8 && col == 3) ? [new BlackCard(`Fill:${col}`)]
+              : (TP.usePyrTopo && row == 1 && col == midCol) ? [new BlackCard(`Fill:${col}`)]
               : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
@@ -155,7 +155,7 @@ export class ScenarioParser extends SPLib {
 
       gamePlay.hexMap.forEachHex(hex => {
         const { row, col } = hex;
-        const card = (row == 1 && nr == 8 && col == 3) ? new BlackCard('Fill:3')
+        const card = (TP.usePyrTopo && row == 1 && col == midCol) ? new BlackCard('Fill:3')
           : (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
         if (!card) { debugger; }
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
@@ -212,7 +212,7 @@ export class ScenarioParser extends SPLib {
       // StartElt has no layout: place one each on rank 0
       allPlayers.forEach(player => {
         this.gamePlay.blackN
-          .filter(card => card.factions.length > 0)
+          .filter(card => card.maxCells > 0)
           .forEach(card => {
             const meep = player.makeMeeple(card.colId);
             card.addMeep(meep, 0); // rank == 0; black card

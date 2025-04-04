@@ -64,9 +64,11 @@ class ColGameSetup extends GameSetupLib {
       // [5],6,7,6,5,4,3,[4] np>=4
       // [5],6,7,6,5,4,[5]   np==3
       // [5],6,5,4,3,[4]     np==2
-      nr = [4, 4, 4, 5, 6, 6, 6, 6, 6, 6][np] + 2; // include 2 black rows
+      const nr4 = [4, 4, 5, 5, 5, 6, 6, 6, 6, 6]
+      const nr0 = [4, 4, 4, 5, 6, 6, 6, 6, 6, 6]
+      nr = (TP.fourBase ? nr4 : nr0)[np] + 2; // include 2 black rows
       nc = (np <= 4) ? 4 : 5;
-      tc = (np == 2) ? 18 : (np == 3 ? 28 : 31); // 18 for np=2
+      tc = (np == 2) ? TP.fourBase ? 22 : 18 : (np == 3 ? 28 : 31); // 18 for np=2
     } else {
       // nr includes top & bottom black cells;
       nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows

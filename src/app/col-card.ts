@@ -205,7 +205,7 @@ export class ColCard extends Tile {
     const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
 
     let nb = 0;
-    const ncb = TP.usePyrTopo ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
+    const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
     const black0 = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, i)); // row 0
     const blackN = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, i)); // row N (rank-0)
 
@@ -274,7 +274,8 @@ export class BlackCard extends ColCard {
     return arrayN(n).map(colNum => [1, PrintBlack, 'BlackCard', colNum, .5])
   }
 
-  constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers * 2) {
+  constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers) {
+    nCells = Math.max(4, nCells + (nCells % 2)); // must be > 2, to distinguish from DualCard
     const factions = arrayN(nCells, i => 0) as Faction[];
     super(Aname, ...factions) // initial factions[] for painting color
     const colId = this._colId = ColSelButton.colNames[colNum];
@@ -305,14 +306,19 @@ export class BlackCard extends ColCard {
 
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 
+  override otherMeepInCell(meep: ColMeeple, cellNdx?: number | undefined): ColMeeple | undefined {
+    return undefined; // never a collision, blackCard will make a new cellNdx as needed.
+  }
+
   // if occupied: ignore given cellNdx, dump in first empty cell
   override addMeep(meep: ColMeeple, cellNdx?: number, xy?: XY): ColMeeple | undefined {
     let ndx = (meep.card == this) ? meep.cellNdx :
       (cellNdx !== undefined && !this.meepAtNdx[cellNdx]) ? cellNdx : this.openCells[0];
     // if maxCells are occupied, add 2 more cells, and reposition all the existing meeps:
-    if (ndx == undefined) {
-      ndx = this.maxCells;
-      this.maxCells += 2;  // space for meep and one more, keeping 2 rows
+    if (ndx == undefined || ndx > this.maxCells - 1) {
+      ndx = ndx ?? (this.maxCells + 1); // if ndx > maxCells, then ndx !== 0;
+      const len = Math.max(this.maxCells, ndx + 1);
+      this.maxCells = len + (len % 2);  // space for meep and one more, keeping 2 rows
       this.meepsOnCard.forEach(m => super.addMeep(m, m.cellNdx))
     }
     return super.addMeep(meep, ndx, xy)

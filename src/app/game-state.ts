@@ -176,6 +176,7 @@ export class GameState extends GameStateLib {
             plyr.colSelButtons.forEach(b => b.showSelected(false))
             plyr.colBidButtons.forEach(b => b.showSelected(false))
           })
+          this.gamePlay.logText(`${this.gamePlay.allPlayers.map(p => p.bidStr)}`, `CollectBids:`)
           afterUpdate(this.gamePlay.table.stage, () => this.phase('ResolveWinner', 1))
         }
       }

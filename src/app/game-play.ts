@@ -453,18 +453,18 @@ export class GamePlay extends GamePlayLib {
         ? (topRankByPid[plyr.index] = rank, true)
         : topRankByPid[plyr.index] == rank)
       : onePerRank;
-    const nOfPlyr = arrayN(nPlayers, i => TP.nTopMeeps); // decrement counter
+    const nOfPlyr = arrayN(nPlayers, i => tp_nTopMeeps); // decrement counter
     const nTopMeeps = (tp_nTopMeeps > 0)
       ? topRankOnly.filter(({ plyr, rank }) => nOfPlyr[plyr.index]-- > 0)
       : topRankOnly;
     const oneScorePerRank = [] as ({ plyr: Player, rank: number, score: number })[];
-    const rv = TP.oneScorePerRank
-      ? (nTopMeeps.forEach(eltN => {
+    const rv = TP.scorePerMeep
+      ? nTopMeeps
+      : (nTopMeeps.forEach(eltN => {
         const eltForPlyrRank = oneScorePerRank.find(elt => elt.plyr == eltN.plyr && elt.rank == eltN.rank)
         if (eltForPlyrRank) { eltForPlyrRank.score += eltN.rank }
         else { oneScorePerRank.push({...eltN, score: eltN.rank })}
-      }), oneScorePerRank)
-      : nTopMeeps;
+      }), oneScorePerRank);
     return rv;
   }
 

@@ -95,8 +95,7 @@ export class Player extends PlayerLib implements ColPlayer {
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
     const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
     redoBut.on(S.click, () => this.selectBid(), this); // select alt bid
-    // if (this.index < this.gamePlay.allPlayers.length - TP.startAuto) this.setAutoPlay(true);
-    if (!TP.startManual.includes(Player.colorName(this.color)!)) this.setAutoPlay(true);
+    if (TP.autoStart && !TP.startManual.includes(Player.colorName(this.color)!)) this.setAutoPlay(true);
   }
 
   makeCardButtons(nCols = 4, nbid = 4) {
@@ -120,10 +119,10 @@ export class Player extends PlayerLib implements ColPlayer {
         panel.addChild(button);
       })
     }
-    const ncol = TP.usePyrTopo ? Math.max(nCols, 5) : nCols;
+    const ncol = TP.usePyrTopo && !TP.fourBase ? Math.max(nCols, 5) : nCols;
     this.colSelButtons = makeButton(ColSelButton, ncol);
     this.colBidButtons = makeButton(ColBidButton, nbid);
-    if (TP.usePyrTopo && this.gamePlay.allPlayers.length < 5) this.colSelButtons.splice(2, 1);
+    if (TP.usePyrTopo && !TP.fourBase && this.gamePlay.allPlayers.length < 5) this.colSelButtons.splice(2, 1);
     placeButtons(this.colSelButtons, 0);
     placeButtons(this.colBidButtons, 1);
     const ymax = 2 * dy; // bottom edge of last row of buttons
@@ -343,7 +342,6 @@ export class Player extends PlayerLib implements ColPlayer {
   }
 
   factionCounters: NumCounter[] = [];
-  autoScore = true;
   scoreCounters: NumCounter[] = []
   scoreCounter!: NumCounter;
   override get score() { return this.scoreCounter?.value; }
@@ -434,8 +432,9 @@ export class Player extends PlayerLib implements ColPlayer {
       // click ScoreTrack.markers to choose which to advance:
       m.showDeltas(dScore, clickDone) // pick a marker, setValue(ds,tr), storeCount()
     })
-    this.panel.stage?.update();
-    if (this.autoScore) {             // TODO: re-enable manual version
+    this.gamePlay.gameState.doneButton(`Score: ${dScore}`, this.color)
+    // this.panel.stage?.update();
+    if (this.useRobo || TP.autoScore) {        // re-enable manual version
       this.autoAdvanceMarker(dScore, rowScores); // auto-click one of the markers
     }
   }
@@ -519,6 +518,7 @@ export class Player extends PlayerLib implements ColPlayer {
     stateInfo.update = update;
     this.subGame.parseScenario(stateInfo);
     this.subGame.gameState.winnerMeep = this.gamePlay.gameState.winnerMeep;
+    this.subGame.cascDir = this.gamePlay.cascDir;
     if (update) {
       // this.subGame.scenarioParser.placeMeeplesOnMap(layout, false);
       this.subGame.recordMeeps(false);
@@ -663,7 +663,7 @@ export class Player extends PlayerLib implements ColPlayer {
     const [subMeep, subOther] = this.subMeeps(meep, other);
     console.groupCollapsed(stime(this, `.bumpInCascade: ${this.Aname}@${this.gamePlay.turnId}`))
     console.log(stime(this, `.bumpInCascade: ${[meep, other].map(m => m.toString())}`))
-    const subStep = this.subPlyr.bumpInCascade(subMeep, subOther, bumpDirC)
+    const subStep = this.subPlyr.bumpInCascade(subMeep, subOther, bumpDirC, undefined, true);
     console.groupEnd()
     const step = this.myStep(subStep);
     return step;
@@ -715,9 +715,7 @@ export class SubPlayer extends Player {
         const colId = ccard.colId;
         const meepsInCol = this.meepsInCol(colId);
         /** pretend ccard,bcard win, and advance in col */
-        const step = (meepsInCol.length == 0)
-          ? { score: -1, scoreStr: `${this.Aname}: no meep in col-${colId}`, meepStr: '' } as ReturnType<SubPlayer['bestMove']>
-          : this.bestMove(meepsInCol, BD_N, true); // this == meep.this
+        const step = this.pseudoWin(meepsInCol); // this == meep.this
         let { score, scoreStr, meepStr } = step;
         const rv = { colId: ccard.colId, colBid: bcard.colBid, score: score!, meep: step?.meep, scoreStr: scoreStr! }
         // prefer to bid 2|3 instead of 1:
@@ -730,13 +728,43 @@ export class SubPlayer extends Player {
     return scores.concat(scores2); // may have {score: -1, meep: undefined}
   }
 
+  /** set initial conditions for bestMove() */
+  pseudoWin(meepsInCol: ColMeeple[]) {
+    if (meepsInCol.length == 0)
+      return { score: -1, scoreStr: `${this.Aname}: no meep in col-${this.bidStr}`, meepStr: '' } as ReturnType<SubPlayer['bestMove']>
+    this.baselineScore();
+    return this.bestMove(meepsInCol, BD_N, true);
+  }
+  baselineScore() {
+    // const gamePlay = this.gamePlay;
+    // const uberPhase = (gamePlay.gameSetup as SubGameSetup).gs.gamePlay.gamePhase.Aname
+    // const isCollect = uberPhase == 'CollectBids';   // analyze all my meeps
+    // const isAdvance = uberPhase == 'ResolveWinner'; // analyze my meepsInCol
+    // const bumpAdv = uberPhase == 'BumpFromAdvance'; // other(SS, S) or either(N)
+    // const bumpCasc = uberPhase == 'BumpAndCascade'; // either(S, N)
+
+    const tPlyr = this.topPlayer;
+    // if (isCollect || isAdvance) {
+    this.tRankScore0 = tPlyr.rankScore(0);
+    this.myRankScore0 = this.rankScore(0);
+    // }
+  }
+  /** highest scoring *other* player. */
+  get topPlayer() {
+    const plyrsRanked = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score);
+    const tPlyr = plyrsRanked.find(p => p !== this)!;
+    return tPlyr;
+  }
+
   bestMove(meeps: ColMeeple[], dir: BumpDirA, isAdv = false) {
     return this.evalMoves(meeps, dir, isAdv)[0];
   }
+
   tRankScore0 = 0;  // score for current leader/threat
   myRankScore0 = 0;
   myColorScore = 0;
   myColorStr = '';
+
   /**
    * record meeps; rankScore0;
    *
@@ -751,20 +779,9 @@ export class SubPlayer extends Player {
    * @returns [step, score, scoreStr, meepStr][]
    */
   evalMoves(meeps: ColMeeple[], dirA: BumpDirA, isAdv = false) {
-    const plyr = this, gamePlay = this.gamePlay;
+    const plyr = this, tPlyr = this.topPlayer, gamePlay = this.gamePlay;
     const dirs = this.allDirs(dirA); // assert either isAdv OR dir already constrained by cascDir
-    const uberPhase = (gamePlay.gameSetup as SubGameSetup).gs.gamePlay.gamePhase.Aname
-    const isCollect = uberPhase == 'CollectBids';   // analyze all my meeps
-    const isAdvance = uberPhase == 'ResolveWinner'; // analyze my meepsInCol
-    const bumpAdv = uberPhase == 'BumpFromAdvance'; // other(SS, S) or either(N)
-    const bumpCasc = uberPhase == 'BumpAndCascade'; // either(S, N)
 
-    const plyrsRanked = this.gamePlay.allPlayers.slice().sort((a, b) => b.score - a.score);
-    const tPlyr = plyrsRanked.find(p => p !== this)!; // highest scoring *other* player.
-    if (isCollect || isAdvance) {
-      this.tRankScore0 = tPlyr.rankScore(0);
-      this.myRankScore0 = plyr.rankScore(0);
-    }
     const perTurn = 1 / (4 - gamePlay.gameState.turnOfRound);
     gamePlay.recordMeeps();   // start new record
 
@@ -816,6 +833,7 @@ export class SubPlayer extends Player {
     }).flat()
     // restore meeps to original locations:
     gamePlay.restoreMeeps();
+    permute(scores);
     scores.sort((a, b) => b.score! - a.score!)
     return scores;
   }
@@ -852,7 +870,8 @@ export class SubPlayer extends Player {
   }
 
   /** could be bumpUp or bumpDn */
-  override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC): Step<BumpDir> {
+  override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC, cb?: ()=> void, topLevel = false): Step<BumpDir> {
+    if (topLevel) this.baselineScore();
     const step = this.bestMove([meep, other], bumpDirC) as Step<BumpDir>;
     if (!step) debugger;
     const toCard = step.fromCard.nextCard(step.dir)!;

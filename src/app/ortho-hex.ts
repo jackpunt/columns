@@ -163,8 +163,17 @@ export class HexMap2 extends HexMap<ColHex2> {
   }
   override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir>;
 
+  pyramidMetrics(np = TP.nHexes, nr = TP.nHexes) {
+    const fb = TP.fourBase;
+    const brl = (fb && np < 5 ? 4 : 5); // bottom row length
+    // number of rows up, to row with max length
+    const nru = (np < 3 && !fb ? 1 : 2), rml = nr - 1 - nru; // row with max length; most (nc) columns == (nr-1) - 2
+    const mcl = brl + nru, trl = (np == 3 && !fb) ? 5 : 4; // max col length; top row length
+    return { nru, rml, mcl, trl }
+  }
+
   // makeAllDistricts() -> makeAllHexes()
-  // override to makeRect
+  // override to makeRect; see also: GameSetup.setRowsCols(numPlayers)
   override makeAllHexes(nr = TP.nHexes, nc = TP.mHexes, rc0: RC) {
     const col = 1, district = 0, hexAry = [] as ColHex2[];
     const np = TP.numPlayers;
@@ -172,13 +181,12 @@ export class HexMap2 extends HexMap<ColHex2> {
       // see GameSetup.setRowsCols()
       //  6, 5, 4,5,3,2,1, 0
       const topoEW = new RectTopoEWC(1, 1, 0);
-      const nru = (np < 3 ? 2 : 3), nrl = nr - nru;       // row with most (nc) columns == (nr-1) - 2
-      const mcl = 4 + nru, trl = (np == 3) ? 5 : 4;
-      // Note: when nrl is ODD, everything shifts right by 1/2 col!
+      const { rml, mcl, trl } = this.pyramidMetrics(np)
+      // Note: when rml is ODD, everything shifts right by 1/2 col!
       for (let row = 0; row < nr; row++) {
-        const dnrl = Math.abs(nrl - row); // distance from nrl
-        const ncr = (row == 0) ? trl : (mcl - dnrl); // num cols in row
-        const ncc = (row == 0) ? dnrl - ncr / 2 : dnrl; // c0 inset
+        const drml = Math.abs(rml - row); // distance from rml
+        const ncr = (row == 0) ? trl : (mcl - drml); // num cols in row
+        const ncc = (row == 0) ? drml - ncr / 2 : drml; // c0 inset
         const kx = Math.floor(topoEW.xywh(1, row - 1, ncc / 2).x);
         // console.log(stime(this, `.mAH:`), { row, dnrl, ncr, kx })
         this.addLineOfHex(ncr, row, kx, district, hexAry, 1)

@@ -35,6 +35,8 @@ export class TP extends TPLib {
   static nEltsPerPlayer = [4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6];
   static nElts = 6;     // number of ScoreTrack elements
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
+  /** when numPlayers < 5: [true -> ABCD] [false -> use AB_DE] */
+  static fourBase = true;
 
   /** when advance: always bump down (by 2); self-bump is always up (by 1) */
   static allBumpsDown = true;
@@ -47,16 +49,19 @@ export class TP extends TPLib {
   /** score only the top/first n meeps */
   static nTopMeeps = 2;
   /** move one ScoreMarker per rank (vs one per meep) */
-  static oneScorePerRank = true;
+  static scorePerMeep = true;
   /** enable textLog in scoreForColor & parseScenario */
   static logFromSubGame = false;
   /** true -> show auto_bids when selected; false -> show after make-bids done click. */
   static showAllBids = false;
   /** use extra meeple if player count <= useXtraMeep */
   static useXtraMeep = 4;
-  /** setAutoPlay if player.index < numPlayers - startAuto */
-  static startAuto = 1;
-  static startManual = 'grey';
+  /** setAutoPlay unless startManual includes colorName */
+  static startManual = ['grey'];
+  /** enable/disable auto bots */
+  static autoStart = false;
+  /** for non-auto Players */
+  static autoScore = false;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */
   static autoDrop = true;
   /** true to use PryTopo and layout */

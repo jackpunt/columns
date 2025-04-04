@@ -54,11 +54,11 @@ export class ColTable extends Table {
   override getPanelLocs() {
     const { nh: nr, mh: nc0 } = this.hexMap.getSize();
     const { row: rC, col: cC0 } = this.hexMap.centerMap;
-    // when nrl is even (nRows is odd): shift left by 1/2 col
-    const nru = (TP.numPlayers < 3 ? 2 : 3); // number of rows up
-    const nrl = nr - nru, nrle = (nrl % 2) == 0;
-    const cC = (TP.usePyrTopo && nrle) ? cC0 - .5 : cC0;
-    const nc = (TP.usePyrTopo ? 4 + nru : nc0)
+    const { rml, mcl } = this.hexMap.pyramidMetrics()
+    // when rml is even: shift left by 1/2 col
+    const rmle = (rml % 2) == 0;
+    const cC = (TP.usePyrTopo && rmle) ? cC0 - .5 : cC0;
+    const nc = (TP.usePyrTopo ? (rmle ? mcl - 1 : mcl) : nc0);
     const coff = (nc / 2) + (this.panelWidth / 2) + .2;
     const ph = (TP.numPlayers > 4) ? this.panelHeight + .2 : (this.panelHeight + .2) / 2
     // Left of map (dir: +1), Right of map (dir: -1)
@@ -116,10 +116,21 @@ export class ColTable extends Table {
   }
 
   override layoutTurnlog(rowy?: number, colx?: number): void {
+    const parent = new NamedContainer('logCont')
+    this.dragger.makeDragable(parent);
+    this.scaleCont.addChild(parent);
+
     const row2 = rowy ?? Math.min(-.5, this.nRows - 7.5) + 3.5;
     const col2 = colx ?? (-1.8 - this.nCols * .5) - 4.5;
     super.layoutTurnlog(row2, col2)
-    this.textLog.parent.addChildAt(this.textLog, 0)
+    this.textLog.parent.addChild(parent)
+    parent.x = this.turnLog.x; parent.y = this.turnLog.y;
+    const np = TP.numPlayers
+    const dy = this.textLog.y - this.turnLog.y, h = this.turnLog.height(np)
+    parent.addChild(new RectShape({ w: 250, h }, `rgba(224,224,224,.5)`, ''))
+    this.textLog.x = this.turnLog.x = this.turnLog.y = 0;
+    this.textLog.y = this.turnLog.y + dy;
+    parent.addChild(this.turnLog, this.textLog)
   }
   override setupUndoButtons(bgr: XYWH, row?: number, col?: number, undoButtons?: boolean, xOffs?: number, bSize?: number, skipRad?: number): void {
     const row2 = row ?? Math.min(-.5, this.nRows - 7.5);
@@ -182,12 +193,19 @@ export class ColTable extends Table {
       gui.setValue(item);
       gameSetup.restart({})
     }
+    gui.makeParamSpec('fourBase', [true, false], { fontColor: 'red', name: '4base' }); TP.fourBase;
+    gui.spec('fourBase').onChange = (item: ParamItem) => {
+      gui.setValue(item);
+      gameSetup.restart({})
+    }
     const green = C.GREEN;
     gui.makeParamSpec('allBumpsDown', [true, false], {fontColor: green}); TP.allBumpsDown
     gui.makeParamSpec('bumpUpRow1', [true, false], {fontColor: green}); TP.bumpUpRow1
+    gui.makeParamSpec('scorePerMeep', [true, false], {fontColor: green}); TP.scorePerMeep
     gui.makeParamSpec('onePerRank', [true, false], {fontColor: green}); TP.onePerRank
     gui.makeParamSpec('topRankOnly', [true, false], {fontColor: green}); TP.topRankOnly
     gui.makeParamSpec('nTopMeeps', [1,2,3,4,9], {fontColor: green}); TP.nTopMeeps
+    gui.makeParamSpec('autoStart', [true, false], {fontColor: green}); TP.autoStart
     gui.makeParamSpec('showAllBids', [true, false], {fontColor: green}); TP.showAllBids
 
     parent.addChild(gui)
