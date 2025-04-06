@@ -32,8 +32,9 @@ export class TP extends TPLib {
   static rDuals = .3;
   /** [true] no scoreForColor unless winnerMeep lands on a faction of bidCard. */
   static bidReqd = true;
-  static nEltsPerPlayer = [4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6];
-  static nElts = 6;     // number of ScoreTrack elements
+  /** number of TrackSegments to use on ScoreTrack */
+  static nElts = 5;
+  /** identify the TrackSegments in use */
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
   /** when numPlayers < 5: [true -> ABCD] [false -> use AB_DE] */
   static fourBase = true;
@@ -59,7 +60,7 @@ export class TP extends TPLib {
   /** setAutoPlay unless startManual includes colorName */
   static startManual = ['grey'];
   /** enable/disable auto bots */
-  static autoStart = false;
+  static autoStart = true;
   /** for non-auto Players */
   static autoScore = false;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */

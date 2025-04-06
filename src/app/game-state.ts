@@ -289,6 +289,7 @@ export class GameState extends GameStateLib {
           const { plyr, rank, score } = rowScores[ndx++]
           this.doneButton(`Advance Marker ${plyr.Aname} ${rank}: ${score}`, plyr.color);
           plyr.advanceMarker(score, rowScores.slice(), () => advanceNextScore(ndx))
+          plyr.sourceCounters[1].incValue(score);
         }
         advanceNextScore(0)
       },

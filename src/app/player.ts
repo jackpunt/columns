@@ -341,8 +341,13 @@ export class Player extends PlayerLib implements ColPlayer {
     return meep;
   }
 
+  /** score partitioned by scoreForColor & scoreForRank */
+  sourceCounters: NumCounter[] = [];
+  /** faction support from each faction on board */
   factionCounters: NumCounter[] = [];
+  /** faction support for each score Marker */
   scoreCounters: NumCounter[] = []
+  /** total score (sum of score Markers; see scoreCount(marker)) */
   scoreCounter!: NumCounter;
   override get score() { return this.scoreCounter?.value; }
   override set score(v: number) { this.scoreCounter?.updateValue(v); }
@@ -358,6 +363,7 @@ export class Player extends PlayerLib implements ColPlayer {
     c1.setValue(0, color);
     return c1
   }
+  /** scoreCounters & factionCounters */
   setupCounters(ymax: number) {
     // display coin counter:
     const fs = TP.hexRad * .45, { gap, high: phigh } = this.panel.metrics, ngt4 = TP.numPlayers > 4;
@@ -365,7 +371,9 @@ export class Player extends PlayerLib implements ColPlayer {
     const leftOf = (pc: XY) => ({ x: pc.x - wide - gap, y: pc.y });
     this.scoreCounters[0] = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
     this.scoreCounters[1] = this.makeCounter(leftOf(this.scoreCounters[0]) , C.black, fs)
-    const { x, y } = this.scoreCounters[1], dx = wide + gap, dy = (high + gap) / 2
+    this.sourceCounters[0] = this.makeCounter(leftOf(this.scoreCounters[1]), C.white, fs)
+    this.sourceCounters[1] = this.makeCounter(leftOf(this.sourceCounters[0]) , C.white, fs)
+    const { x, y } = this.sourceCounters[1], dx = wide + gap, dy = (high + gap) / 2
     const qloc = [
       [-dx * 2, +dy],
       [-dx * 3, +dy],
@@ -373,13 +381,13 @@ export class Player extends PlayerLib implements ColPlayer {
       [-dx * 3, -dy],
       [-dx * 4, 0],
     ];
-    let pc: XY = { x: x - wide * 2, y }
+    let pc: XY = { x: x - wide * 0, y }
     this.factionCounters = ColCard.factionColors.slice(0, 5).reverse().map((color, ndx) => {
       if (ngt4) {
         return pc = this.makeCounter(leftOf(pc), color, fs)
       } else { // purple, blue, gold, red, black
         const [qx, qy] = qloc[ndx];
-        pc.x = x + qx; pc.y = y + qy;
+        pc.x = x + qx + dx; pc.y = y + qy;
         return this.makeCounter(pc, color, fs)
       }
     }).reverse()

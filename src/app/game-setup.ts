@@ -58,7 +58,7 @@ class ColGameSetup extends GameSetupLib {
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
   setRowsCols(np = TP.numPlayers) {
-    let nr = TP.nHexes, nc = TP.mHexes, nElts = TP.nEltsPerPlayer[np];
+    let nr = TP.nHexes, nc = TP.mHexes;
     let tc = 0;
     if (TP.usePyrTopo) {
       // [5],6,7,6,5,4,3,[4] np>=4
@@ -78,7 +78,7 @@ class ColGameSetup extends GameSetupLib {
       //    score      40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
     }
     TP.setParams({ nHexes: nr, mHexes: nc, }, false, TPLib)
-    TP.setParams({ cardsInPlay: tc, nElts }, false, TP)
+    TP.setParams({ cardsInPlay: tc }, false, TP)
     return [nr, nc] as [nr: number, nc: number];
   }
 

@@ -44,7 +44,7 @@ export class ScenarioParser extends SPLib {
       this.gamePlay.table.layoutScoreTrack();
       setup = setup.start;
     } else {
-      // TP.trackSegs = undefined; // use new random selection
+      TP.trackSegs = undefined; // use new random selection
     }
 
     const { scores, turn, pStates, layout, gameState, update } = setup;

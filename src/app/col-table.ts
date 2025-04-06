@@ -183,7 +183,7 @@ export class ColTable extends Table {
       gui.setValue(item);
       gameSetup.restart({})
     }
-    gui.makeParamSpec('nElts', [1, 2, 4, 6, 8], { fontColor: 'red' }); TP.nElts;
+    gui.makeParamSpec('nElts', [1, 2, 4, 5, 6, 7], { fontColor: 'red' }); TP.nElts;
     gui.spec('nElts').onChange = (item: ParamItem) => {
       gui.setValue(item);
       gameSetup.restart({})

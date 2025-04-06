@@ -431,7 +431,10 @@ export class GamePlay extends GamePlayLib {
     const tlog = slog || this.isGUI;
     const anno = (this.isGUI) ? '' : 'R ';
     tlog && this.logText(scoreStr, `${anno}scoreForColor[${faction}]-${meep.toString()}`)
-    if (advMrk) player.advanceMarker(score, [], cb)
+    if (advMrk) {
+      player.advanceMarker(score, [], cb)
+      player.sourceCounters[0].incValue(score)
+    }
     return [score, scoreStr];
   }
 
