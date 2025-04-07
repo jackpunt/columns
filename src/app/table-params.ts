@@ -33,7 +33,7 @@ export class TP extends TPLib {
   /** [true] no scoreForColor unless winnerMeep lands on a faction of bidCard. */
   static bidReqd = true;
   /** number of TrackSegments to use on ScoreTrack */
-  static nElts = 5;
+  static nElts = 6;
   /** identify the TrackSegments in use */
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
   /** when numPlayers < 5: [true -> ABCD] [false -> use AB_DE] */

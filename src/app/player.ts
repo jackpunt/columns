@@ -430,8 +430,8 @@ export class Player extends PlayerLib implements ColPlayer {
   advanceMarker(dScore: number, rowScores: ReturnType<GamePlay["scoreForRank"]> = [], cb?: () => void) {
     if (!dScore) { cb && setTimeout(cb, 0); return } // zero or undefined
     // this.gamePlay.gameState.doneButton(`Advance Marker ${score}`, this.color)
-    const scoreTrack = this.gamePlay.table.scoreTrack;
-    const markers = scoreTrack.markers[this.index];
+    const scoreTrack = this.gamePlay.table.scoreTrack, max = scoreTrack.maxValue;
+    const markers = scoreTrack.markers[this.index].filter(m => m.value != max);
     markers.forEach(m => {
       const clickDone = () => {
         this.scoreCount(m)
