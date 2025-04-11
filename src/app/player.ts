@@ -396,15 +396,20 @@ export class Player extends PlayerLib implements ColPlayer {
   /**
    * current support (meeps, markers, cards-inPlay) from each faction: [B, r, g, b, v]
    */
-  factionTotals(markers = this.markers, inPlay = true) {
+  factionTotals(markers = this.markers, inPlay = true, cv = 1) {
     const cards = this.colBidButtons.filter(b => b.inPlay(inPlay)) // false --> yet to play
-    const nFacs = ColCard.factionColors.length - 1; // exclude white faction
+    const nFacs = ColCard.factionColors.length - 1; // exclude white/quad faction
     const factionTotals = (arrayN(nFacs) as Faction[]).map(faction => 0
-      + this.meepFactions[faction]
-      + markers.reduce((pv, mrk) => pv + (mrk.faction == faction ? 1 : 0), 0)
-      + cards.reduce((pv, card) => pv + (card.factions.includes(faction) ? .5 : 0), 0)
+      + this.meepScore(faction)
+      + this.trackScore(faction, markers)
+      + this.cardScore(faction, cards, cv)
     )
     return factionTotals
+  }
+  meepScore(faction: Faction) { return this.meepFactions[faction]; }
+  trackScore(faction: Faction, markers = this.markers) {return markers.reduce((pv, mrk) => pv + (mrk.faction == faction ? 1 : 0), 0)}
+  cardScore(faction: Faction, cards = this.colBidButtons.filter(b => b.inPlay(true)), cv = 1) {
+    return cards.reduce((pv, card) => pv + (card.factions.includes(faction) ? cv : 0), 0)
   }
 
   /** MarkerShapes on ScoreTrack */
@@ -468,7 +473,7 @@ export class Player extends PlayerLib implements ColPlayer {
       && this.colBidButtons[3].state == CB.clear  // 4-bid is clear
       && rMaxes.filter(m => colSels.find(b => b.colNum == m.card.col)).length > 0
     )
-    const factionTotals = this.factionTotals(allClkrs, false); // yet to play
+    const factionTotals = this.factionTotals(allClkrs, false, .5); // yet to play
     if (!useBlack) factionTotals[0] = 0;
     allClkrs.sort((a, b) => factionTotals[b.faction] - factionTotals[a.faction]); // descending
 

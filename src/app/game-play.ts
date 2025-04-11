@@ -422,9 +422,11 @@ export class GamePlay extends GamePlayLib {
       && !(bidCard.factions.includes(faction))
       && !(faction == 5 && !bidCard.factions.includes(0))
     ) { cb && cb(); return [0, `${plyrBid} NotFaction-${faction}`] }
-    const meepScore = player.meeples.filter(meep => (meep.faction == faction || meep.faction == 5)).length;
-    const cardScore = player.colBidButtons.filter(b => (b.state !== CB.clear) && b.factions.includes(faction)).length
-    const trackScore = this.table.scoreTrack.markers[player.index].filter(m => m.faction == faction).length;
+    const meepScore = meep.faction == 5
+      ? Math.max(...player.factionTotals().slice(1, -1))    // just the colored factions
+      : player.meepScore(faction)
+    const cardScore = player.cardScore(faction)
+    const trackScore = player.trackScore(faction);
     const score = meepScore + cardScore + trackScore
     const scoreStr = `${player.Aname}: ${plyrBid} ${meepScore}+${cardScore}+${trackScore} = ${score}`;
     const slog = TP.logFromSubGame;
