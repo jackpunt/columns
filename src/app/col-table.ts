@@ -158,7 +158,7 @@ export class ColTable extends Table {
     return nLegal;
   }
 
-  override makeGUIs(scale?: number, cx?: number, cy?: number, dy?: number): void {
+  override makeGUIs(scale?: number, cx = -154, cy = 210, dy?: number): void {
     this.guisToMake = [this.makeParamGUI]
     if (!this.stage.canvas) return;
     super.makeGUIs(scale, cx, cy);

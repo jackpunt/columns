@@ -367,13 +367,15 @@ export class Player extends PlayerLib implements ColPlayer {
   setupCounters(ymax: number) {
     // display coin counter:
     const fs = TP.hexRad * .45, { gap, high: phigh } = this.panel.metrics, ngt4 = TP.numPlayers > 4;
-    const { high, wide } = this.scoreCounter = this.makeCounter({ y: (phigh + ymax) / 2 }, C.black, fs)
+    const c0 = this.makeCounter({ y: (phigh + ymax) / 2 }, C.white, fs);
+    const { high, wide } = c0;
     const leftOf = (pc: XY) => ({ x: pc.x - wide - gap, y: pc.y });
+    this.sourceCounters[0] = c0;
+    this.sourceCounters[1] = this.makeCounter(leftOf(this.sourceCounters[0]) , C.white, fs)
+    this.scoreCounter = this.makeCounter(leftOf(this.sourceCounters[1]), C.black, fs);
     this.scoreCounters[0] = this.makeCounter(leftOf(this.scoreCounter), C.black, fs)
     this.scoreCounters[1] = this.makeCounter(leftOf(this.scoreCounters[0]) , C.black, fs)
-    this.sourceCounters[0] = this.makeCounter(leftOf(this.scoreCounters[1]), C.white, fs)
-    this.sourceCounters[1] = this.makeCounter(leftOf(this.sourceCounters[0]) , C.white, fs)
-    const { x, y } = this.sourceCounters[1], dx = wide + gap, dy = (high + gap) / 2
+    const { x, y } = this.scoreCounters[1], dx = wide + gap, dy = (high + gap) / 2
     const qloc = [
       [-dx * 2, +dy],
       [-dx * 3, +dy],
