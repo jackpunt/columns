@@ -156,11 +156,7 @@ export class HexMap2 extends HexMap<ColHex2> {
     super.showMark(hex, isCardHex ? this.cardMark : this.mark);
     if (!hex) this.cardMark.visible = false;
   }
-  get centerMap() {
-    const row = (((this.maxRow ?? 0) + (this.minRow ?? 0)) / 2);
-    const col = (((this.minCol ?? 0) + (this.maxCol ?? 0)) / 2);
-    return { row, col }
-  }
+
   override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir>;
 
   pyramidMetrics(np = TP.nHexes, nr = TP.nHexes) {
