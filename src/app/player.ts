@@ -1,11 +1,11 @@
 import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { afterUpdate, UtilButton, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
-import { NumCounterBox, Player as PlayerLib, Tile, type DragContext, type NumCounter } from "@thegraid/hexlib";
+import { H, NumCounterBox, Player as PlayerLib, Tile, type DragContext, type NumCounter } from "@thegraid/hexlib";
 import { CardButton, CB, ColBidButton, ColSelButton, type CardButtonState, type ColId } from "./card-button";
 import { ColCard } from "./col-card";
 import { ColMeeple } from "./col-meeple";
 import type { ColTable, MarkerShape } from "./col-table";
-import { arrayN, BD_N, BD_S, BD_SS, GamePlay, nFacs, type AdvDir, type BumpDir, type BumpDir2, type BumpDirA, type BumpDirC, type BumpDn, type BumpDn2, type CB_Step, type Faction, type Step } from "./game-play";
+import { arrayN, BD_N, BD_S, BD_SS, GamePlay, nFacs, type AdvDir, type BumpDir, type BumpDir2, type BumpDirA, type BumpDirC, type BumpDirP, type BumpDn, type BumpDn2, type CB_Step, type Faction, type Step } from "./game-play";
 import { SubGameSetup } from "./game-setup";
 import type { ColHex2 } from "./ortho-hex";
 import { TP } from "./table-params";
@@ -835,8 +835,9 @@ export class SubPlayer extends Player {
           }
           const tRankDiff: number = ((tPlyr.rankScore(0) - this.tRankScore0) * perTurn);
           const myRankDiff: number = ((plyr.rankScore(0) - this.myRankScore0) * perTurn);
+          const ls = TP.aiLadderScore ? this.ladderScore(step) : 0, lss = (ls == 0) ? '' : `+${ls.toFixed(1)}*`;
           const rd = (myRankDiff - tRankDiff); // good if I go up or T goes down;
-          const score = this.myColorScore + rd, scoreStr = `${this.myColorStr}+${rd.toFixed(1)}`;
+          const score = this.myColorScore + rd + ls, scoreStr = `${this.myColorStr}+${rd.toFixed(1)}${lss}`;
           const meepStr = meep.toString();  // final location of meep;
           this.gamePlay.restoreMeeps();
           step.meepStr = meepStr;
@@ -851,6 +852,34 @@ export class SubPlayer extends Player {
     permute(scores);
     scores.sort((a, b) => b.score! - a.score!)
     return scores;
+  }
+
+  // if meep forms ladder with SW/SW or NW/NE (downrate for unfilled dualCard)
+  // and lower meep is in column for which we have a clear card (or turnOfRound == 3)
+  // then +1;
+  // ladder is SE/NW: downrate if opponents have meep that can hit from SE
+  // downrate if dualCard is not filled
+  ladderScore(step: Step<BumpDir2>) {
+    const { meep, dir } = step;
+    const adjs = H.pyrDirs.map(dir => {
+      const nwe = ['NW', 'NE'].includes(dir);
+      const senw = ['SE', 'NW'].includes(dir);
+      const other = this.myMeepInDir(meep, dir);
+      const upper = nwe ? other : meep;
+      const openDual = (upper?.card.openCells?.length ?? 0) > 0;
+      const b = (!other || openDual) ? 0 : (this.canSelectMeeple(meep) ? 1 : .5);
+      return senw ? b * .5 : b ;
+    })
+    return Math.max(...adjs)
+  }
+  myMeepInDir(meep: ColMeeple, dir: BumpDirP) {
+    const nCard = meep.card.nextCard(dir)
+    return nCard?.meepsOnCard.find(m => m.player === this)
+  }
+  /** true if player has colSel to advance the given meeple */
+  canSelectMeeple(meep: ColMeeple) {
+    return this.gamePlay.gameState.turnOfRound == 3 ||
+      this.colSelButtons.filter(b => b.state == CB.clear).find(b => this.meepsInCol(b.colId).includes(meep))
   }
 
   /** From gamePlay.ResolveWinnerAndAdvance (or collectScores): choose a meeple and advance it one rank.

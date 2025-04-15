@@ -38,6 +38,8 @@ export class TP extends TPLib {
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
   /** when numPlayers < 5: [true -> ABCD] [false -> use AB_DE] */
   static fourBase = true;
+  /** include ladderScore */
+  static aiLadderScore = true;
 
   /** when advance: always bump down (by 2); self-bump is always up (by 1) */
   static allBumpsDown = true;
