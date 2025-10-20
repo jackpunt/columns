@@ -1,7 +1,6 @@
 import { C, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { NamedContainer, PaintableShape, RectShape, type Paintable } from "@thegraid/easeljs-lib";
+import { AliasLoader, NamedContainer, PaintableShape, RectShape, type Paintable } from "@thegraid/easeljs-lib";
 import { Bitmap, Graphics } from "@thegraid/easeljs-module";
-import { AliasLoader } from "@thegraid/hexlib";
 
 
 /** a NamedContainer acting as PaintableShape */

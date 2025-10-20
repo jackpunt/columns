@@ -539,7 +539,7 @@ export class TrackLabel extends TextInRect {
   static seqN = 0;
   static rotateBack = undefined;
   static countClaz(gs: GridSpec, rot = 0, n = 54, nLim = 54) {
-    return [[n, TrackLabel, gs, rot, nLim]] as CountClaz[];
+    return [[n, TrackLabel, gs, rot, nLim]]// as CountClaz[];
   }
 
   /** labels 0..54; construct @ 300 dpi, to printer @ 25% */

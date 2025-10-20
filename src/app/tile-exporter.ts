@@ -18,12 +18,12 @@ export class TileExporter extends TileExporterLib {
     ] as CountClaz[];
     const cardSingle_1_75_base = [
       ...[[4, PrintSpecial, 'Special', 525]],
-      ...BlackCard.countClaz(1),
-      ...BlackCard.countClaz(7),
-      ...BlackCard.countClaz(1),
-      ...BlackCard.countClaz(7),
+      // ...BlackCard.countClaz(0),
+      ...BlackCard.countClaz(5),
+      // ...BlackCard.countClaz(0),
+      ...BlackCard.countClaz(5),
       ...PrintDual.countClaz(16),
-      ...PrintCol.countClaz(36),
+      ...PrintCol.countClaz(60),
     ] as CountClaz;
     const cardSingle_1_75_hand = [
       // ...PrintBidValue.countClaz(4, 0, 525),
