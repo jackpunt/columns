@@ -1,5 +1,7 @@
 # Columns
 
+Implementation and bot players for "[Cursus Honorum](https://docs.google.com/document/d/109RBOLeDE0yhKDTgoVcWnJsUCzC3blE6XaKuF_LLsb4/)"
+
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.2.
 
 ## Development server

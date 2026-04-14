@@ -56,6 +56,15 @@ class ColGameSetup extends GameSetupLib {
     hexCont?.stage?.update();
   }
 
+  // TODO: specify layout by parsing lines similar to output of GamePlay.mapString
+  //      --- | --- | --- | ---
+  //          -  | --- |  -
+  //       -  |  -  |  -  |  -
+  //    -  | - - | - - |  -  |  -
+  // -  |  -  |  -  |  -  |  -  |  -
+  //   - - | - - |  -  | - - | - -
+  //      012 | 012 | 012 | 012
+
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
   setRowsCols(np = TP.numPlayers) {
     let nr = TP.nHexes, nc = TP.mHexes;
