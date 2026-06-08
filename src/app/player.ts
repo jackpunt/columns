@@ -37,8 +37,7 @@ export class Player extends PlayerLib implements ColPlayer {
   static initialCoins = 400;
   // set our multi-player colors; we don't use the TP.colorScheme
   // PlayerLib.playerColor(cname|ndx) --> colorScheme[cname]
-  static {
-    PlayerLib.colorScheme = {
+  static override colorScheme = {
       grey: '#8a8a8a',  // #8a8a8a
       pink: '#FF33CC',  // #FF33CC
       orange: '#FF9900',// #FF9900
@@ -49,7 +48,6 @@ export class Player extends PlayerLib implements ColPlayer {
       tan: 'tan',
       purple: '#bc4ed0',// #bc4ed0
       yellow: 'yellow',
-    }
   }
 
   override get meeples() { return super.meeples as ColMeeple[]; }

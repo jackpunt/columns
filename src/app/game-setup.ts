@@ -151,11 +151,6 @@ export class SubGameSetup extends ColGameSetup {
     const Aname = this.qParams['Aname']
     console.log(stime(this, `------- new SubGameSetup: ${Aname} ${canvasId ?? 'robo'} --------`))
     this.stage = makeStage(canvasId, false);
-    PlayerLib.logNewPlayer = (plyr: PlayerLib) => {
-      if (plyr.gamePlay.table.stage.canvas) {
-        console.log(stime(plyr, `.new:`), plyr.Aname);
-      }
-    }
   }
   override makeLogWriter() { return undefined; }
 
@@ -169,6 +164,9 @@ export class SubGameSetup extends ColGameSetup {
   override makePlayer(ndx: number, gamePlay: GamePlay) {
     const plyr = new SubPlayer(ndx, gamePlay);
     (plyr as NamedObject).Aname = `${plyr.Aname} R `;
+    if (plyr.gamePlay.table.stage.canvas) {
+      console.log(stime(this, `.makePlayer:`), plyr.Aname);
+    }
     return plyr;
   }
   override startGame(): void {
