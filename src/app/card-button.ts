@@ -303,7 +303,7 @@ export class PrintColSelect extends ColSelButton {
   constructor(seqLim: number, pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = seqLim > 0 ? 1 : 0;
-    const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = player.color;
+    const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)
     this.addSideNum();
@@ -321,7 +321,7 @@ export class PrintBidValue extends ColBidButton {
   constructor(seqLim: number, pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
-    const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = player.color;
+    const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)
 

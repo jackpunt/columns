@@ -2,6 +2,7 @@ import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } 
 import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SummaryCard } from "./col-card";
 import { PrintBidValue, PrintColSelect } from "./card-button";
 import { TrackLabel, TrackSegment } from "./col-table";
+import { arrayN } from "@thegraid/common-lib";
 // end imports
 
 export class TileExporter extends TileExporterLib {
@@ -17,37 +18,18 @@ export class TileExporter extends TileExporterLib {
       [36, SetupCard, '"利刃出击"'],   // card back if we want it.
     ] as CountClaz[];
     const cardSingle_1_75_base = [
-      ...[[4, PrintSpecial, 'Special', 525]],
-      // ...BlackCard.countClaz(0),
-      ...BlackCard.countClaz(5),
-      // ...BlackCard.countClaz(0),
-      ...BlackCard.countClaz(5),
+      ...BlackCard.countClaz(7, 0),  // black cards (blank)
+      ...BlackCard.countClaz(7, 1),  // white cards (col nums)
       ...PrintDual.countClaz(16),
       ...PrintCol.countClaz(60),
     ] as CountClaz;
-    const cardSingle_1_75_hand = [
-      // ...PrintBidValue.countClaz(4, 0, 525),
-      // ...PrintBidValue.countClaz(4, 1, 525),
-      // ...PrintBidValue.countClaz(4, 2, 525),
-      // ...PrintBidValue.countClaz(4, 3, 525),
-      // ...PrintBidValue.countClaz(4, 4, 525),
-      // ...PrintBidValue.countClaz(4, 5, 525),
-      // ...PrintBidValue.countClaz(4, 6, 525),
-      // ...PrintBidValue.countClaz(4, 7, 525),
-      // ...PrintBidValue.countClaz(4, 8, 525),
-      ...PrintColSelect.countClaz(7, 0, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 1, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 2, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 3, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 4, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 5, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 6, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 7, 525), ...BlackCard.countClaz(1),
-      ...PrintColSelect.countClaz(7, 8, 525), [1, SummaryCard, 525],
+    const cardSingle_1_75_hand = arrayN(9).flatMap(f => [
+      // 9 groups of 12 cards: bid, col, dead office
+      ...PrintBidValue.countClaz(4, f, 525),
+      ...PrintColSelect.countClaz(7, f, 525),
+      ...(f < 6) ? PrintSpecial.countClaz(1) : [[1, SummaryCard, 525]],
+    ]) as CountClaz[];
 
-      // [7, PrintColSelect, 7, 9, 525],
-      // [2, PrintColSelect, 0, 9, 525],
-    ] as CountClaz[];
     const gs = TrackLabel.gridSpec; gs.dpi = 300;
     const labelCols = [
       ...TrackLabel.countClaz(gs, 0, 54, 54),
@@ -63,8 +45,12 @@ export class TileExporter extends TileExporterLib {
     // this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
     this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 
 }
+
+  // The Game Crafter: https://www.thegamecrafter.com/
+  // MPCC:  https://www.makeplayingcards.com/  (create folder with 18 cards, front & back)
+  // ImageMagick to convert from .png to .psd

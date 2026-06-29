@@ -206,8 +206,8 @@ export class ColCard extends Tile {
 
     let nb = 0;
     const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
-    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, i)); // row 0
-    const blackN = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, i)); // row N (rank-0)
+    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, 0)); // row 0 (top)
+    const blackN = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:N`, i)); // row N (bottom: rank-0)
 
     const allCols = arrayN(nCards).map(n => {
       const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
@@ -270,15 +270,16 @@ export class DualCard extends ColCard {
 
 export class BlackCard extends ColCard {
 
-  static countClaz(n = 0): CountClaz[] {
-    return arrayN(n).map(colNum => [1, PrintBlack, 'BlackCard', colNum, .5])
+  static countClaz(n = 0, row = 0): CountClaz[] {
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Black:${row}`, colNum, .5])
   }
 
   constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers) {
     nCells = Math.max(4, nCells + (nCells % 2)); // must be > 2, to distinguish from DualCard
-    const factions = arrayN(nCells, i => 0) as Faction[];
+    const fac = (Aname.endsWith('0')) ? 0 : 5; // black on top row, white on bottom row
+    const factions = arrayN(nCells, i => fac) as Faction[];
     super(Aname, ...factions) // initial factions[] for painting color
-    const colId = this._colId = ColSelButton.colNames[colNum];
+    const colId = this._colId = ColSelButton.colNames[fac == 0 ? 0 : colNum];
     this.setLabel(colId, fs)
   }
   _colId: ColId;
@@ -394,6 +395,10 @@ export class PrintBlack extends BlackCard {
   constructor(Aname: string, seqLim = 0, fs?: number) {
     ColCard.nextRadius = 525
     super(Aname, seqLim, fs)
+  }
+
+  override makeShape(): Paintable {
+    return new CardShape(C.WHITE, '', this.radius, false, 0); // no border stroke when printing
   }
 }
 
