@@ -915,9 +915,10 @@ export class SubPlayer extends Player {
   override bumpInCascade(meep: ColMeeple, other: ColMeeple, bumpDirC: BumpDirC, cb?: ()=> void, topLevel = false): Step<BumpDir> {
     if (topLevel) this.baselineScore();
     const step = this.bestMove([meep, other], bumpDirC) as Step<BumpDir>;
-    if (!step) debugger;
-    const toCard = step.fromCard.nextCard(step.dir)!;
-    this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
+    if (step) {            // may be no viable move (eg: both on bottom row)
+      const toCard = step.fromCard.nextCard(step.dir)!;
+      this.gamePlay.moveMeep(step.meep, toCard, step.ndx);
+    }
     return step;
   }
 
