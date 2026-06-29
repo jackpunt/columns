@@ -59,7 +59,7 @@ export class ColTable extends Table {
     const rmle = (rml % 2) == 0;
     const cC = (TP.usePyrTopo && rmle) ? cC0 - .5 : cC0;
     const nc = (TP.usePyrTopo ? (rmle ? mcl - 1 : mcl) : nc0);
-    const coff = (nc / 2) + (this.panelWidth / 2) + .2;
+    const coff = (cC + (rmle ? 1.2 : .6)) + (this.panelWidth / 2);
     const ph = (TP.numPlayers > 4) ? this.panelHeight + .2 : (this.panelHeight + .2) / 2
     // Left of map (dir: +1), Right of map (dir: -1)
     const cL = cC - coff, cR = cC + coff;

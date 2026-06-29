@@ -389,13 +389,13 @@ export class GamePlay extends GamePlayLib {
     const [rn, ro] = andBlack ? [0, 0] : [2, 1]; // also snip BlackNull('Null:3')
     return arrayN(this.nRows - rn, ro)
       .map(row => this.cardsInRow(row)
-        .filter(card => card.isInCol[colId] && (andBlack || (card.maxCells != 0)))).flat();
+        .filter(card => card.isInCol[colId] && (andBlack || (card && card.maxCells != 0)))).flat();
     // Note: (maxCells == 0) for unplayable BlackNull on bottom row.
   }
 
   get colIdsInPlay() {
     // black cards have maxCells = (inPlay) ? 2*np : 0 (not in play)
-    return this.blackN.filter(bc => bc.maxCells > 0).map(card => [card.colId, card.x] as [colId: ColId, x: number])
+    return this.blackN.filter(bc => bc && bc.maxCells > 0).map(card => [card.colId, card.x] as [colId: ColId, x: number])
   }
 
   /** on each Hex[row, col] test & set Card.isInCol() */

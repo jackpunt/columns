@@ -1,11 +1,15 @@
 import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
-import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SummaryCard } from "./col-card";
+import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SummaryCard, WhiteCard } from "./col-card";
 import { PrintBidValue, PrintColSelect } from "./card-button";
 import { TrackLabel, TrackSegment } from "./col-table";
 import { arrayN } from "@thegraid/common-lib";
 // end imports
 
 export class TileExporter extends TileExporterLib {
+  constructor() {
+    super();
+    this.imageGrid.setScale('.05');  // start small
+  }
 
   override makeImagePages() {
     // [...[count, claz, ...constructorArgs]]
@@ -19,7 +23,7 @@ export class TileExporter extends TileExporterLib {
     ] as CountClaz[];
     const cardSingle_1_75_base = [
       ...BlackCard.countClaz(7, 0),  // black cards (blank)
-      ...BlackCard.countClaz(7, 1),  // white cards (col nums)
+      ...WhiteCard.countClaz(7, 1),  // white cards (col nums)
       ...PrintDual.countClaz(16),
       ...PrintCol.countClaz(60),
     ] as CountClaz;

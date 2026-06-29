@@ -86,7 +86,7 @@ class ColGameSetup extends GameSetupLib {
       //    np =  0  1  2  3  4  5  6  7  8  9
       //    score      40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
     }
-    TP.setParams({ nHexes: nr, mHexes: nc, }, false, TPLib)
+    TP.setParams({ nHexes: nr, mHexes: nc, }, false, TPLib);  // TODO: revert to setting directly in TPLib
     TP.setParams({ cardsInPlay: tc }, false, TP)
     return [nr, nc] as [nr: number, nc: number];
   }

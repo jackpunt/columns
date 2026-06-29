@@ -77,7 +77,6 @@ export class ColCard extends Tile {
       return (next && next.maxCells > 0) ? next : undefined; // BlackNull as undefined
       // when 'SS' fails, caller should try 'SW', 'SE'
     }
-    BlackCard; BlackNull;
   }
   // XY locs for meeples on this card. maxMeeps = meepleLocs.length
   // basic have 1 in center; DualCards have two offset; BlackCards have ~20
@@ -207,7 +206,7 @@ export class ColCard extends Tile {
     let nb = 0;
     const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
     const black0 = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, 0)); // row 0 (top)
-    const blackN = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:N`, i)); // row N (bottom: rank-0)
+    const blackN = arrayN(ncb, 1).map(i => new WhiteCard(`${nb++}:N`, i)); // row N (bottom: rank-0)
 
     const allCols = arrayN(nCards).map(n => {
       const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
@@ -268,20 +267,25 @@ export class DualCard extends ColCard {
   override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
 }
 
-export class BlackCard extends ColCard {
+// Black & White extend from XtensaCard: hold any number of meeples (nCells)
+// factions = [0], single Black faction (although White paints C.WHITE, no strokec)
+// White shows its colId: ['', A...H], Black shows ''.
 
-  static countClaz(n = 0, row = 0): CountClaz[] {
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Black:${row}`, colNum, .5])
-  }
-
-  constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers) {
-    nCells = Math.max(4, nCells + (nCells % 2)); // must be > 2, to distinguish from DualCard
-    const fac = (Aname.endsWith('N')) ? 5 : 0; // black on top row, white on bottom row
-    const factions = arrayN(nCells, i => fac) as Faction[];
-    super(Aname, ...factions) // initial factions[] for painting color
-    this.factions = [0];     // reset to 'black' Faction (vs 5 => MultiFaction w/4 colors)
-    const colId = this._colId = ColSelButton.colNames[fac == 0 ? 0 : colNum];
-    this.setLabel(colId, fs)
+  /**
+   *
+   * @param Aname
+   * @param colNum [0] (black) or 1..n (white)
+   * @param fs [undefined -> .5 in setLabel]
+   */
+class XtensaCard extends ColCard {
+  constructor(Aname: string, colNum = 0, fs?: number) {
+    // initial maxCells & factions.length (even number! > 2)
+    const nCells = Math.max(4, Math.ceil(TP.numPlayers/2) * 2); // must be > 2, to distinguish from DualCard
+    const fac = (colNum > 0) ? 5 : 0;                       // fac = 5 (usually SpecialDead) paints as 'white'
+    const factions = arrayN(nCells, i => fac) as Faction[]; // 0: black, 5: white
+    super(Aname, ...factions);
+    this._colId = ColSelButton.colNames[colNum];
+    this.setLabel(this.colId, fs)
   }
   _colId: ColId;
   get colId() { return this._colId; }
@@ -309,7 +313,7 @@ export class BlackCard extends ColCard {
   override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
 
   override otherMeepInCell(meep: ColMeeple, cellNdx?: number | undefined): ColMeeple | undefined {
-    return undefined; // never a collision, blackCard will make a new cellNdx as needed.
+    return undefined; // never a collision, ExtensaCard will make a new cellNdx as needed.
   }
 
   // if occupied: ignore given cellNdx, dump in first empty cell
@@ -327,14 +331,47 @@ export class BlackCard extends ColCard {
   }
 }
 
+export class BlackCard extends XtensaCard {
+  // super(Aname, col = 0, fac = 0, fs)
+  static countClaz(n = 0, row = 0): CountClaz[] {
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Black:${row}`, 0, .5])
+  }
+}
+
+export class WhiteCard extends XtensaCard {
+  static countClaz(n = 0, row = 0): CountClaz[] {
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `White:${row}`, colNum, .5]); // row: N
+  }
+
+  constructor(aname = 'white?', col?: number, fs?: number) {
+    super(aname, col, fs); // with zero length factions.
+  }
+
+  override makeShape(): Paintable {
+    return new CardShape(C.WHITE, '', this.radius, false, 0); // no border stroke when printing
+  }
+}
+
+// Null card: paint WHITE (as if row:N, but do not display colId)
+export class WhiteNull extends WhiteCard {
+  constructor(aname = 'Null:0', col?: number, fs?: number) {
+    super(aname, 0, fs); // with zero length factions.
+    this.factions = [];
+    this.maxCells = 0;
+    this.paint(C.WHITE);
+  }
+
+  override nextCard(dir: BumpDir): ColCard | undefined {
+    return undefined;  // no escape...
+  }
+}
+
 export class BlackNull extends BlackCard {
 
   constructor(aname = 'Null:0', col?: number, fs?: number) {
-    super(aname, col, fs, 0); // with zero length factions.
-    const colNum = col ?? Number.parseInt(aname.split(':')[1] ?? '0');
-    const colId = ColSelButton.colNames[colNum]; // this._colId = undefined
-    this.setLabel(colId, fs); // is Black...
-    this.paint(C.BLACK); // no factions, no color: paint it here.
+    super(aname, 0, fs); // with zero length factions.
+    this.factions = [];
+    this.maxCells = 0;
   }
 
   override nextCard(dir: BumpDir): ColCard | undefined {
@@ -392,10 +429,10 @@ export class PrintDual extends DualCard {
   }
 }
 
-export class PrintBlack extends BlackCard {
-  constructor(Aname: string, seqLim = 0, fs?: number) {
+export class PrintBlack extends XtensaCard {
+  constructor(Aname: string, colNum = 0, fac = 0, fs?: number) {
     ColCard.nextRadius = 525
-    super(Aname, seqLim, fs)
+    super(Aname, colNum, fs)
   }
 
   override makeShape(): Paintable {

@@ -1,7 +1,7 @@
 import { permute, removeEltFromArray, stime } from "@thegraid/common-lib";
-import { Player as PlayerLib, ScenarioParser as SPLib, SetupElt as SetupEltLib, StartElt as StartEltLib, Tile, type GamePlay0, type LogWriter, TP as TPLib } from "@thegraid/hexlib";
+import { ScenarioParser as SPLib, SetupElt as SetupEltLib, TP as TPLib, Tile, type LogWriter } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { BlackCard, BlackNull, ColCard, SpecialDead } from "./col-card";
+import { BlackCard, BlackNull, ColCard, SpecialDead, WhiteNull } from "./col-card";
 import type { ColTable } from "./col-table";
 import { type CardContent, type GamePlay } from "./game-play";
 import type { HexMap2 } from "./ortho-hex";
@@ -97,16 +97,18 @@ export class ScenarioParser extends SPLib {
 
   placeCardsOnMap(layout?: RowElt[]) {
     const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
+    const baseNum = gamePlay.hexMap[nr-1].length;
+    const midBlank = (TP.usePyrTopo && TP.fourBase && TP.numPlayers < 5) && (baseNum % 2 == 1);
     const { black0, blackN, allCols, allDuals } = this.makeAllCards(nr, nc,);
     if (TP.usePyrTopo && !TP.fourBase) {   // use all 5 columns when nPlayers > 4, nc == 5
       if (TP.numPlayers == 3) {
-        black0.splice(2, 1, new BlackNull('Null:3'));
+        black0.splice(2, 1, new BlackNull('Null:3', 3));
       } else {
         black0.splice(2, 1); // remove colId==C;
       }
       if (nc == 4) {
         // BlackNull: maxCells = 0; column is NOT in play.
-        blackN.splice(2, 1, new BlackNull('Null:3')); // use only 4 columns, remove 'C'
+        blackN.splice(2, 1, new WhiteNull('Null:3', 3)); // use only 4 columns, remove 'C'
       }
     }
     gamePlay.black0 = black0.slice();
@@ -115,7 +117,7 @@ export class ScenarioParser extends SPLib {
     gamePlay.allDuals = allDuals; // for printing
     const pCards = allCols.slice();
     const dCards = allDuals.slice();
-    const rank0 = nr - 1, midCol = (TP.fourBase && nc == 4) ? 2 : 3;
+    const rank0 = nr - 1, midCol = Math.floor(baseNum / 2);
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
@@ -125,7 +127,7 @@ export class ScenarioParser extends SPLib {
           const col = c0 + ndx;
           const hex = hexRow[col]; // TODO: match on card.Aname!
           const cards = (row == 0 || row == rank0) ? black
-              : (TP.usePyrTopo && row == 1 && col == midCol) ? [new BlackCard(`Fill:${col}`)]
+              : (midBlank && row == 1 && col == midCol) ? [new BlackCard(`Fill:${col}`)]
               : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
@@ -155,11 +157,12 @@ export class ScenarioParser extends SPLib {
 
       gamePlay.hexMap.forEachHex(hex => {
         const { row, col } = hex;
-        const card = (TP.usePyrTopo && row == 1 && col == midCol) ? new BlackCard('Fill:3')
+        const card =  (midBlank && row == 1 && col == midCol) ? new BlackCard('Fill:3')
           : (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
-        if (!card) { debugger; }
+        if (card) {
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
         hex.legalMark.doGraphicsDual(card)
+        } else debugger;  // except that time we wanted to remove the bottom 'C' card...
         return;
       })
       const deadCards = this.gamePlay.setCardIsInCol();
