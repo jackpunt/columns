@@ -267,6 +267,16 @@ export class GameState extends GameStateLib {
         return;
       },
     },
+    EndAction: {
+      nextPhase: 'ChooseAction',
+      start: () => {
+        const nextPhase = this.state.nextPhase = 'EndTurn';
+        this.phase(nextPhase);     // direct -> nextPhase
+      },
+      done: () => {
+        this.phase(this.state.nextPhase ?? 'Start'); // TS want defined...
+      }
+    },
     EndTurn: {
       start: () => {
         this.logScores('EndTurn');
