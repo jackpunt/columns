@@ -44,7 +44,7 @@ export class TP extends TPLib {
   /** when advance: always bump down (by 2); self-bump is always up (by 1) */
   static allBumpsDown = true;
   /** must bump row1 to row0 */
-  static bumpUpRow1 = true;
+  static bumpUpRow1 = false;
   /** [true] scoreForRank scores at most 1 meep per player on each rank */
   static onePerRank = false;
   /** score only for your highest rank */

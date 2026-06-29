@@ -79,7 +79,7 @@ class ColGameSetup extends GameSetupLib {
       nc = (np <= 4) ? 4 : 5;
       tc = (np == 2) ? TP.fourBase ? 22 : 18 : (np == 3 ? 28 : 31); // 18 for np=2
     } else {
-      // nr includes top & bottom black cells;
+      // nr includes top & bottom [black/white] cells;
       nr = [4, 4, 4, 4, 5, 5, 5, 5, 6, 6][np] + 2; // include 2 black rows
       nc = [4, 4, 4, 4, 5, 5, 6, 6, 7, 7][np];
       tc = (nr - 2) * nc;

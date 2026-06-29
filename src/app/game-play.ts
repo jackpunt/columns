@@ -268,7 +268,9 @@ export class GamePlay extends GamePlayLib {
   }
   /** utility: meep & other in same cell after Advance */
   dirsForBumpAdv(meep: ColMeeple, other: ColMeeple) {
-    return ((meep.player == other.player) || (meep.card.hex.row == 1) ? ['N'] : ['SS', 'S']) as BumpDirA[];
+    // maybe legacy 'feature' from when one could choose whether to bump up/down?
+    // or later feature to *allow* to bump up an opponent if they are on row1?
+    return ((meep.player == other.player) || (TP.bumpUpRow1 && meep.card.hex.row == 1) ? ['N'] : ['SS', 'S']) as BumpDirA[];
   }
   /** utility to compute valid cellNdxs for advance */
   cellsForAdvance(advCard: ColCard) {

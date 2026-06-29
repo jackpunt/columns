@@ -276,9 +276,10 @@ export class BlackCard extends ColCard {
 
   constructor(Aname: string, colNum = 0, fs?: number, nCells = TP.numPlayers) {
     nCells = Math.max(4, nCells + (nCells % 2)); // must be > 2, to distinguish from DualCard
-    const fac = (Aname.endsWith('0')) ? 0 : 5; // black on top row, white on bottom row
+    const fac = (Aname.endsWith('N')) ? 5 : 0; // black on top row, white on bottom row
     const factions = arrayN(nCells, i => fac) as Faction[];
     super(Aname, ...factions) // initial factions[] for painting color
+    this.factions = [0];     // reset to 'black' Faction (vs 5 => MultiFaction w/4 colors)
     const colId = this._colId = ColSelButton.colNames[fac == 0 ? 0 : colNum];
     this.setLabel(colId, fs)
   }
