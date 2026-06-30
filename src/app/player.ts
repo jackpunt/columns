@@ -700,7 +700,7 @@ export class Player extends PlayerLib implements ColPlayer {
   /** count of meeples on each Faction [B, r, g, b, v, W] */
   get meepFactions() {
     const counts = arrayN(2 + nFacs, i => 0); // B + 4
-    this.meeples.forEach(meep => counts[meep.faction!]++)// ASSERT: faction is defined
+    this.meeples.filter(m => m.hex!.row < this.gamePlay.nRows-1).forEach(meep => counts[meep.faction!]++)// ASSERT: faction is defined
     counts.forEach((cnt, ndx) => ndx > 0 && (counts[ndx] += counts[5]))
     return counts;
   }
