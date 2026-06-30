@@ -65,7 +65,7 @@ export class GamePlay extends GamePlayLib {
   /** row0 at the top */
   black0: ColCard[] = [];
   /** rowN = rank0 at the bottom */
-  blackN: BlackCard[] = [];
+  whiteN: BlackCard[] = [];
   allCols: ColCard[] = [];
   allDuals: DualCard[] = [];
   allBlack: BlackCard[] = [];
@@ -395,7 +395,7 @@ export class GamePlay extends GamePlayLib {
 
   get colIdsInPlay() {
     // black cards have maxCells = (inPlay) ? 2*np : 0 (not in play)
-    return this.blackN.filter(bc => bc && bc.maxCells > 0).map(card => [card.colId, card.x] as [colId: ColId, x: number])
+    return this.whiteN.filter(bc => bc && bc.maxCells > 0).map(card => [card.colId, card.x] as [colId: ColId, x: number])
   }
 
   /** on each Hex[row, col] test & set Card.isInCol() */

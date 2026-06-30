@@ -129,7 +129,7 @@ export class GameState extends GameStateLib {
           this.gamePlay.allPlayers.forEach(plyr => {
             const xColId = plyr.isDoneSelecting()!.colId;
             const meep = plyr.makeMeeple(xColId, '*');
-            const card = this.gamePlay.blackN.find(card => card.colId == xColId)!
+            const card = this.gamePlay.whiteN.find(card => card.colId == xColId)!
             card.addMeep(meep, 0);
             // plyr.clearButtons();
           })
@@ -186,9 +186,9 @@ export class GameState extends GameStateLib {
       start: (col = 1) => {
         this.winnerMeep = undefined;
         if (this.gamePlay.isEndOfGame()) { return this.phase('EndGame') }
-        // col index colNames, so 1..nc; blackN is indexed [0..nc-1]
-        const blackN = this.gamePlay.blackN, bCard = blackN[col - 1], colId = bCard?.colId;
-        if (col > blackN.length) { return this.phase('EndTurn') }
+        // col index colNames, so 1..nc; whiteN is indexed [0..nc-1]
+        const whiteN = this.gamePlay.whiteN, bCard = whiteN[col - 1], colId = bCard?.colId;
+        if (col > whiteN.length) { return this.phase('EndTurn') }
         if (bCard.maxCells == 0) { return this.phase('ResolveWinner', col + 1) } // skip BlackNull column
         // calls player.advanceOneMeeple(meepsInCol, cb_advanceMeeple)
         this.gamePlay.resolveWinnerAndAdvance(colId, (step?: Step<AdvDir>) => {
@@ -217,7 +217,7 @@ export class GameState extends GameStateLib {
         const toBump = card0.otherMeepInCell(meep, ndx); // on Black every meep gets its own cell.
         if (toBump) {
           const plyr = meep.player// as IPlayer;
-          const upBump = (toBump.player == plyr) || (meep.card.hex.row == 1);
+          const upBump = (toBump.player == plyr) || (TP.bumpUpRow1 && meep.card.hex.row == 1);
           this.gamePlay.bumpAfterAdvance(meep, toBump, (step: Step<BumpDir2>) => {
             const dir = this.gamePlay.cascadeDir(); // step.dir --> <S|N>
             if (upBump && dir !== 'N') debugger; // 'N' required?

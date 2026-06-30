@@ -206,7 +206,8 @@ export class ColCard extends Tile {
     let nb = 0, nw = 0;
     const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
     const black0 = arrayN(ncb, 1).map(i => new BlackCard(`0:${nb++}`, 0)); // row 0 (top)
-    const blackN = arrayN(ncb, 1).map(i => new WhiteCard(`N:${nw++}`, i)); // row N (bottom: rank-0)
+    const whiteN = arrayN(ncb, 1).map(i => new WhiteCard(`N:${nw++}`, i)); // row N (bottom: rank-0)
+    whiteN.forEach(card => card.paint(C.grey224));   // shade for visible highlights
 
     const allCols = arrayN(nCards).map(n => {
       const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
@@ -219,7 +220,7 @@ export class ColCard extends Tile {
       return new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
     })
 
-    return { black0, blackN, allCols, allDuals }
+    return { black0, whiteN, allCols, allDuals }
   }
 
   static source: TileSource<ColCard>;
@@ -237,7 +238,7 @@ export class DualCard extends ColCard {
 
   constructor(Aname: string, faction0: Faction, faction1: Faction) {
     super(Aname, faction0, faction1);
-    this.baseShape.dualCgf(C.BLACK, ...[faction0, faction1].map(f => ColCard.factionColors[f]));
+    this.baseShape.dualCgf('d', ...[faction0, faction1].map(f => ColCard.factionColors[f]));
     this.paint('ignored')
   }
 
@@ -262,7 +263,8 @@ export class DualCard extends ColCard {
   }
   get cellWidth() { return this.getBounds().width }
   override meepleLoc(ndx = this.openCells[0]): XY {
-    return { x: this.cellWidth * (ndx - .5) / 2, y: [.1,-.1][ndx] * this.cellWidth }
+    const offs = this.baseShape._cgf.name == 'cgf_d' ? .1 : 0;
+    return { x: this.cellWidth * (ndx - .5) / 2, y: [offs, -offs][ndx] * this.cellWidth }
   }
   override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
 }
@@ -344,11 +346,12 @@ export class WhiteCard extends XtensaCard {
   }
 
   constructor(aname = 'white?', col?: number, fs?: number) {
-    super(aname, col, fs); // with zero length factions.
+    super(aname, col, fs);
+    this.factions = [];     // with zero length factions.
   }
 
   override makeShape(): Paintable {
-    return new CardShape(C.WHITE, '', this.radius, false, 0); // no border stroke when printing
+    return new CardShape(C.grey92, '', this.radius, false, 0); // no border stroke when printing
   }
 }
 
