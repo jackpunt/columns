@@ -262,7 +262,7 @@ export class DualCard extends ColCard {
   }
   get cellWidth() { return this.getBounds().width }
   override meepleLoc(ndx = this.openCells[0]): XY {
-    return { x: this.cellWidth * (ndx - .5) / 2, y: 0 }
+    return { x: this.cellWidth * (ndx - .5) / 2, y: [.1,-.1][ndx] * this.cellWidth }
   }
   override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
 }
