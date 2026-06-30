@@ -97,18 +97,15 @@ export class ScenarioParser extends SPLib {
 
   placeCardsOnMap(layout?: RowElt[]) {
     const gamePlay = this.gamePlay, nr = gamePlay.nRows, nc = gamePlay.nCols;
-    const baseNum = gamePlay.hexMap[nr-1].length;
+    const row1 = gamePlay.hexMap[1].filter(h => !!h);
+    const baseNum = row1.length;
     const midBlank = (TP.usePyrTopo && TP.fourBase && TP.numPlayers < 5) && (baseNum % 2 == 1);
+    const midCol = row1[Math.floor(baseNum/2)].col; // median hex in row1
     const { black0, blackN, allCols, allDuals } = this.makeAllCards(nr, nc,);
     if (TP.usePyrTopo && !TP.fourBase) {   // use all 5 columns when nPlayers > 4, nc == 5
-      if (TP.numPlayers == 3) {
-        black0.splice(2, 1, new BlackNull('Null:3', 3));
-      } else {
-        black0.splice(2, 1); // remove colId==C;
-      }
       if (nc == 4) {
-        // BlackNull: maxCells = 0; column is NOT in play.
-        blackN.splice(2, 1, new WhiteNull('Null:3', 3)); // use only 4 columns, remove 'C'
+        // WhiteNull: maxCells = 0; column is NOT in play.
+        blackN.splice(2, 1, new WhiteNull('Null:C', 3)); // use only 4 columns, remove 'C'
       }
     }
     gamePlay.black0 = black0.slice();
@@ -117,7 +114,7 @@ export class ScenarioParser extends SPLib {
     gamePlay.allDuals = allDuals; // for printing
     const pCards = allCols.slice();
     const dCards = allDuals.slice();
-    const rank0 = nr - 1, midCol = Math.floor(baseNum / 2);
+    const rank0 = nr - 1;
     if (layout) {
       layout.forEach((rowElt, row) => {
         const black = (row == 0) ? black0 : blackN;
@@ -144,7 +141,7 @@ export class ScenarioParser extends SPLib {
       const nr = gamePlay.nRows
       let nCards = 0;
       gamePlay.hexMap.forEachHex(h => {
-        if (h.row !== 0 && h.district !== 0) nCards++; // count ColCard hexes
+        if (h.row !== 0 && h.row !== nr-1) nCards++; // count ColCard hexes
       });
       // new/random layout:
       permute(pCards)
@@ -157,12 +154,12 @@ export class ScenarioParser extends SPLib {
 
       gamePlay.hexMap.forEachHex(hex => {
         const { row, col } = hex;
-        const card =  (midBlank && row == 1 && col == midCol) ? new BlackCard('Fill:3')
+        const card =  (midBlank && row == 1 && col == midCol) ? new BlackCard('midCol')
           : (row == 0 ? black0 : row == rank0 ? blackN : cards).shift() as ColCard;
         if (card) {
         card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
         hex.legalMark.doGraphicsDual(card)
-        } else debugger;  // except that time we wanted to remove the bottom 'C' card...
+        } else alert(`No card at (row ${row}, col ${col}), midBlank: ${midBlank}`);  // except that time we wanted to remove the bottom 'C' card...
         return;
       })
       const deadCards = this.gamePlay.setCardIsInCol();

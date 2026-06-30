@@ -203,10 +203,10 @@ export class ColCard extends Tile {
   static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
     const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
 
-    let nb = 0;
+    let nb = 0, nw = 0;
     const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
-    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`${nb++}:0`, 0)); // row 0 (top)
-    const blackN = arrayN(ncb, 1).map(i => new WhiteCard(`${nb++}:N`, i)); // row N (bottom: rank-0)
+    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`0:${nb++}`, 0)); // row 0 (top)
+    const blackN = arrayN(ncb, 1).map(i => new WhiteCard(`N:${nw++}`, i)); // row N (bottom: rank-0)
 
     const allCols = arrayN(nCards).map(n => {
       const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;

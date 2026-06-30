@@ -1,6 +1,6 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
 import { AliasLoader, makeStage, type NamedObject } from '@thegraid/easeljs-lib';
-import { GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect } from '@thegraid/hexlib';
+import { GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect, type StartElt } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
@@ -45,9 +45,27 @@ class ColGameSetup extends GameSetupLib {
     super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
   }
 
-  override startup(scenario: Scenario): void {
+  override startup(qParams: Params | SetupElt): void {
     ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
-    super.startup(scenario)
+    super.startup(qParams); // -->  initialScenario(qParams)
+  }
+
+  override initialScenario(qParams?: Params): StartElt {
+    const nElts = qParams?.['nt'] as string ?? TP.nElts.toString();
+    TP.nElts = Number.parseInt(nElts);
+
+    const nDefault = TPLib.numPlayers ?? 3;
+    TPLib.numPlayers = 0;             // reset; use value from getNPlayers
+    const n = TPLib.numPlayers =this.getNPlayers(qParams, nDefault);   // retain previous value if not supplied
+    return { Aname: 'initialScenario', n, ...qParams, turn: 0, };
+  }
+
+  /** set this.facIds & facNames; return facIds.length */
+  override getNPlayers(qParams: Params = this.qParams, nDefault = 3): number {
+    const qn = qParams?.['n'] as string; // "3" OR user-specified number of players
+    const pn = qn ? Math.min(TPLib.maxPlayers, Math.max(0, Number.parseInt(qn))) : undefined;
+    const np = pn || nDefault; // fallback default number of players
+    return np;
   }
 
   update() {
