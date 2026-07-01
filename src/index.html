@@ -9,5 +9,10 @@
 </head>
 <body>
   <app-root></app-root>
+  <!-- gulp will insert references to assets/images here; inline-source will insert base64 -->
+  <div id="assets-image-registry" style="display:none;">
+    <img id="assets_favicon_ico" src="assets/favicon.ico" style="display:none;" loading="lazy" inline />
+    <img id="assets_images_meeple-shape_png" src="assets/images/meeple-shape.png" style="display:none;" loading="lazy" inline />
+  </div>
 </body>
 </html>

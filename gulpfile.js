@@ -32,7 +32,7 @@ gulp.task('asset-tags', () => {
       // (e.g., "assets/images/hero.png" becomes "asset-assets-images-hero")
       const imageId = 'assets_' + relativePath.replace(/[\/\.]/g, '_');
 
-      imgTags.push(`<img id="${imageId}" src="assets/${relativePath}" inline style="display:none;" />`);
+      imgTags.push(`<img id="${imageId}" src="assets/${relativePath}" style="display:none;" loading="lazy" inline />`);
     })
     .on('end', () => {
       const updatedRegistryBlock = `<div id="assets-image-registry" style="display:none;">\n  ${imgTags.join('\n  ')}\n</div>`;

@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "assets": "npx gulp asset-tags",
     "build": "ng build",
     "buildp": "ng build --configuration production --base-href ./ && gulp insert-inline-attrs",
     "buildpp": "ng build --configuration production --optimization=false --source-map=true --base-href ./ && gulp insert-inline-attrs",

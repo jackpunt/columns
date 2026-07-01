@@ -44,6 +44,8 @@ class ColGameSetup extends GameSetupLib {
 
   override loadImagesThenStartup() {
     AliasLoader.loader.fnames = ['meeple-shape'];
+    // this.qParams['inline'] = true;
+    AliasLoader.loader.imageArgs.inline = this.qParams['inline'];
     AliasLoader.loader.loadImages(() => this.startup(this.qParams));
     // super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
   }
