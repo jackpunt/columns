@@ -49,20 +49,23 @@ export class ImageLoader {
 
     const inlineRes2 = (res: (value: HTMLImageElement | PromiseLike<HTMLImageElement>) => void, rej: (reason?: any) => void) => {
       const imageId = url.replace(/[\/\.]/g, '_');
+      // originalImg has lazy-loading, so will not resolve until we provoke it:
       const originalImg = document.getElementById(imageId) as HTMLImageElement;
       if (!originalImg) {
-        return rej(new Error(`Element with id "${imageId}" not found in DOM.`));
+        rej(new Error(`Element with id "${imageId}" not found in DOM.`));
       }
-      const workerImg = new Image();
-      workerImg.onload = () => {
+      const img = new Image();
+      this.imap.set(fname, img); // image that will be resolved!
+
+      img.onload = () => {
         // The promise resolves with the fully loaded image instance, guaranteeing dimensions are populated
-        res(workerImg);
+        res(img);
       };
-      workerImg.onerror = () => {
+      img.onerror = () => {
         rej(new Error(`Failed to decode inline image data for id "${imageId}".`));
       };
       // Passing the base64 source string initiates immediate browser decoding
-      workerImg.src = originalImg.src;
+      img.src = originalImg.src;
     }
 
     const res_rej = inline ? inlineRes2 : fileRes;
