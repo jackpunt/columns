@@ -82,7 +82,7 @@ export class GamePlay extends GamePlayLib {
   declare table: ColTable;
   override get allMeeples(): ColMeeple[] { return super.allMeeples as ColMeeple[] }
 
-  declare curPlayer: Player;
+  // declare curPlayer: Player;
   override get allPlayers() { return super.allPlayers as Player[] }
   override setCurPlayer(player: Player) {
     this.isGUI && this.curPlayer.panel.showPlayer(false);

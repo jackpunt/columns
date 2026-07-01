@@ -1,11 +1,10 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { makeStage, type NamedObject } from '@thegraid/easeljs-lib';
+import { AliasLoader, makeStage, type NamedObject } from '@thegraid/easeljs-lib';
 import { GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect, type StartElt } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { arrayN, GamePlay } from './game-play';
-import { AliasLoader } from './inline-loader';
 import { ColHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { Player, SubPlayer } from './player';
 import { ScenarioParser, type SetupElt } from './scenario-parser';
