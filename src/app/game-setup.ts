@@ -30,11 +30,11 @@ class ColGameSetup extends GameSetupLib {
     super(canvasId, qParam)
   }
 
-  tileExporter = new TileExporter(); // enable 'Make Pages' buttons
+  tileExporter!: TileExporter;
 
   override initialize(canvasId: string): void {
     if (canvasId) GameSetup.gameSetup = this;
-    // AliasLoaderLib.loader = AliasLoader.loader;
+    this.tileExporter = new TileExporter(); // enable 'Make Pages' buttons
     // for hexmarket to bringup their own menus:
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     console.log(stime(this, `---------------------   GameSetup.initialize  ----------------`))
@@ -43,14 +43,18 @@ class ColGameSetup extends GameSetupLib {
   }
 
   override loadImagesThenStartup() {
-    AliasLoader.loader.fnames = ['meeple-shape'];
-    // this.qParams['inline'] = true;
-    AliasLoader.loader.imageArgs.inline = this.qParams['inline'];
-    AliasLoader.loader.loadImages(() => this.startup(this.qParams));
-    // super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
+    const loader = AliasLoader.loader;
+    loader.fnames = ['meeple-shape'];
+    loader.imageArgs.inline = this.qParams['inline'];
+    // ignore super.loadImagesThenStartup():
+    loader.loadImages((imap) => this.startup(this.qParams, imap));
   }
 
-  override startup(qParams: Params | SetupElt): void {
+  override startup(qParams: Params | SetupElt, imap?: Map<string, HTMLImageElement>): void {
+    const loader = AliasLoader.loader;
+    const msImage = loader.getImage('meeple-shape'); // just to show we can
+    if (!msImage || msImage.width == 0) debugger;
+    console.log(stime(this, `.startup: meeple-shape.width =`), msImage.width);
     ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
     super.startup(qParams); // -->  initialScenario(qParams)
   }
@@ -171,7 +175,7 @@ export class SubGameSetup extends ColGameSetup {
     super(undefined, scenario);
     // makeLogWriter is invoked by super, *before* gs is available, so overwrite here:
     (this as any).logWriter = new SubGameLogWriter(gs.logWriter);
-    this.startup(this.qParams);
+    this.startup(this.qParams); // bypass .loadImagesThenStartup!
   }
   // invoked from super constructor, before this own initialization!
   override initialize(canvasId: string): void {
