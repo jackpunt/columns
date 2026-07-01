@@ -133,7 +133,7 @@ export class ColTable extends Table {
     parent.addChild(this.turnLog, this.textLog)
   }
   override setupUndoButtons(bgr: XYWH, row?: number, col?: number, undoButtons?: boolean, xOffs?: number, bSize?: number, skipRad?: number): void {
-    const row2 = row ?? Math.min(-.5, this.nRows - 7.5);
+    const row2 = row ?? Math.max(-.5, this.nRows - 1.8);
     const col2 = col ?? -2.2 - this.nCols * .5;
     super.setupUndoButtons(bgr, row2, col2, undoButtons, xOffs, bSize, skipRad)
   }

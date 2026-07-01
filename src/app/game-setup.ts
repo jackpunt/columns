@@ -110,7 +110,7 @@ class ColGameSetup extends GameSetupLib {
   }
 
   override makeGUIs()  {
-    this.table.makeGUIs(undefined, -110, 96)
+    this.table.makeGUIs(undefined, -120, 76)
   }
 
   override makeHexMap(
