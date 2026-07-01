@@ -1,10 +1,11 @@
 import { C, stime, type Constructor } from '@thegraid/common-lib';
-import { AliasLoader, makeStage, type NamedObject } from '@thegraid/easeljs-lib';
-import { GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Player as PlayerLib, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect, type StartElt } from '@thegraid/hexlib';
+import { makeStage, type NamedObject } from '@thegraid/easeljs-lib';
+import { GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect, type StartElt } from '@thegraid/hexlib';
 import { CardShape } from './card-shape';
 import { ColCard } from './col-card';
 import { ColTable } from './col-table';
 import { arrayN, GamePlay } from './game-play';
+import { AliasLoader } from './inline-loader';
 import { ColHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { Player, SubPlayer } from './player';
 import { ScenarioParser, type SetupElt } from './scenario-parser';
@@ -33,6 +34,7 @@ class ColGameSetup extends GameSetupLib {
 
   override initialize(canvasId: string): void {
     if (canvasId) GameSetup.gameSetup = this;
+    // AliasLoaderLib.loader = AliasLoader.loader;
     // for hexmarket to bringup their own menus:
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     console.log(stime(this, `---------------------   GameSetup.initialize  ----------------`))
@@ -42,7 +44,8 @@ class ColGameSetup extends GameSetupLib {
 
   override loadImagesThenStartup() {
     AliasLoader.loader.fnames = ['meeple-shape'];
-    super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
+    AliasLoader.loader.loadImages(() => this.startup(this.qParams));
+    // super.loadImagesThenStartup();    // loader.loadImages(() => this.startup(qParams));
   }
 
   override startup(qParams: Params | SetupElt): void {

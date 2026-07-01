@@ -16,6 +16,8 @@ import { GameSetup } from '../game-setup';
   styleUrls: ['./stage.component.css']
 })
 export class StageComponent implements OnInit {
+  /** Set to true if all scripts were flattened into the page by inline-source-cli */
+  isAllInline: boolean = false;
 
   static idnum: number = 0;
   getId(): string {
@@ -49,6 +51,12 @@ export class StageComponent implements OnInit {
       console.log(stime(this, ".ngOnInit: queryParams="), params);
       this.qParams = params;
     });
+
+    const scripts = Array.from(document.querySelectorAll('script'));
+    // If any script element contains a 'src' attribute, it is not standalone bundle
+    this.isAllInline = scripts.length > 0 && !scripts.some(s => s.hasAttribute('src'));
+
+    console.log("ngOnInit: inAllInline=", this.isAllInline);
   }
 
   ngAfterViewInit() {
@@ -57,7 +65,8 @@ export class StageComponent implements OnInit {
 
   ngAfterViewInit2() {
     const href: string = document.location.href, title = this.titleService.getTitle();
-    const qParams = { ...this.qParams, title };
+    const qParams = { ...this.qParams, title } as Params;
+    qParams['inline'] = this.isAllInline;
     console.log(stime(this, ".ngAfterViewInit---"), href, "qParams=", qParams)
     const gs = new GameSetup(this.mapCanvasId, qParams);
     this.titleService.setTitle(`${title} ${gs.pageLabel}`)

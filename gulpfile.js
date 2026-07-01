@@ -9,7 +9,7 @@
 //
 // ng build --configuration production --base-href ./ && gulp bundle-html
 
-// npx gulp generate-asset-tags && \
+// npx gulp asset-tags && \
 // npx ng build --configuration production --base-href ./ && \
 // npx gulp bundle-html
 // npx inline-source --root ./dist/columns/ ./dist/columns/index.html ./dist-standalone/columns.html
@@ -19,7 +19,7 @@ const replace = require('gulp-replace');
 const fs = require('fs');
 
 // insert <img/> elements for each asset into app.component.html
-gulp.task('generate-asset-tags', () => {
+gulp.task('asset-tags', () => {
   const imgTags = [];
 
   // 1. Match all images in assets and its subfolders using a glob pattern
@@ -30,9 +30,9 @@ gulp.task('generate-asset-tags', () => {
 
       // Generate a clean ID by swapping path slashes with dashes and dropping the extension
       // (e.g., "assets/images/hero.png" becomes "asset-assets-images-hero")
-      const cleanId = 'assets-' + relativePath.replace(/\//g, '-').replace(/\.[^/.]+$/, "");
+      const imageId = 'assets_' + relativePath.replace(/[\/\.]/g, '_');
 
-      imgTags.push(`<img id="${cleanId}" src="${relativePath}" inline style="display:none;" />`);
+      imgTags.push(`<img id="${imageId}" src="assets/${relativePath}" inline style="display:none;" />`);
     })
     .on('end', () => {
       const updatedRegistryBlock = `<div id="assets-image-registry" style="display:none;">\n  ${imgTags.join('\n  ')}\n</div>`;
