@@ -1,1 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
+/* Prevent zero-length bundle file errors */
+:root {
+  --app-clearance: 0px;
+}
+

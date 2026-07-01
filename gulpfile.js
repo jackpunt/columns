@@ -2,7 +2,7 @@
 //
 //
 // npm install --save-dev inline-source-cli
-// npm install --save-dev gulp gulp-replace
+// npm install --save-dev gulp gulp-replace gulp-inline-source
 //
 // inline the asset files, by injecting into HTMLDivElement: canvas-asset-registry
 // scan the asset/images directory and slurp in each .png file:
@@ -11,11 +11,14 @@
 
 // npx gulp generate-asset-tags && \
 // npx ng build --configuration production --base-href ./ && \
+// npx gulp bundle-html
 // npx inline-source --root ./dist/columns/ ./dist/columns/index.html ./dist-standalone/columns.html
 
 const gulp = require('gulp');
 const replace = require('gulp-replace');
+const fs = require('fs');
 
+// insert <img/> elements for each asset into app.component.html
 gulp.task('generate-asset-tags', () => {
   const imgTags = [];
 
@@ -41,3 +44,54 @@ gulp.task('generate-asset-tags', () => {
         .pipe(gulp.dest('./src/app/'));
     })
   });
+
+// Task 1: Convert favicon.ico to base64 data URI and inject it into src/index.html
+gulp.task('embed-favicon', (done) => {
+  const faviconPath = './src/assets/favicon.ico';
+
+  fs.readFile(faviconPath, (err, data) => {
+    if (err) return done(err);
+
+    // Convert the binary buffer directly to a base64 string
+    const base64Data = data.toString('base64');
+    const dataUri = `data:image/x-icon;base64,${base64Data}`;
+
+    // Match any existing <link rel="icon" ... href="..."> element
+    const faviconRegex = /<link rel="icon"[^>]*href="[^"]*"[^>]*>/;
+    const newFaviconTag = `<link rel="icon" type="image/x-icon" href="${dataUri}">`;
+
+    gulp.src('./src/index.html')
+      .pipe(replace(faviconRegex, newFaviconTag))
+      .pipe(gulp.dest('./src/'))
+      .on('end', done);
+  });
+});
+
+// compile with ng build:
+// ng build --configuration production --base-href ./ && gulp insert-inline-attrs
+
+// Task 2: Inject inline attributes into the compiled Angular script and style tags
+gulp.task('insert-inline-attrs', () => {
+    return gulp.src('./dist/columns/index.html')
+        .pipe(replace('type="module"', 'type="module" inline'))
+        .pipe(replace('rel="stylesheet"', 'rel="stylesheet" inline'))
+        .pipe(gulp.dest('./dist/columns/'));
+});
+
+// Task 3: inline to single file:
+// npx inline-source-cli --root ./dist/columns/ ./dist/columns/index.html ./dist-standalone/columns.html
+
+// Task 3: Inject inline flags into built scripts/styles and compile the standalone file
+gulp.task('bundle-html', () => {
+  return gulp.src('./dist/columns/index.html')
+    // Force gulp-inline-source to process the compiled Angular bundles
+    .pipe(replace('type="module"', 'type="module" inline'))
+    .pipe(replace('rel="stylesheet"', 'rel="stylesheet" inline'))
+    // Execute the processing engine over the build outputs folder
+    .pipe(inlinesource({      // this version does not work with modern ng/HTML, use -cli
+        compress: false,
+        rootpath: './dist/columns/'
+    }))
+    // Output the final independent file structure
+    .pipe(gulp.dest('./dist-standalone'));
+});
