@@ -109,6 +109,10 @@ class ColGameSetup extends GameSetupLib {
     return [nr, nc] as [nr: number, nc: number];
   }
 
+  override makeGUIs()  {
+    this.table.makeGUIs(undefined, -110, 96)
+  }
+
   override makeHexMap(
     hexMC: Constructor<HexMap<Hex>> = HexMap2,
     hexC: Constructor<Hex> = Hex2, // (radius, addToMapCont, hexC, Aname)
