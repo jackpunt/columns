@@ -38,14 +38,14 @@ export class Player extends PlayerLib implements ColPlayer {
   // set our multi-player colors; we don't use the TP.colorScheme
   // PlayerLib.playerColor(cname|ndx) --> colorScheme[cname]
   static override colorScheme = {
-      grey: '#8a8a8a',  // #8a8a8a
       pink: '#FF33CC',  // #FF33CC
       orange: '#FF9900',// #FF9900
       green: '#66CC00', // #66CC00
       brown: '#643a00', // #643a00
-      white: 'white',
       blue: 'lightblue',
+      grey: '#8a8a8a',  // #8a8a8a
       tan: 'tan',
+      white: 'white',
       purple: '#bc4ed0',// #bc4ed0
       yellow: 'yellow',
   }
@@ -93,7 +93,7 @@ export class Player extends PlayerLib implements ColPlayer {
     autoBut.on(S.click, () => this.setAutoPlay(), this); // toggle useRobo
     const redoBut = this.redoButton = this.makeAutoButton(0, 'R');
     redoBut.on(S.click, () => this.selectBid(), this); // select alt bid
-    if (TP.autoStart && !TP.startManual.includes(Player.colorName(this.color)!)) this.setAutoPlay(true);
+    if (TP.autoStart && !TP.startManual.includes(this.index)) this.setAutoPlay(true);
   }
 
   makeCardButtons(nCols = 4, nbid = 4) {

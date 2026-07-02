@@ -14,8 +14,10 @@ export class TileExporter extends TileExporterLib {
   override makeImagePages() {
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
-      [12, TrackSegment, '', 1050 / 9, 750 / 2],
-      [3, SetupCard, '野心', 750],
+      ...TrackSegment.countClaz(12, 1050, 750),
+      // [12, TrackSegment, '', 1050 / 9, 750 / 2],
+      [3, SummaryCard, 750],
+      // [3, SetupCard, '野心', 750],
       [3, SetupCard, '"利刃出击"', 750], //  '"利刃出击"' // (Blades Strike: "Knives Out")
     ] as CountClaz[];
     const cardSingle_1_75_back = [
@@ -42,11 +44,11 @@ export class TileExporter extends TileExporterLib {
       ...TrackLabel.countClaz(gs, 180, 54, 54),
       ...TrackLabel.countClaz(gs, 0, 54, 54),
       ...TrackLabel.countClaz(gs, 180, 54, 54),
-    ];
+    ] as CountClaz[];
 
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    // this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
+    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
     this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
     this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);

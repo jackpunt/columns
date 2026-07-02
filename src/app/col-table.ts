@@ -3,7 +3,7 @@ import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, Rec
 import { Container, DisplayObject, Shape, Stage } from "@thegraid/easeljs-module";
 import { Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { ColCard } from "./col-card";
+import { ColCard, Decorator } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
 import { type Faction, type GamePlay } from "./game-play";
 import { type ColHex2, type HexMap2 } from "./ortho-hex";
@@ -475,6 +475,10 @@ export class TrackSegment extends ColCard {
     'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
   ];
   static seqN = 0;
+  static countClaz(n = 12, w = 1050, h = 750) {
+    TrackSegment.decorator = undefined;
+    return [[n, TrackSegment, '', w / 9, h / 2]];
+  }
 
   /**
    * 9 * 12 = 108; 9 * 11 = 99 (end of game)
@@ -483,10 +487,10 @@ export class TrackSegment extends ColCard {
    * Bvbgr1-vbgr2B
    * @param Aname codes the sequence of each rgbv segment.
    *
-   * @param w [20] width of cell, marker radius * 1.1
-   * @param h [80] height of cell, marker radius * nPlayers
+   * @param w [36] width of cell, marker radius * 1.1      116.7 x 375
+   * @param h [72] height of cell, marker radius * nPlayers
    */
-  constructor(Aname: string, w = 20, h = 80, bleed = 0) {
+  constructor(Aname: string, w = 36, h = 72, bleed = 0) {
     if (!Aname) {
       if (TrackSegment.seqN >= TrackSegment.anames.length) TrackSegment.seqN = 0;
       Aname = TrackSegment.anames[TrackSegment.seqN++]
@@ -506,6 +510,7 @@ export class TrackSegment extends ColCard {
       this.addSlot(n, f0, f1, w, h + bleed, bleed); // half-slot for B on each end.
     })
     this.facts = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
+    this.addIcons();
     const { x, y, width, height } = this.getBounds() // x = 0, y = -dy, width = 9 * dx, height = 2 * dy;
     this.cache(x, y, width, height, 4);
   }
@@ -513,9 +518,10 @@ export class TrackSegment extends ColCard {
   wh!: { w: number, h: number }
   facts: [Faction[], Faction[]];
   slots = new NamedContainer('slots');
+  static override decorator?: Decorator;
 
-  addSlot(n: number, f1: number, f2: number, w: number, h: number, bleed = 0, s = 1) {
-    const factionColor = (faction: number) => ColCard.factionColors[faction];
+  addSlot(n: number, f1: Faction, f2: Faction, w: number, h: number, bleed = 0, s = 1) {
+    const factionColor = (faction: Faction) => ColCard.factionColors[faction];
     const c1 = factionColor(f1), c2 = factionColor(f2), b0 = (bleed == 0)
     const we = (f1 == 0) ? (b0 ? w / 2 : w / 2 + bleed) : w;
     const x = w * n + ((n == 0) ? (b0 ? 0 : -bleed) : - w / 2) + 1; // shift right by 1 px to align with counters
@@ -523,6 +529,27 @@ export class TrackSegment extends ColCard {
     const rect2 = new RectShape({ s, x, w: we, h, y: .0 }, c2);
     this.slots.addChild(rect1, rect2)
     this.setBoundsNull(); // so createjs will compute containers bounds from children.
+  }
+
+  override addIcons(): void {
+    const [factions01, factions10] = this.facts;
+    factions01.forEach((f0, n) => {
+      const f1 = factions10[n];
+      this.addIcon(f0, f1, n ); // half-slot for B on each end.
+    })
+  }
+  addIcon(f1: Faction, f2: Faction, n: number) {
+    const { w, h } = this.wh, dh = w * .4, wd = w/2;
+    const x = w * n + w/2 + 1; // shift right by 1 px to align with counters
+
+    const deco = TrackSegment.decorator ?? (TrackSegment.decorator = new Decorator(wd, .5));
+    if (TP.factionIcons && f1 > 0) {
+      const ic1 = deco.icon(f1), ic2 = deco.icon(f2);
+      ic1.x = x + w/2; ic1.y = dh-h;
+      ic2.x = x + w/2; ic2.y = h-dh;
+      this.slots.addChild(ic1, ic2)
+    }
+
   }
   override makeBleed(bleed: number) {
     const { w, h } = this.wh;

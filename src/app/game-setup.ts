@@ -62,6 +62,9 @@ class ColGameSetup extends GameSetupLib {
     const nElts = qParams?.['nt'] as string ?? TP.nElts.toString();
     TP.nElts = Number.parseInt(nElts);
 
+    const icons = qParams?.['ci'] as string ?? (TP.factionIcons ? 'true' : 'false');
+    TP.factionIcons = (icons == 'true');
+
     const nDefault = TPLib.numPlayers ?? 3;
     TPLib.numPlayers = 0;             // reset; use value from getNPlayers
     const n = TPLib.numPlayers =this.getNPlayers(qParams, nDefault);   // retain previous value if not supplied

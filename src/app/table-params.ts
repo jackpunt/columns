@@ -59,8 +59,8 @@ export class TP extends TPLib {
   static showAllBids = false;
   /** use extra meeple if player count <= useXtraMeep */
   static useXtraMeep = 4;
-  /** setAutoPlay unless startManual includes colorName */
-  static startManual = ['grey'];
+  /** setAutoPlay unless startManual includes player index */
+  static startManual = [0];
   /** enable/disable auto bots */
   static autoStart = true;
   /** for non-auto Players */
@@ -71,4 +71,6 @@ export class TP extends TPLib {
   static usePyrTopo = true;
   /** total ColCards to shuffle & display */
   static cardsInPlay = 31;
+  /** include Faction icons for color blind */
+  static factionIcons = true;
 }

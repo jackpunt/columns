@@ -1,6 +1,7 @@
 import { C, F, type XY } from "@thegraid/common-lib";
-import { CenterText, NamedContainer, type CountClaz, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
-import { Text } from "@thegraid/easeljs-module";
+import { CenterText, CircleShape, NamedContainer, type CountClaz, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import type { DisplayObject } from "@thegraid/easeljs-module";
+import { Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
 import { ColSelButton, FacShape, type ColId } from "./card-button";
 import { CardShape } from "./card-shape";
@@ -13,6 +14,7 @@ import { TP } from "./table-params";
 // import type { CountClaz } from "./tile-exporter";
 
 export class ColCard extends Tile {
+  static decorator?: Decorator;
 
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
   static nextRadius = CardShape.onScreenRadius; // when super() -> this.makeShape()
@@ -25,7 +27,7 @@ export class ColCard extends Tile {
   declare baseShape: CardShape;
 
   static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
-  static factionColors = [C.BLACK, C.RED, C.coinGold, C.BLUE, C.PURPLE, C.WHITE];
+  static factionColors = [C.BLACK, C.RED, '#fff205', '#0066CC', '#AA00EE', C.WHITE]; // #00DD00
   factions: Faction[] = [0];
   maxCells: number;
 
@@ -38,6 +40,13 @@ export class ColCard extends Tile {
     this.nameText.color = tColor;
     this.setNameText(aname, this.radius * .35);
     this.paint(color)
+  }
+
+  addIcons() {
+    if (!TP.factionIcons) return;
+    const w = this.getBounds().width;
+    const deco = ColCard.decorator ?? (ColCard.decorator = new Decorator(w));
+    deco.addCardIcons(this);
   }
 
   meepCont = new NamedContainer('meepCont')
@@ -211,13 +220,17 @@ export class ColCard extends Tile {
 
     const allCols = arrayN(nCards).map(n => {
       const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
-      return new ColCard(aname, fact);
+      const card = new ColCard(aname, fact);
+      card.addIcons();
+      return card;
     })
 
     const allDuals = arrayN(nFacs * nFacs).map(n => {
       const n4 = Math.floor(n / nFacs)
       const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
-      return new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
+      const card = new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
+      card.addIcons();
+      return card;
     })
 
     return { black0, whiteN, allCols, allDuals }
@@ -405,6 +418,7 @@ export class PrintCol extends ColCard {
   static seqN = 0;
   /** how many of which Claz to construct & print: for TileExporter */
   static countClaz(n = 1): CountClaz[] {
+    ColCard.decorator = undefined;
     return [[n, PrintCol]]
   }
 
@@ -414,6 +428,7 @@ export class PrintCol extends ColCard {
     const n = PrintCol.seqN++;
     const card = allCards[n], { Aname, factions } = card;
     super(Aname, ...factions);
+    this.addIcons();
     ;(this.baseShape as PaintableShape).colorn = C.BLACK; // set for bleed.color
     return;
   }
@@ -421,6 +436,7 @@ export class PrintCol extends ColCard {
 export class PrintDual extends DualCard {
   static seqN = 0;
   static countClaz(n = 20): CountClaz[] {
+    ColCard.decorator = undefined;
     return [[n, PrintDual]];
   }
   constructor(allCards = GameSetup.gameSetup.gamePlay.allDuals) {
@@ -429,6 +445,7 @@ export class PrintDual extends DualCard {
     const n = PrintDual.seqN++;
     const card = allCards[n], { Aname, factions } = card;
     super(Aname, factions[0], factions[1]);
+    this.addIcons();
   }
 }
 
@@ -490,3 +507,48 @@ export class SummaryCard extends ColCard {
   }
 }
 
+
+export class Decorator {
+  constructor(w = 36, f = .08) {
+    this.wd = w * f;
+    this.thick = 4 * this.wd/36;
+  }
+
+  c0 = C.BLACK;
+  c1 = C.grey224;
+  thick = 3;
+  wd = 10;
+
+  redIcon(c = this.c1, t = this.thick, wd = this.wd*.8, g = new Graphics()) {
+    g.f(c).ss(t*1.8).s(c).mt(0, -wd).lt(0, wd).mt(-wd, 0).lt(wd, 0);  // sword-like
+    return new Shape(g) as DisplayObject;
+  }
+  blueIcon(c = this.c1, t = this.thick, wd = this.wd, g = new Graphics()) {
+    g.ss(t).s(c).mt(-wd/2, wd/2).lt(0, -wd/2).lt(wd/2, wd/2).cp();  // triangle sails
+    return new Shape(g) as DisplayObject;
+  }
+  goldIcon(c = this.c0, t = this.thick, wd = this.wd, g = new Graphics()) {
+    return new CenterText('$', wd*1.7, c) as DisplayObject;  // $
+  }
+  violetIcon(c = this.c0, t = this.thick, wd = this.wd*.6, g = new Graphics()) {
+    return new CircleShape(C.transparent, wd, c, new Graphics().ss(t * 1.5)) as DisplayObject;
+  }
+  icon(facId: Faction) {
+    return ([this.redIcon, this.redIcon, this.goldIcon, this.blueIcon, this.violetIcon][facId]).call(this);
+  }
+  /** add 2 children: icons for each faction color */
+  addCardIcons(card: ColCard) {
+    const { x, y, width, height } = card.getBounds();
+    const dw = .12 * width;  // <-- offset from corners
+    const facs = [0, 1].map(fac => card.factions[fac] ?? card.factions[0]);
+    const locs = [{ x: x + dw, y: y + height - dw }, { x: x + width - dw, y: y + dw }, ];
+    facs.forEach((fac, ndx) => {
+      if (fac > 4) return;
+      const icon = this.icon(fac);
+      icon.rotation = [0, 180][ndx];
+      const loc = locs[ndx];
+      icon.x = loc.x; icon.y = loc.y;
+      card.addChild(icon);
+    })
+  }
+}
