@@ -577,7 +577,7 @@ export class Player extends PlayerLib implements ColPlayer {
       return { meep, fromCard, ndx: cellNdx, dir } as Step<T>
     }
     const card = targetHex.card
-    const ndx = (card.maxCells == 2) ? (xy.x <= 0 ? 0 : 1) : 0;
+    const ndx = card.cellNdxOfXY(xy);  // <-- works for DualCard (diagonal)
     gamePlay.moveMeep(meep, card, ndx);
     const step = asStep<AdvDir>(dir as AdvDir)
     console.log(stime(this, `.adviseDrop: fromCard=${fromCard}#${ndx}[${dir}] -> ${meep}`))
@@ -803,7 +803,7 @@ export class SubPlayer extends Player {
       return dirs.map(dir => {
         const toCard = fromCard.nextCard(dir)
         if (!toCard) return undefined;
-        const ndxs = isAdv ? gamePlay.cellsForAdvance(toCard) : gamePlay.cellsForBumpee(toCard, dir).ndxs;
+        const ndxs = isAdv ? gamePlay.cellsForAdvance(toCard).ndxs : gamePlay.cellsForBumpee(toCard, dir).ndxs;
         return ndxs.map(ndx => {
           // the actual, reported Step for meep:
           const step = { meep, fromCard, dir, ndx, meepStr: meep.toString() } as Step<BumpDir2>

@@ -52,6 +52,16 @@ export class ColMeeple extends Meeple {
     return this.gamePlay.meepsToMove.includes(this); // also: !!meep.highlight
   }
 
+  // called from Tile.dragFunc0()
+  override showTargetMark(hex: IHex2 | undefined, ctx: DragContext): void {
+    const { x, y } = this;
+    const gxy = this.parent.localToGlobal(x, y)
+    const card = (hex as ColHex2)?.card;
+    const ndx = card?.cellNdxOfGlobalXY(gxy) ?? 0;
+    const mark = card?.marks?.[ndx];
+    ctx.targetHex?.map.showMark(ctx.targetHex, mark); // <-- super.showTargetMark;
+  }
+
   override cantBeMovedBy(player: PlayerLib, ctx: DragContext): string | boolean | undefined {
     if (!this.gamePlay.isMovePhase && !ctx.lastShift)
       return `Not allowed to move/bump in Phase: "${ctx.gameState.state.Aname}"`;
@@ -69,7 +79,10 @@ export class ColMeeple extends Meeple {
     this.cardNdxs = this.gamePlay.dragDirs.map(dir => {
       const nextCard = this.card.nextCard(dir);
       if (!nextCard) return undefined;
-      return this.gamePlay.cellsForBumpee(nextCard, dir);
+      if (this.gamePlay.isPhase('ResolveWinner')) {
+        return this.gamePlay.cellsForAdvance(nextCard)
+      }
+      return this.gamePlay.cellsForBumpee(nextCard, dir); // TODO: restrict cells for Advance (Bumper)
     }).flat().filter(cardNdx => !!cardNdx);
   }
   // isLegalTarget for manuMoveBumpee; could be moved to gamePlay?

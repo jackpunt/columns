@@ -276,7 +276,8 @@ export class GamePlay extends GamePlayLib {
   cellsForAdvance(advCard: ColCard) {
     // assert bumpDir starts with 'N', must use open cell if available.
     const nCells = advCard.maxCells, open = advCard.openCells, nOpen = open.length;
-    return (nCells > 2) ? [0] : (nOpen == 1) ? open : arrayN(nCells);
+    const ndxs = (nCells > 2) ? [0] : (nOpen == 1) ? open : arrayN(nCells);
+    return { card: advCard, ndxs };
   }
   /** utility to compute valid cells for bumpee to use */
   cellsForBumpee(nextCard: ColCard, bumpDir = 'S') {

@@ -1,7 +1,7 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
 import { CircleShape, type Paintable } from "@thegraid/easeljs-lib";
+import type { DisplayObject } from "@thegraid/easeljs-module";
 import { Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TopoEWC, TopoOR4C as TopoOR4CLib, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
-import type { ColId } from "./card-button";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
@@ -128,7 +128,7 @@ export class DualLegalMark extends LegalMark {
       this.addChild(cs);
     })
   }
-  pc = ['rgba(255,255,255,.7)', 'rgba(255,255,255,.3)']
+  pc = ['rgba(163, 163, 163, 0.7)', 'rgba(138, 138, 138, 0.3)']
   paint(i = 0, isBid = false) {
     this.children[i].paint(this.pc[isBid ? 0 : 1]);
   }
@@ -139,22 +139,36 @@ export class DualLegalMark extends LegalMark {
 export class HexMap2 extends HexMap<ColHex2> {
   constructor(radius?: number, addToMapCont?: boolean, hexC: Constructor<ColHex2> = ColHex2, Aname?: string) {
     super(radius, addToMapCont, hexC, Aname)
-    this.cardMark = new CardShape(C.nameToRgbaString(C.grey224, .2), '', .85);
-    this.cardMark.mouseEnabled = false; // prevent objectUnderPoint!
     this.topo = TP.usePyrTopo ? RectTopoEWC.topo : TopoRect4C.topo;
   }
   getCard(rank: number, col: number) {
     // ASSERT: minRow = 0; maxRow = nRows-1
     return this[this.maxRow as number - rank][col]?.card;
   }
-  /** the Mark to display on cardMarkhexes */
-  cardMark: Paintable
-  /** Hexes for which we show the CardMark */
-  cardMarkHexes: Hex[] = []
-  override showMark(hex?: Hex): void {
-    const isCardHex = true;//(hex && this.cardMarkHexes.includes(hex))
-    super.showMark(hex, isCardHex ? this.cardMark : this.mark);
-    if (!hex) this.cardMark.visible = false;
+
+  override makeMark(rh?: number, rc?: number): DisplayObject {
+    const mark = new CardShape(C.nameToRgbaString(C.grey224, .7), '', .85);
+    mark.mouseEnabled = false; // prevent objectUnderPoint!
+    return mark
+  }
+
+  visMark?: DisplayObject;
+
+  // TODO: obtain from hexlib.
+  override showMark(hex?: Hex, mark = this.mark) {
+    if (this.visMark) {
+      this.visMark.visible = false;
+      this.visMark = undefined;
+    }
+    if (hex && Hex.isIHex2(hex)) {
+      mark.scaleX = hex.scaleX; mark.scaleY = hex.scaleY;
+      mark.visible = true;
+      this.visMark = mark;
+      // put the mark, at location of hex, on hex.markCont:
+      hex.cont.parent.localToLocal(hex.cont.x, hex.cont.y, hex.markCont, mark);
+      hex.markCont.addChild(mark);
+      this.update();
+    }
   }
 
   override topo: TopoC<Partial<Record<HexDir, DCR>>, HexDir>;

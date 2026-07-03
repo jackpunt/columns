@@ -160,6 +160,15 @@ export class ColCard extends Tile {
     return toBump;
   }
 
+  cellNdxOfXY(xy: XY) {
+    return 0;
+  }
+  cellNdxOfGlobalXY(gxy: XY) {
+    const xy = this.baseShape.parent.globalToLocal(gxy.x, gxy.y);
+    return this.cellNdxOfXY(xy);
+  }
+  get marks(): DisplayObject[] | undefined { return undefined; }
+
   atBumpLoc() {
     const meeps = this.meepsOnCard.filter(meep => this.isBumpLoc(meep));
     if (meeps.length > 1) debugger;
@@ -253,7 +262,35 @@ export class DualCard extends ColCard {
     super(Aname, faction0, faction1);
     this.baseShape.dualCgf('d', ...[faction0, faction1].map(f => ColCard.factionColors[f]));
     this.paint('ignored')
+    this.setMarks();
   }
+
+  static cardMarks: DisplayObject[] = [];
+
+  setMarks() {
+    const c0 = `rgba(180, 180, 180, .3)`;
+    if (!DualCard.cardMarks[1]) {
+      ([0,1] as (0|1)[]).forEach(ndx => {
+        const mark = new Shape(this.baseShape.triangle(ndx, c0, 1));
+        mark.mouseEnabled = false; // prevent objectUnderPoint!
+        DualCard.cardMarks[ndx] = mark;
+      })
+    }
+  }
+
+  /** returns 1 if target is above line of {-cx, -cy } -- { cx, cy }; or -1 if below, 0 if on the line. */
+  targetToLine(cx: number, cy: number, target: XY): number {
+    // Evaluates cross-multiplied vectors and strictly returns 1 (above), -1 (below), or 0 (on the line)
+    return Math.sign((target.y * cx) - (cy * target.x));
+  }
+
+  override cellNdxOfXY(xy: XY) {
+    const { x, y } = this.getBounds();
+    const det = this.targetToLine(x, y, xy);
+    const ndx = [0, 0, 1][det + 1];
+    return ndx;
+  }
+  override get marks() { return DualCard.cardMarks; }
 
   // makeMeeple: always an openCell; cellNdx: number
   // dropFunc: addMeep(meep, undefined, xy); cellNdx: undefined -> openCell[0]
