@@ -1,6 +1,7 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
-import { CircleShape, type Paintable } from "@thegraid/easeljs-lib";
+import { PaintableShape, type CGF, type Paintable } from "@thegraid/easeljs-lib";
 import type { DisplayObject } from "@thegraid/easeljs-module";
+import { Graphics } from "@thegraid/easeljs-module";
 import { Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TopoEWC, TopoOR4C as TopoOR4CLib, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import type { ColCard } from "./col-card";
@@ -120,17 +121,24 @@ export class DualLegalMark extends LegalMark {
   // replace original legalMark with multiple circles
   doGraphicsDual(card: ColCard) {
     const xy = card.factions.map((f, i) => card.meepleLoc(i))
-    const radius = this.hex2.radius * .37;
+    const r = this.hex2.radius * .3, ss = r * .36;
     this.removeAllChildren();
+    const pc = this.pc[1];
+    const cgf: CGF = (color: string) => {
+      const g = new Graphics().s(color).ss(ss).mt(0, r).lt(0, -r).mt(-r, 0).lt(r, 0).es();
+      return g;
+    }
     xy.forEach(({ x, y }) => {
-      const cs = new CircleShape(this.pc[1], radius, '');
+      const cs = new PaintableShape(cgf, pc);
       cs.x = x; cs.y = y;
-      this.addChild(cs);
+      this.addChild(cs);  // a PaintableShape
     })
   }
-  pc = ['rgba(163, 163, 163, 0.7)', 'rgba(138, 138, 138, 0.3)']
+  pc = ['rgba(163, 163, 163, 0.7)', 'rgba(138, 138, 138, 0.7)']
   paint(i = 0, isBid = false) {
-    this.children[i].paint(this.pc[isBid ? 0 : 1]);
+    const ib = isBid ? 0 : 1;
+    this.children[i].rotation = [0, 45][ib];
+    this.children[i].paint(this.pc[ib]);
   }
 }
 

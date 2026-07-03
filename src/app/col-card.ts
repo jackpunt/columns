@@ -42,6 +42,17 @@ export class ColCard extends Tile {
     this.paint(color)
   }
 
+  meepCont = new NamedContainer(`meepCont-${this.Aname}`)
+
+  setMeepCont() {
+    // this.hex not set when constructor(); do it now
+    // when this.hex is first set, then put meepCont on tileCont:
+    const tileCont = this.hex.map.mapCont.tileCont;
+    this.parent.localToLocal(this.x, this.y, tileCont, this.meepCont);
+    tileCont.addChild(this.meepCont); // so meeples@bumpLoc are above/after other cards on tileCont.
+    // vs original: constructor() { ... this.addChild(this.meepCont) ... }
+  }
+
   addIcons() {
     if (!TP.factionIcons) return;
     const w = this.getBounds().width;
@@ -49,7 +60,6 @@ export class ColCard extends Tile {
     deco.addCardIcons(this);
   }
 
-  meepCont = new NamedContainer(`meepCont-${this.Aname}`)
   get rank() { return this.hex.district! } // ASSERT: district is set to rank
   get col() { return this.hex.col }
 
@@ -151,12 +161,6 @@ export class ColCard extends Tile {
     const locXY = !toBump ? this.meepleLoc(cellNdx)
       : this.isBumpLoc(toBump) ? this.meepleLoc(cellNdx) : this.bumpLoc(cellNdx);
     this.meepCont.addChild(meep);
-    if (!this.meepCont.parent) {
-      const tileCont = this.hex.map.mapCont.tileCont; // this.hex not set when constructor(); do it now
-      this.parent.localToLocal(this.x, this.y, tileCont, this.meepCont);
-      tileCont.addChild(this.meepCont); // so meeples@bumpLoc are above/after other cards on tileCont.
-      // vs original: this.addChild(this.meepCont) in constructor()
-    }
     if (!this.hex) debugger; // this Card must be on a hex!
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex; // no collisions, but fromHex
     meep.card = this;
@@ -183,10 +187,10 @@ export class ColCard extends Tile {
 
   /**
    *
-   * @returns true if meep is in bumpLoc; false if in meepleLoc
+   * @returns true if meep is in (any) bumpLoc; false if in meepleLoc
    */
   isBumpLoc(meep: ColMeeple) {
-    return (meep.y == this.bumpLoc().y); // checking .x would be redundant
+    return (meep.y == this.bumpLoc(meep.cellNdx).y); // checking .x would be redundant
   }
   // not used? just move to another Card...
   rmMeep(meep: ColMeeple) {
@@ -317,7 +321,9 @@ export class DualCard extends ColCard {
   get cellWidth() { return this.getBounds().width }
   override meepleLoc(ndx = this.openCells[0]): XY {
     const offs = this.baseShape._cgf.name == 'cgf_d' ? .1 : 0;
-    return { x: this.cellWidth * (ndx - .5) / 2, y: [offs, -offs][ndx] * this.cellWidth }
+    const x = [-.18, .25][ndx] * this.cellWidth;
+    const y = [offs, -offs][ndx] * this.cellWidth;
+    return { x, y }
   }
   override bumpLoc(ndx = 0) {
     const meepXY = this.meepleLoc(ndx);

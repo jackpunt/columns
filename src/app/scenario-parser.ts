@@ -4,7 +4,7 @@ import { CardShape } from "./card-shape";
 import { BlackCard, ColCard, SpecialDead, WhiteNull } from "./col-card";
 import type { ColTable } from "./col-table";
 import { type CardContent, type GamePlay } from "./game-play";
-import type { HexMap2 } from "./ortho-hex";
+import type { ColHex2, HexMap2 } from "./ortho-hex";
 import { TP } from "./table-params";
 
 // rowElt.length = nCols
@@ -132,9 +132,7 @@ export class ScenarioParser extends SPLib {
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           if (!card) debugger; // ASSERT: cards.includes(card)
           removeEltFromArray(card, cards);
-          card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
-          if (!card.hex) debugger;
-          hex.legalMark.doGraphicsDual(card)
+          this.placeCardOnHex(card, hex);
         })
       })
     } else {
@@ -156,10 +154,7 @@ export class ScenarioParser extends SPLib {
         const { row, col } = hex;
         const card =  (midBlank && row == 1 && col == midCol) ? new BlackCard('midCol')
           : (row == 0 ? black0 : row == rank0 ? whiteN : cards).shift() as ColCard;
-        if (card) {
-        card.moveTo(hex); // ASSERT: each Hex has a Card, each Card is on a Hex.
-        hex.legalMark.doGraphicsDual(card)
-        } else alert(`No card at (row ${row}, col ${col}), midBlank: ${midBlank}`);  // except that time we wanted to remove the bottom 'C' card...
+        this.placeCardOnHex(card, hex);
         return;
       })
       const deadCards = this.gamePlay.setCardIsInCol();
@@ -172,6 +167,17 @@ export class ScenarioParser extends SPLib {
       gamePlay.gameSetup.update()
     }
     return;
+  }
+
+  placeCardOnHex(card: ColCard, hex: ColHex2) {
+    if (card) {
+      card.moveTo(hex);                // ASSERT: each Hex has a Card, each Card is on a Hex.
+      card.parent.addChildAt(card, 0); // move Card below all the meepConts
+      card.setMeepCont();              // meepCont above all the Cards
+      hex.legalMark.doGraphicsDual(card);
+    } else {
+      alert(`No card at (row ${hex.row}, col ${hex.col})`);  // except that time we wanted to remove the bottom 'C' card...
+    }
   }
 
   /**
