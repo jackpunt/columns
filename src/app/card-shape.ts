@@ -41,9 +41,11 @@ export class CardShape extends RectShape {
 
   /** the original RectShape CGF: */
   _rscgf?: CGF;
+  form = '';
 
   /** modify _cgf to produce 2 areas */
   dualCgf(f: 'd'|'v' = 'd', ...colors: string[]) {
+    this.form = f;
     this._rscgf = this._rscgf ?? this.cgf;    // set it once, the first time.
     const [cl, cr] = colors, strokec = C.BLACK;
     const { w: w0, h: h0 } = this._rect, r = this._cRad, s = this._sSiz;

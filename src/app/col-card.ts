@@ -320,7 +320,7 @@ export class DualCard extends ColCard {
   }
   get cellWidth() { return this.getBounds().width }
   override meepleLoc(ndx = this.openCells[0]): XY {
-    const offs = this.baseShape._cgf.name == 'cgf_d' ? .1 : 0;
+    const offs = this.baseShape.form == 'd' ? .1 : 0;
     const x = [-.18, .25][ndx] * this.cellWidth;
     const y = [offs, -offs][ndx] * this.cellWidth;
     return { x, y }

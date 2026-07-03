@@ -78,6 +78,16 @@ gulp.task('insert-inline-attrs', () => {
         .pipe(gulp.dest('./dist/columns/'));
 });
 
+gulp.task('set-build-date', (done) => {
+  const indexPath = './dist/columns/index.html'; // Path to your compiled build output
+  const buildDate = new Date().toLocaleString();   // Generate the current local timestamp string
+  let indexContent = fs.readFileSync(indexPath, 'utf8'); // Read the compiled index.html
+  // Replace the build-date contents:
+  indexContent = indexContent.replace(/(?<=name="build-date" content=")[^"]*/, buildDate);
+  fs.writeFileSync(indexPath, indexContent, 'utf8'); // Save the modified file back to disk
+  done();
+});
+
 // Task 3: inline to single file:
 // npx inline-source-cli --root ./dist/columns/ ./dist/columns/index.html ./dist-standalone/columns.html
 
