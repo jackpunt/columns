@@ -35,7 +35,7 @@ export class ColCard extends Tile {
     super(aname);
     this.factions = factions;
     this.maxCells = factions.length;
-    this.addChild(this.meepCont);
+    // this.addChild(this.meepCont);
     const color = ColCard.factionColors[factions[0]], tColor = C.pickTextColor(color);
     this.nameText.color = tColor;
     this.setNameText(aname, this.radius * .35);
@@ -49,7 +49,7 @@ export class ColCard extends Tile {
     deco.addCardIcons(this);
   }
 
-  meepCont = new NamedContainer('meepCont')
+  meepCont = new NamedContainer(`meepCont-${this.Aname}`)
   get rank() { return this.hex.district! } // ASSERT: district is set to rank
   get col() { return this.hex.col }
 
@@ -92,8 +92,8 @@ export class ColCard extends Tile {
   meepleLoc(ndx = this.openCells[0]): XY {
     return { x: 0, y: 0 }
   }
-  /** when openCells[0] is undefined: */
-  get bumpLoc() { return { x: -this.radius / 2, y: -this.radius / 3 } }
+  /** when openCells[0] is undefined: */ // TODO: fix for DualCard in diagonal mode; also atBumpLoc/isBumpLoc
+  bumpLoc(ndx = 0) { return { x: -this.radius / 2, y: -this.radius / 3 } }
 
   /** for parseScenario, clear card so addMeep() does the right thing */
   rmAllMeeps() { this.meepCont.removeAllChildren() }
@@ -149,8 +149,14 @@ export class ColCard extends Tile {
     // use ?? 0; b/c dualCell will parse xy->cellNdx[0..1]; must be a single-cell
     const toBump = this.otherMeepInCell(meep, cellNdx);
     const locXY = !toBump ? this.meepleLoc(cellNdx)
-      : this.isBumpLoc(toBump) ? this.meepleLoc(cellNdx) : this.bumpLoc;
+      : this.isBumpLoc(toBump) ? this.meepleLoc(cellNdx) : this.bumpLoc(cellNdx);
     this.meepCont.addChild(meep);
+    if (!this.meepCont.parent) {
+      const tileCont = this.hex.map.mapCont.tileCont; // this.hex not set when constructor(); do it now
+      this.parent.localToLocal(this.x, this.y, tileCont, this.meepCont);
+      tileCont.addChild(this.meepCont); // so meeples@bumpLoc are above/after other cards on tileCont.
+      // vs original: this.addChild(this.meepCont) in constructor()
+    }
     if (!this.hex) debugger; // this Card must be on a hex!
     meep.x = locXY.x; meep.y = locXY.y; meep._hex = this.hex; // no collisions, but fromHex
     meep.card = this;
@@ -180,7 +186,7 @@ export class ColCard extends Tile {
    * @returns true if meep is in bumpLoc; false if in meepleLoc
    */
   isBumpLoc(meep: ColMeeple) {
-    return (meep.y == this.bumpLoc.y)
+    return (meep.y == this.bumpLoc().y); // checking .x would be redundant
   }
   // not used? just move to another Card...
   rmMeep(meep: ColMeeple) {
@@ -302,13 +308,10 @@ export class DualCard extends ColCard {
     // meep on map.tileCont@(mx,my)
     // this on map.tileCont@(tx,ty); meepCont on this@(0,0)
     const pt = xy ?? meep.parent?.localToLocal(meep.x, meep.y, this.meepCont);
-    if (cellNdx === undefined && pt !== undefined) cellNdx = (pt.x <= 0 ? 0 : 1);
+    if (cellNdx === undefined && pt !== undefined) cellNdx = this.cellNdxOfXY(pt);
     if (cellNdx === undefined) cellNdx = this.openCells[0]// as number | undefined;
     // when meeplesToCell is invoked, should be an open cell, b/c bumpee was moved.
     const rv = super.addMeep(meep, cellNdx)
-    if (rv) {
-      meep.x += (cellNdx - .5) * .33 * this.cellWidth; // adjust bumpLoc: record desired cellNdx
-    }
     return rv
   }
   get cellWidth() { return this.getBounds().width }
@@ -316,7 +319,10 @@ export class DualCard extends ColCard {
     const offs = this.baseShape._cgf.name == 'cgf_d' ? .1 : 0;
     return { x: this.cellWidth * (ndx - .5) / 2, y: [offs, -offs][ndx] * this.cellWidth }
   }
-  override get bumpLoc() { return { x: 0, y: -this.radius / 3 } }
+  override bumpLoc(ndx = 0) {
+    const meepXY = this.meepleLoc(ndx);
+    return { x: meepXY.x - [.16, .28][ndx] * this.cellWidth, y: meepXY.y - this.radius / 3 }
+  }
 }
 
 // Black & White extend from XtensaCard: hold any number of meeples (nCells)
@@ -336,6 +342,7 @@ class XtensaCard extends ColCard {
     const fac = (colNum > 0) ? 5 : 0;                       // fac = 5 (usually SpecialDead) paints as 'white'
     const factions = arrayN(nCells, i => fac) as Faction[]; // 0: black, 5: white
     super(Aname, ...factions);
+    this.addChild(this.meepCont);
     this._colId = ColSelButton.colNames[colNum];
     this.setLabel(this.colId, fs)
   }
@@ -362,7 +369,7 @@ class XtensaCard extends ColCard {
     return { x: dxdc * (col - (m2 - 1) / 2), y: dydr * (row - .5) }
   }
 
-  override get bumpLoc() { return { x: 0, y: 0 } } // should not happen...
+  override bumpLoc(ndx = 0) { return { x: 0, y: 0 } } // should not happen...
 
   override otherMeepInCell(meep: ColMeeple, cellNdx?: number | undefined): ColMeeple | undefined {
     return undefined; // never a collision, ExtensaCard will make a new cellNdx as needed.
