@@ -1,8 +1,8 @@
-import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
-import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SetupCard2, SummaryCard, WhiteCard } from "./col-card";
-import { PrintBidValue, PrintColSelect } from "./card-button";
-import { TrackLabel, TrackSegment } from "./col-table";
 import { arrayN } from "@thegraid/common-lib";
+import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
+import { PrintBidValue, PrintColSelect } from "./card-button";
+import { BlackCard, DetailCard, PrintCol, PrintDual, PrintSpecial, CursusBack, SummaryCard, WhiteCard } from "./col-card";
+import { TrackLabel, TrackSegment } from "./col-table";
 // end imports
 
 export class TileExporter extends TileExporterLib {
@@ -12,19 +12,19 @@ export class TileExporter extends TileExporterLib {
   }
   // Note: 1108 = 1050 + 2 * (bleed-1); 808 = 750 + 2 * (bleed-1)
   static cardSingle_3_5_MPC: GridSpec = {
-    width: 5400, height: 3600, nrow: 3, ncol: 4, cardw: 1050, cardh: 750, // (inch_w*dpi + 2*bleed)
-    x0: 120 + 3.5 * 150 + 30, y0: 83 + 3.5 * 150 + 30, dely: 1125, delx: 825, bleed: 32, double: false, land: false,
+    width: 5400, height: 3600, nrow: 3, ncol: 6, cardh: 1050, cardw: 750, // (inch_w*dpi + 2*bleed)
+    y0: 120 + 3.5 * 150 + 30, x0: 83 + 3.5 * 150 + 30, dely: 1125, delx: 825, bleed: 32, double: false, land: false,
   };
 
   override makeImagePages() {
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
       ...TrackSegment.countClaz(3, 1050, 750),
-      [3, SummaryCard, undefined, 750],
-      [3, SetupCard2, undefined, 750], //  '"利刃出击"' // (Blades Strike: "Knives Out")
+      [3, SummaryCard, 'Summary', undefined, 750],
+      [3, DetailCard, 'Detail', undefined, 750], //
     ] as CountClaz[];
     const cardSingle_1_75_back = [
-      [36, SetupCard, '"利刃出击"'],   // card back if we want it.
+      [18, CursusBack, 'Back', 'Cursus\nHonorum'],   // card back if we want it.
     ] as CountClaz[];
     const cardSingle_1_75_base = [
       ...BlackCard.countClaz(7, 0),  // black cards (blank)
@@ -51,8 +51,8 @@ export class TileExporter extends TileExporterLib {
 
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    this.clazToTemplate(cardSingle_3_5_track, TileExporter.cardSingle_3_5_MPC, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;

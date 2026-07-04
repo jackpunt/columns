@@ -517,11 +517,25 @@ export class PrintSpecial extends SpecialDead {
   }
 }
 
-export class SetupCard extends ColCard {
-  constructor(text = '', size = 525) {
+class TextCard extends ColCard {
+  static text = '';
+  constructor(Aname = 'Text', size = 525) {
     ColCard.nextRadius = size;
-    super(`Setup`, 5 as Faction)
-    this.addChild(new CenterText(text, 150, ))
+    super(Aname, 5);
+  }
+
+  override makeShape(): Paintable {
+    return new CardShape(C.WHITE, C.WHITE, this.radius, false, 0);
+  }
+}
+
+export class CursusBack extends TextCard {
+  constructor(Aname = 'Back', text = '', size = 525) {
+    ColCard.nextRadius = size;
+    super(Aname, size)
+    const ctext = new CenterText(text, 150, )
+    ctext.y -= 75;
+    this.addChild(ctext)
     this.paint(C.WHITE)
   }
   override makeShape(): Paintable {
@@ -530,48 +544,58 @@ export class SetupCard extends ColCard {
   override get bleedColor(): string { return C.WHITE }
 }
 
-
-export class SummaryCard extends ColCard {
-  static text = `3 x Turns:
+export class SummaryCard extends TextCard {
+  static override text = `Round = 3 x Turns:
   Select Column & Bid
   Resolve & Advance
   Bump & Cascade
   Score for Color
 Then: Score for Rank`;
 
-  constructor(text = SummaryCard.text, size = 525, fs = size / 8) {
+  // Note: this could fit on a mini-card (size = 525)
+  constructor(Aname = 'Summary', text = SummaryCard.text, size = 750, fs = size / 9) {
     ColCard.nextRadius = size;
-    super('per Round:', 5)
+    super(Aname, size);
+
+    const { x: x0, y: y0, width: w, height: h } = this.getBounds();
+    const title = new CenterText('Cursus Honorum', fs + 1);
+    this.addChild(title);
+    const top = y0 + 64;
+    title.y = top + fs/2;
+
     const elt = new Text(text, F.fontSpec(fs));
     elt.textAlign = 'left';
     this.addChild(elt);
     const { x, y, width, height } = elt.getBounds()
-    elt.x = -width / 2;
-    elt.y = -height / 2;
+    elt.x = 0 + (0  -  width) / 2;
+    elt.y = top + (h - height) / 2;
     this.paint(C.WHITE, true)
-
-  }
-  override makeShape(): Paintable {
-    return new CardShape('lavender', C.WHITE, this.radius);
   }
 }
 
-export class SetupCard2 extends SummaryCard {
+export class DetailCard extends TextCard {
   static override text = `1. → Analyze
     → Bid (Column & Value)
     → Commit & Reveal
 2. Resolve each Column: A, B, …
-    (highest unique bid wins)
+   ➢ Highest unique bid wins
    ➢ Advance: winner’s meeple
    ➢ Bump & Cascade: up / down
-   ➢ Score = total with Faction
+   ➢ Score = Influence with Faction
    ➢ Invest on Score Track
 3. After 3 turns:
-   ➢ Score for Rank (2 per player)
+   → Score for Rank (2 per player)
 4. Repeat until someone wins`
 
-  constructor(text = SetupCard2.text, size = 750, fs = size/12) {
-    super(text, size, fs);
+  constructor(Aname = 'Detail', text = DetailCard.text, size = 750, fs = size/14) {
+    super(Aname, size);
+    const elt = new Text(text, F.fontSpec(fs));
+    elt.textAlign = 'left';
+    this.addChild(elt);
+    const { x, y, width, height } = elt.getBounds()
+    elt.x = (0  -  width) / 2;
+    elt.y = (0 - height) / 2;
+    this.paint(C.WHITE, true);
   }
 }
 

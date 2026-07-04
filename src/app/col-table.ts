@@ -216,7 +216,7 @@ export class ColTable extends Table {
   scoreTrack!: ScoreTrack;
   layoutScoreTrack(nElts = TP.nElts) {
     // ScoreTrack.findRGBV12(); // search for best permutation of ScoreTrack.rgbv12
-    const scoreTrack = this.scoreTrack = new ScoreTrack(this, this.scaleCont, nElts, 30);
+    const scoreTrack = this.scoreTrack = new ScoreTrack(this, this.scaleCont, nElts, TP.hexRad/2);
     const {x, y, width, height} = this.bgRect.getBounds()
     const bxy = this.bgRect.parent.localToLocal(x + width / 2, height, scoreTrack.parent);
     const { x: tx, y: ty, width: tw, height: th } = scoreTrack.getBounds();
@@ -481,13 +481,13 @@ export class TrackSegment extends ColCard {
   }
 
   /**
-   * 9 * 12 = 108; 9 * 11 = 99 (end of game)
+   * End of Game: nElts * 18; 5 => 90, 6 => 108
    * @example
    * Brgbv1-rgbv2B
    * Bvbgr1-vbgr2B
    * @param Aname codes the sequence of each rgbv segment.
    *
-   * @param w [36] width of cell, marker radius * 1.1      116.7 x 375
+   * @param w [36] width of cell, marker radius * 1.1      1050/9 = 116.7 x 750/2 = 375
    * @param h [72] height of cell, marker radius * nPlayers
    */
   constructor(Aname: string, w = 36, h = 72, bleed = 0) {
@@ -497,7 +497,7 @@ export class TrackSegment extends ColCard {
     }
     super(Aname, 5)
     this.removeAllChildren();
-    this.setBounds(0, 0, 0, 0);
+    this.setBoundsNull();
     this.addChild(this.slots); this.slots.x = w * -4.5;
     this.wh = { w, h }
     const B = ['B'] as RGBV[];
@@ -511,6 +511,7 @@ export class TrackSegment extends ColCard {
     })
     this.facts = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
     this.addIcons();
+    this.setBounds(-4.5 * w -bleed, -h -bleed, 9*w+2*bleed, 2*(h+bleed));
     const { x, y, width, height } = this.getBounds() // x = 0, y = -dy, width = 9 * dx, height = 2 * dy;
     this.cache(x, y, width, height, 4);
   }
@@ -539,7 +540,8 @@ export class TrackSegment extends ColCard {
     })
   }
   addIcon(f1: Faction, f2: Faction, n: number) {
-    const { w, h } = this.wh, dh = w * .4, wd = w/2;
+    const { w, h } = this.wh, dh = w * .6, wd = w * .5;  // dh: 32 px safe area; wd: nominal width of Decorator icon
+    // const w = 1050/9; @ 300 dpi  h = 750/2 @ 300 dpi
     const x = w * n + w/2 + 1; // shift right by 1 px to align with counters
 
     const deco = TrackSegment.decorator ?? (TrackSegment.decorator = new Decorator(wd, .5));
@@ -555,9 +557,6 @@ export class TrackSegment extends ColCard {
     const { w, h } = this.wh;
     const rv = new TrackSegment(this.Aname, w, h, bleed);
     rv.rotation = this.rotation;
-    this.removeAllChildren();
-    this.addChild(rv);
-    this.reCache();
     return rv
   }
 }
