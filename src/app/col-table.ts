@@ -523,7 +523,7 @@ export class TrackSegment extends ColCard {
 
   addSlot(n: number, f1: Faction, f2: Faction, w: number, h: number, bleed = 0, s = 1) {
     const factionColor = (faction: Faction) => ColCard.factionColors[faction];
-    const c1 = factionColor(f1), c2 = factionColor(f2), b0 = (bleed == 0)
+    const b0 = (bleed == 0), c1 = factionColor(f1), c2 = factionColor(f2);
     const we = (f1 == 0) ? (b0 ? w / 2 : w / 2 + bleed) : w;
     const x = w * n + ((n == 0) ? (b0 ? 0 : -bleed) : - w / 2) + 1; // shift right by 1 px to align with counters
     const rect1 = new RectShape({ s, x, w: we, h, y: -h }, c1);

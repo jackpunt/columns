@@ -117,6 +117,6 @@ class ImageGridFile extends ImageGrid {
 export class TileExporter2 extends TileExporter {
     constructor() {
     super(ImageGridFile);
-    this.imageGrid.setScale('.2');  // start small
+    this.imageGrid.setScale('.1');  // start small
   }
 }

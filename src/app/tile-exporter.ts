@@ -10,18 +10,29 @@ export class TileExporter extends TileExporterLib {
     super(pageMaker);
     this.imageGrid.setScale('.05');  // start small
   }
-  // Note: 1108 = 1050 + 2 * (bleed-1); 808 = 750 + 2 * (bleed-1)
-  static cardSingle_3_5_MPC: GridSpec = {
-    width: 5400, height: 3600, nrow: 3, ncol: 6, cardh: 1050, cardw: 750, // (inch_w*dpi + 2*bleed)
-    y0: 120 + 3.5 * 150 + 30, x0: 83 + 3.5 * 150 + 30, dely: 1125, delx: 825, bleed: 32, double: false, land: false,
+  // 18 cards
+  static cardSingle_3_5_in: GridSpec = {
+    dpi: 300, width: 18, height: 12, nrow: 3, ncol: 6, cardh: 3.5, cardw: 2.5, // (inch_w*dpi + 2*bleed)
+    y0: .5 + 3.5 * .5, x0: 113/300 + 3.5/2, dely: 3.75, delx: 2.75, bleed: 32/300, double: false, land: false,
   };
 
+  // { ...ImageGrid, ncol: 6, width: 4200, split: false }
+  static cardSingle_1_75_px = {
+    width: 4200, height: 5400, nrow: 6, ncol: 6, cardh: 525, cardw: 750, double: false, split: false,
+    x0: 334 + 1.75 * 150, y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30, // (2705-305)/4, (1770-120)/2
+};
+  static cardSingle_1_75 = {
+    width: 14, height: 20, nrow: 6, ncol: 6, cardh: 525, cardw: 2.5, double: false, split: false,
+    x0: 1.33 + 1.75/2, y0: .5 + 2.5/2, delx: 2, dely: 2.75, bleed: 32/300, dpi: 400// (2705-305)/4, (1770-120)/2
+};
+
   override makeImagePages() {
+    const dpi = 300, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi;
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
-      ...TrackSegment.countClaz(3, 1050, 750),
-      [3, SummaryCard, 'Summary', undefined, 750],
-      [3, DetailCard, 'Detail', undefined, 750], //
+      ...TrackSegment.countClaz(12, p3_5, p2_5),
+      [3, SummaryCard, 'Summary', undefined, p2_5],
+      [3, DetailCard, 'Detail', undefined, p2_5], //
     ] as CountClaz[];
     const cardSingle_1_75_back = [
       [18, CursusBack, 'Back', 'Cursus\nHonorum'],   // card back if we want it.
@@ -32,29 +43,30 @@ export class TileExporter extends TileExporterLib {
       ...PrintDual.countClaz(16),
       ...PrintCol.countClaz(60),
     ] as CountClaz;
-    const cardSingle_1_75_hand = arrayN(9).flatMap(f => [
+    const cardSingle_1_75_hand = arrayN(3).flatMap(f => [
       // 9 groups of 12 cards: bid, col, dead office
-      ...PrintBidValue.countClaz(4, f, 525),
-      ...PrintColSelect.countClaz(7, f, 525),
-      ...(f < 6) ? PrintSpecial.countClaz(1) : [[1, SummaryCard, 525]],
+      ...PrintBidValue.countClaz(4, f, p3_5/2),
+      ...PrintColSelect.countClaz(7, f, p3_5/2),
+      ...(f < 6) ? PrintSpecial.countClaz(1) : [[1, SummaryCard, 'Summary', undefined, p3_5/2]],
     ]) as CountClaz[];
 
-    const gs = TrackLabel.gridSpec; gs.dpi = 300;
+    const gs = TrackLabel.gridSpec; gs.dpi = 300
+    const pp = 54;
     const labelCols = [
-      ...TrackLabel.countClaz(gs, 0, 54, 54),
-      ...TrackLabel.countClaz(gs, 180, 54, 54),
-      ...TrackLabel.countClaz(gs, 0, 54, 54),
-      ...TrackLabel.countClaz(gs, 180, 54, 54),
-      ...TrackLabel.countClaz(gs, 0, 54, 54),
-      ...TrackLabel.countClaz(gs, 180, 54, 54),
+      ...TrackLabel.countClaz(gs, 0, pp, pp),
+      ...TrackLabel.countClaz(gs, 180, pp, pp),
+      ...TrackLabel.countClaz(gs, 0, pp, pp),
+      ...TrackLabel.countClaz(gs, 180, pp, pp),
+      ...TrackLabel.countClaz(gs, 0, pp, pp),
+      ...TrackLabel.countClaz(gs, 180, pp, pp),
     ] as CountClaz[];
 
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
+    this.clazToTemplate(cardSingle_3_5_track, TileExporter.cardSingle_3_5_in, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand, TileExporter.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 
