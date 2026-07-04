@@ -1,24 +1,27 @@
-import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
-import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SummaryCard, WhiteCard } from "./col-card";
+import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
+import { BlackCard, PrintCol, PrintDual, PrintSpecial, SetupCard, SetupCard2, SummaryCard, WhiteCard } from "./col-card";
 import { PrintBidValue, PrintColSelect } from "./card-button";
 import { TrackLabel, TrackSegment } from "./col-table";
 import { arrayN } from "@thegraid/common-lib";
 // end imports
 
 export class TileExporter extends TileExporterLib {
-  constructor() {
-    super();
+  constructor(pageMaker = ImageGrid) {
+    super(pageMaker);
     this.imageGrid.setScale('.05');  // start small
   }
+  // Note: 1108 = 1050 + 2 * (bleed-1); 808 = 750 + 2 * (bleed-1)
+  static cardSingle_3_5_MPC: GridSpec = {
+    width: 5400, height: 3600, nrow: 3, ncol: 4, cardw: 1050, cardh: 750, // (inch_w*dpi + 2*bleed)
+    x0: 120 + 3.5 * 150 + 30, y0: 83 + 3.5 * 150 + 30, dely: 1125, delx: 825, bleed: 32, double: false, land: false,
+  };
 
   override makeImagePages() {
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
-      ...TrackSegment.countClaz(12, 1050, 750),
-      // [12, TrackSegment, '', 1050 / 9, 750 / 2],
-      [3, SummaryCard, 750],
-      // [3, SetupCard, '野心', 750],
-      [3, SetupCard, '"利刃出击"', 750], //  '"利刃出击"' // (Blades Strike: "Knives Out")
+      ...TrackSegment.countClaz(3, 1050, 750),
+      [3, SummaryCard, undefined, 750],
+      [3, SetupCard2, undefined, 750], //  '"利刃出击"' // (Blades Strike: "Knives Out")
     ] as CountClaz[];
     const cardSingle_1_75_back = [
       [36, SetupCard, '"利刃出击"'],   // card back if we want it.
@@ -48,10 +51,10 @@ export class TileExporter extends TileExporterLib {
 
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    this.clazToTemplate(cardSingle_3_5_track, ImageGrid.cardSingle_3_5, pageSpecs);
+    this.clazToTemplate(cardSingle_3_5_track, TileExporter.cardSingle_3_5_MPC, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand, ImageGrid.cardSingle_1_75, pageSpecs);
     return pageSpecs;
   }
 

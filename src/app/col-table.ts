@@ -554,6 +554,7 @@ export class TrackSegment extends ColCard {
   override makeBleed(bleed: number) {
     const { w, h } = this.wh;
     const rv = new TrackSegment(this.Aname, w, h, bleed);
+    rv.rotation = this.rotation;
     this.removeAllChildren();
     this.addChild(rv);
     this.reCache();

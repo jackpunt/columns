@@ -37,7 +37,7 @@ export class TP extends TPLib {
   /** identify the TrackSegments in use */
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
   /** when numPlayers < 5: [true -> ABCD] [false -> use AB_DE] */
-  static fourBase = false;
+  static fourBase = true;
   /** include ladderScore */
   static aiLadderScore = true;
 
@@ -62,7 +62,7 @@ export class TP extends TPLib {
   /** setAutoPlay unless startManual includes player index */
   static startManual = [0];
   /** enable/disable auto bots */
-  static autoStart = true;
+  static autoStart = false;
   /** for non-auto Players */
   static autoScore = false;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */

@@ -1,35 +1,53 @@
 import { stime } from "@thegraid/common-lib";
+import { ImageGrid, PageSpec, type NamedObject, } from "@thegraid/easeljs-lib";
+import type { Container } from "@thegraid/easeljs-module";
 import { TileExporter } from "./tile-exporter";
-import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
-
+// import JSZip from 'jszip';
 class ImageGridFile extends ImageGrid {
 
+  pageCont!: Container;  // guarantee to set before using
+
+  // View button was clicked, process a nrow X ncol grid of frontObjs.
   // in this case, all we have are the single-sided fronts.
   // first we write them to a directory, upload to the 'library' and see what choice we have for single-sided.
-  override makePage(pageSpec: PageSpec, canvas?: HTMLCanvasElement | string ) {
-    // extract overall size of page/canvas
-    this.setStageAndCanvas(pageSpec.layoutSpec!, canvas); // sets this.stage & this.canvas
-    const nc = this.addObjects(pageSpec)
-    this.stage.update();
-    pageSpec.canvas = this.canvas; // canvas to view & download
-
-    const { id } = this.canvas;
-    const info = { id, nc, layout: pageSpec.layoutSpec }; // not essential...
-    console.log(stime(this, `.makePage: info =`), info);
-    return pageSpec;
+  override addObjects(pageSpec: PageSpec): Container {
+    const cont = super.addObjects(pageSpec); // so they appear as pages on screen: fill nRow X nCol on a canvas
+    this.pageCont = cont;
+    return cont;
   }
-  // Ignore the canvas, use the cached list of Card/Tile objects
+
+  // Ignore the canvas, use the Container of Card/Tile objects
   // render toDataURL()
-  override downloadImage(canvas: HTMLCanvasElement, filename?: string, downloadId?: string): void {
-    const imageURL = canvas.toDataURL("image/png");
-    this.downloadImage2(imageURL, filename, downloadId, canvas.id);
+  override async downloadCanvas(canvas: HTMLCanvasElement, filename?: string, downloadId?: string) {
+    const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+    // const zip = new JSZip();
+    for (const [n, dObj] of this.pageCont.children.entries()) {
+      const { x, y, width, height } = dObj.getBounds();
+      dObj.cache(x, y, width, height);
+      const imageURL = (dObj.cacheCanvas as HTMLCanvasElement).toDataURL("image/png");
+      const name = (dObj as NamedObject).Aname ?? `dObj${n}`;
+      // Extract the raw base64 string from the Data URL
+      // const base64Data = imageURL.split(',')[1];
+      // Add file to the zip archive hierarchy (base64: true tells JSZip to decode it)
+      // zip.file(`cursus/${name}.png`, base64Data, { base64: true });
+
+      this.downloadImage(imageURL, `cursus/${name}.png`, 'download', `${name}`)
+      await delay(300);
+
+    }
+    // const zipBlob = await zip.generateAsync({ type: 'blob' });
+
   }
 
-  downloadImage2(imageURL: string, filename = 'image.png', downloadId = 'download', logId = "image") {
-    const anchor = document.getElementById(downloadId) as HTMLAnchorElement;
+  override downloadImage(imageURL: string, filename = 'image.png', downloadId = 'download', logId = "image") {
+    // const anchor = document.getElementById(downloadId) as HTMLAnchorElement;
+    const anchor = document.createElement('a');
     const octetURL = imageURL.replace("image/png", "image/octet-stream");
     anchor.download = filename;
     anchor.href = octetURL;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
     console.log(stime(this, `.downloadImage: ${logId} -> ${filename} length = ${octetURL.length}`))
   }
 }

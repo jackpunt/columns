@@ -532,17 +532,16 @@ export class SetupCard extends ColCard {
 
 
 export class SummaryCard extends ColCard {
-  constructor(size = 525, fs = size / 8) {
+  static text = `3 x Turns:
+  Select Column & Bid
+  Resolve & Advance
+  Bump & Cascade
+  Score for Color
+Then: Score for Rank`;
+
+  constructor(text = SummaryCard.text, size = 525, fs = size / 8) {
     ColCard.nextRadius = size;
     super('per Round:', 5)
-    const l: string[] = []
-     l[0] = `3 x Turns:`;
-     l[1] = '  Select Column & Bid'
-     l[2] = '  Resolve & Advance'
-     l[3] = '  Bump & Cascade'
-     l[4] = '  Score for Color'
-     l[5] = 'Then: Score for Rank'
-    const text = l.join('\n')
     const elt = new Text(text, F.fontSpec(fs));
     elt.textAlign = 'left';
     this.addChild(elt);
@@ -554,6 +553,25 @@ export class SummaryCard extends ColCard {
   }
   override makeShape(): Paintable {
     return new CardShape('lavender', C.WHITE, this.radius);
+  }
+}
+
+export class SetupCard2 extends SummaryCard {
+  static override text = `1. → Analyze
+    → Bid (Column & Value)
+    → Commit & Reveal
+2. Resolve each Column: A, B, …
+    (highest unique bid wins)
+   ➢ Advance: winner’s meeple
+   ➢ Bump & Cascade: up / down
+   ➢ Score = total with Faction
+   ➢ Invest on Score Track
+3. After 3 turns:
+   ➢ Score for Rank (2 per player)
+4. Repeat until someone wins`
+
+  constructor(text = SetupCard2.text, size = 750, fs = size/12) {
+    super(text, size, fs);
   }
 }
 

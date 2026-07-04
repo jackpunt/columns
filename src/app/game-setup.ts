@@ -10,6 +10,7 @@ import { Player, SubPlayer } from './player';
 import { ScenarioParser, type SetupElt } from './scenario-parser';
 import { TP } from './table-params';
 import { TileExporter } from './tile-exporter';
+import { TileExporter2 } from './tile-exporter2';
 
 type Params = Record<string, any>; // until hexlib supplies
 export interface Scenario extends Scenario0 {
@@ -33,7 +34,7 @@ class ColGameSetup extends GameSetupLib {
 
   override initialize(canvasId: string): void {
     if (canvasId) GameSetup.gameSetup = this;
-    this.tileExporter = new TileExporter(); // enable 'Make Pages' buttons
+    this.tileExporter = new TileExporter2(); // enable 'Make Pages' buttons
     // for hexmarket to bringup their own menus:
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     console.log(stime(this, `---------------------   GameSetup.initialize  ----------------`))
