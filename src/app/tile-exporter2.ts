@@ -1,8 +1,7 @@
-import { stime } from "@thegraid/common-lib";
 import { ImageGrid, PageSpec, type NamedObject, } from "@thegraid/easeljs-lib";
 import type { Container } from "@thegraid/easeljs-module";
+import JSZip from 'jszip';
 import { TileExporter } from "./tile-exporter";
-// import JSZip from 'jszip';
 class ImageGridFile extends ImageGrid {
 
   pageCont!: Container;  // guarantee to set before using
@@ -18,37 +17,21 @@ class ImageGridFile extends ImageGrid {
 
   // Ignore the canvas, use the Container of Card/Tile objects
   // render toDataURL()
-  override async downloadCanvas(canvas: HTMLCanvasElement, filename?: string, downloadId?: string) {
-    const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-    // const zip = new JSZip();
+  override async downloadCanvas(canvas: HTMLCanvasElement, filename?: string) {
+    const zip = new JSZip();
+    const logId = filename?.replace(/\.png/, '');
     for (const [n, dObj] of this.pageCont.children.entries()) {
       const { x, y, width, height } = dObj.getBounds();
       dObj.cache(x, y, width, height);
       const imageURL = (dObj.cacheCanvas as HTMLCanvasElement).toDataURL("image/png");
       const name = (dObj as NamedObject).Aname ?? `dObj${n}`;
       // Extract the raw base64 string from the Data URL
-      // const base64Data = imageURL.split(',')[1];
+      const base64Data = imageURL.split(',')[1];
       // Add file to the zip archive hierarchy (base64: true tells JSZip to decode it)
-      // zip.file(`cursus/${name}.png`, base64Data, { base64: true });
-
-      this.downloadImage(imageURL, `cursus/${name}.png`, 'download', `${name}`)
-      await delay(300);
-
+      zip.file(`cursus/${name}.png`, base64Data, { base64: true });
     }
-    // const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-  }
-
-  override downloadImage(imageURL: string, filename = 'image.png', downloadId = 'download', logId = "image") {
-    // const anchor = document.getElementById(downloadId) as HTMLAnchorElement;
-    const anchor = document.createElement('a');
-    const octetURL = imageURL.replace("image/png", "image/octet-stream");
-    anchor.download = filename;
-    anchor.href = octetURL;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    console.log(stime(this, `.downloadImage: ${logId} -> ${filename} length = ${octetURL.length}`))
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    this.downloadBlob(zipBlob, `${logId}.zip`, logId);
   }
 }
 
