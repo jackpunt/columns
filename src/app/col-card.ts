@@ -574,15 +574,15 @@ Then: Score for Rank`;
 }
 
 export class DetailCard extends TextCard {
-  static override text = `1. → Analyze
+  static override text = `1. → Analyze & Plan
     → Bid (Column & Value)
     → Commit & Reveal
 2. Resolve each Column: A, B, …
-   ➢ Highest unique bid wins
-   ➢ Advance: winner’s meeple
-   ➢ Bump & Cascade: up / down
-   ➢ Score = Influence with Faction
-   ➢ Invest on Score Track
+    ➢ Highest unique bid wins
+    ➢ Advance: winner’s meeple
+    ➢ Bump & Cascade: up / down
+    ➢ Score = Influence with Faction
+    ➢ Invest on Score Track
 3. After 3 turns:
    → Score for Rank (2 per player)
 4. Repeat until someone wins`

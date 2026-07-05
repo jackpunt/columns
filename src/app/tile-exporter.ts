@@ -10,10 +10,15 @@ export class TileExporter extends TileExporterLib {
     super(pageMaker);
     this.imageGrid.setScale('.05');  // start small
   }
-  // 18 cards
+  static cardSingle_3_5_px: GridSpec = {
+    width: 3600, height: 5400, nrow: 6, ncol: 3, cardw: 1050, cardh: 750, // (inch_w*dpi + 2*bleed)
+    x0: 120 + 3.5 * 150 + 30, y0: 83 + 3.5 * 150 + 30, delx: 1125, dely: 825, bleed: 30, double: false,
+  };
+
+  // 18 cards: portrait mode; browser viewport may cut off bottom
   static cardSingle_3_5_in: GridSpec = {
-    dpi: 300, width: 18, height: 12, nrow: 3, ncol: 6, cardh: 3.5, cardw: 2.5, // (inch_w*dpi + 2*bleed)
-    y0: .5 + 3.5 * .5, x0: 113/300 + 3.5/2, dely: 3.75, delx: 2.75, bleed: 32/300, double: false, land: false,
+    dpi: 300, width: 12, height: 18, nrow: 6, ncol: 3, cardh: 3.5, cardw: 2.5, // (inch_w*dpi + 2*bleed)
+    x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.75, dely: 2.75, bleed: 32/300, double: false, land: true,
   };
 
   // { ...ImageGrid, ncol: 6, width: 4200, split: false }
@@ -21,18 +26,19 @@ export class TileExporter extends TileExporterLib {
     width: 4200, height: 5400, nrow: 6, ncol: 6, cardh: 525, cardw: 750, double: false, split: false,
     x0: 334 + 1.75 * 150, y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30, // (2705-305)/4, (1770-120)/2
 };
-  static cardSingle_1_75 = {
-    width: 14, height: 20, nrow: 6, ncol: 6, cardh: 525, cardw: 2.5, double: false, split: false,
-    x0: 1.33 + 1.75/2, y0: .5 + 2.5/2, delx: 2, dely: 2.75, bleed: 32/300, dpi: 400// (2705-305)/4, (1770-120)/2
+  static cardSingle_1_75_in = {
+    dpi: 300, width: 14, height: 20, nrow: 6, ncol: 6, cardh: 525, cardw: 2.5, double: false, split: false,
+    x0: 1.33 + 1.75/2, y0: .5 + 2.5/2, delx: 2, dely: 2.75, bleed: 32/300, // (2705-305)/4, (1770-120)/2
 };
 
   override makeImagePages() {
-    const dpi = 300, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi;
+    const dpi = 300.2, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi;
+    [TileExporter.cardSingle_1_75_in, TileExporter.cardSingle_3_5_in].forEach(ig => ig.dpi = dpi);
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
-      ...TrackSegment.countClaz(12, p3_5, p2_5),
       [3, SummaryCard, 'Summary', undefined, p2_5],
       [3, DetailCard, 'Detail', undefined, p2_5], //
+      ...TrackSegment.countClaz(12, p3_5, p2_5),
     ] as CountClaz[];
     const cardSingle_1_75_back = [
       [18, CursusBack, 'Back', 'Cursus\nHonorum'],   // card back if we want it.

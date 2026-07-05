@@ -8,19 +8,23 @@ import { TileExporter } from "./tile-exporter";
 class ImageGridFile extends ImageGrid {
 
   pageCont!: Container;  // guarantee to set before using
-
+  // override setCanvasSize(width = 200, height = 600): void {
+  //   super.setCanvasSize(width,height*1.5)
+  // }
   // View button was clicked, process a nrow X ncol grid of frontObjs.
   // in this case, all we have are the single-sided fronts.
   // first we write them to a directory, upload to the 'library' and see what choice we have for single-sided.
   override addObjects(pageSpec: PageSpec): Container {
     const cont = super.addObjects(pageSpec); // so they appear as pages on screen: fill nRow X nCol on a canvas
     this.pageCont = cont;
+    this.dpi = pageSpec.layoutSpec?.dpi ?? 300; // DUBIOUS!?
     return cont;
   }
+  dpi = 300;
 
   // Ignore the canvas, use the pageCont Container of Card/Tile objects
   // render toDataURL()
-  override async downloadCanvas(canvas: HTMLCanvasElement, filename?: string) {
+  override async downloadCanvas(canvas: HTMLCanvasElement, filename?: string, dpi = this.dpi) {
     const zip = new JSZip();
     const logId = filename?.replace(/\.png/, '');
     for (const [n, dObj] of this.pageCont.children.entries()) {
@@ -31,7 +35,7 @@ class ImageGridFile extends ImageGrid {
       //   dObj.setBounds(y, x, height, width);
       // }
       const imageURL = (dObj.cacheCanvas as HTMLCanvasElement).toDataURL("image/png");
-      const imageURL_300DPI = this.injectDPI(imageURL, 300);
+      const imageURL_300DPI = this.injectDPI(imageURL, dpi);
       const name = `${n}-${(dObj as NamedObject).Aname ?? dObj}`;
       // Extract the raw base64 string from the Data URL
       const base64Data = imageURL_300DPI.split(',')[1];
@@ -44,7 +48,7 @@ class ImageGridFile extends ImageGrid {
   // TODO: move to common-lib:
   injectDPI(dataURL: string, dpi: number): string {
     // 1. Convert DPI to pixels per meter (1 inch = 0.0254 meters)
-    const ppm = Math.round(dpi / 0.0254);
+    const ppm = Math.round(dpi / 0.0254); 11811; 11812
 
     // 2. Extract base64 payload and decode to a Uint8Array
     const base64Parts = dataURL.split(',');
