@@ -18,8 +18,9 @@ export class ColCard extends Tile {
 
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
   static nextRadius = CardShape.onScreenRadius; // when super() -> this.makeShape()
+  static nextWH = CardShape.onScreenWH;
   _radius = ColCard.nextRadius;           // when PathCard.constructor eventually runs
-  override get radius() { return (this?._radius !== undefined) ? this._radius : ColCard.nextRadius }
+  override get radius() { return (this?._radius ?? ColCard.nextRadius )}
   override get isMeep() { return false; }
   declare gamePlay: GamePlay;
   override get hex(): Hex2 { return super.hex as Hex2 }
@@ -200,7 +201,8 @@ export class ColCard extends Tile {
 
   // invoked by constructor.super()
   override makeShape(): Paintable {
-    return new CardShape('lavender', C.black, this.radius);
+    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    return new CardShape('lavender', C.black, wh);
   }
 
   override reCache(scale?: number): void {
@@ -278,7 +280,7 @@ export class DualCard extends ColCard {
   static cardMarks: DisplayObject[] = [];
 
   setMarks() {
-    const c0 = `rgba(180, 180, 180, .3)`;
+    const c0 = `rgba(180, 180, 180, .7)`;
     if (!DualCard.cardMarks[1]) {
       ([0,1] as (0|1)[]).forEach(ndx => {
         const mark = new Shape(this.baseShape.triangle(ndx, c0, 1));
@@ -398,14 +400,14 @@ class XtensaCard extends ColCard {
 
 export class BlackCard extends XtensaCard {
   // super(Aname, col = 0, fac = 0, fs)
-  static countClaz(n = 0, row = 0): CountClaz[] {
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Black:${row}`, 0, .5])
+  static countClaz(n = 0, size = 525): CountClaz[] {   //    name, size, colNum, fs
+    return arrayN(n, i => 0).map(colNum => [1, PrintBlack, `Black:0`, size, colNum, .5])
   }
 }
 
 export class WhiteCard extends XtensaCard {
-  static countClaz(n = 0, row = 0): CountClaz[] {
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `White:${row}`, colNum, .5]); // row: N
+  static countClaz(n = 0, size = 525): CountClaz[] {
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `White:N`, size, colNum, .5]); // row: N
   }
 
   constructor(aname = 'white?', col?: number, fs?: number) {
@@ -414,7 +416,8 @@ export class WhiteCard extends XtensaCard {
   }
 
   override makeShape(): Paintable {
-    return new CardShape(C.grey92, '', this.radius, false, 0); // no border stroke when printing
+    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    return new CardShape(C.grey92, '', wh, false, 0); // no border stroke when printing
   }
 }
 
@@ -467,13 +470,13 @@ export class SpecialDead extends ColCard {
 export class PrintCol extends ColCard {
   static seqN = 0;
   /** how many of which Claz to construct & print: for TileExporter */
-  static countClaz(n = 1): CountClaz[] {
+  static countClaz(n = 1, size = 525): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, PrintCol]]
+    return [[n, PrintCol, size]]
   }
 
-  constructor(allCards = GameSetup.gameSetup.gamePlay.allCols) {
-    ColCard.nextRadius = 525
+  constructor(size = 525, allCards = GameSetup.gameSetup.gamePlay.allCols) {
+    ColCard.nextRadius = size;
     if (PrintCol.seqN  >= allCards.length) PrintCol.seqN = 0
     const n = PrintCol.seqN++;
     const card = allCards[n], { Aname, factions } = card;
@@ -485,12 +488,12 @@ export class PrintCol extends ColCard {
 }
 export class PrintDual extends DualCard {
   static seqN = 0;
-  static countClaz(n = 20): CountClaz[] {
+  static countClaz(n = 20, size = 525): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, PrintDual]];
+    return [[n, PrintDual, size]];
   }
-  constructor(allCards = GameSetup.gameSetup.gamePlay.allDuals) {
-    ColCard.nextRadius = 525
+  constructor(size = 525, allCards = GameSetup.gameSetup.gamePlay.allDuals) {
+    ColCard.nextRadius = size;
     if (PrintDual.seqN >= allCards.length) PrintDual.seqN = 0
     const n = PrintDual.seqN++;
     const card = allCards[n], { Aname, factions } = card;
@@ -500,19 +503,20 @@ export class PrintDual extends DualCard {
 }
 
 export class PrintBlack extends XtensaCard {
-  constructor(Aname: string, colNum = 0, fac = 0, fs?: number) {
-    ColCard.nextRadius = 525
+  constructor(Aname: string, size = 525, colNum = 0, fs?: number) {
+    ColCard.nextRadius = size;
     super(Aname, colNum, fs)
   }
 
   override makeShape(): Paintable {
-    return new CardShape(C.WHITE, '', this.radius, false, 0); // no border stroke when printing
+    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    return new CardShape(C.WHITE, '', wh, false, 0); // no border stroke when printing
   }
 }
 
 export class PrintSpecial extends SpecialDead {
-  constructor(Aname: string, radius = 525) {
-    ColCard.nextRadius = radius;
+  constructor(Aname: string, size = 525) {
+    ColCard.nextRadius = size;
     super(Aname)
   }
 }
@@ -525,12 +529,13 @@ class TextCard extends ColCard {
   }
 
   override makeShape(): Paintable {
-    return new CardShape(C.WHITE, C.WHITE, this.radius, false, 0);
+    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    return new CardShape(C.WHITE, C.WHITE, wh, false, 0);
   }
 }
 
 export class CursusBack extends TextCard {
-  constructor(Aname = 'Back', text = '', size = 525) {
+  constructor(Aname = 'Back', size = 525, text = '') {
     ColCard.nextRadius = size;
     super(Aname, size)
     const ctext = new CenterText(text, 150, )
@@ -539,7 +544,8 @@ export class CursusBack extends TextCard {
     this.paint(C.WHITE)
   }
   override makeShape(): Paintable {
-    return new CardShape(C.WHITE, '', this.radius, false, 0)
+    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    return new CardShape(C.WHITE, '', wh, false, 0)
   }
   override get bleedColor(): string { return C.WHITE }
 }
@@ -553,7 +559,7 @@ export class SummaryCard extends TextCard {
 Then: Score for Rank`;
 
   // Note: this could fit on a mini-card (size = 525)
-  constructor(Aname = 'Summary', text = SummaryCard.text, size = 750, fs = size / 9) {
+  constructor(Aname = 'Summary', size = 750, text = SummaryCard.text, fs = size / 9) {
     ColCard.nextRadius = size;
     super(Aname, size);
 
@@ -587,7 +593,7 @@ export class DetailCard extends TextCard {
    → Score for Rank (2 per player)
 4. Repeat until someone wins`
 
-  constructor(Aname = 'Detail', text = DetailCard.text, size = 750, fs = size/14) {
+  constructor(Aname = 'Detail', size = 750, text = DetailCard.text, fs = size/14) {
     super(Aname, size);
     const elt = new Text(text, F.fontSpec(fs));
     elt.textAlign = 'left';

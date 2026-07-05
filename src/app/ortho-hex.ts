@@ -60,7 +60,7 @@ export class RectHex2 extends RectHex2Mixed {
 
   /** Hex2 include GUI and a Paintable DisplayObject */
   override makeHexShape(colorn = C.grey224): Paintable {
-    return new CardShape(colorn);
+    return new CardShape(colorn, undefined, CardShape.getWH(CardShape.onScreenRadius, 3.5/2.5, false));
   }
 
   override makeLegalMark(): LegalMark {
@@ -155,7 +155,8 @@ export class HexMap2 extends HexMap<ColHex2> {
   }
 
   override makeMark(rh?: number, rc?: number): DisplayObject {
-    const mark = new CardShape(C.nameToRgbaString(C.grey224, .7), '', .85);
+    const wh = CardShape.getWH(CardShape.onScreenRadius * .85, 2.5/1.75, false);
+    const mark = new CardShape(C.nameToRgbaString(C.grey224, .7), '', wh);
     mark.mouseEnabled = false; // prevent objectUnderPoint!
     return mark
   }

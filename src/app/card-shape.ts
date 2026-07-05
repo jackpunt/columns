@@ -7,6 +7,23 @@ import { H, TP } from "@thegraid/hexlib";
 export class CardShape extends RectShape {
   /** => TP.hexRad * H.sqrt3; for current value of TP.hexRad */
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
+  static get onScreenWH() {
+    const w = CardShape.onScreenRadius;
+    const h = w * 2.5/1.75; // for mini cards!
+    return { w, h }
+  }
+  /**
+   *
+   * @param r the know size
+   * @param a ration to the other size: 3.5/2.5 or 2.5/1.75 (or inverse)
+   * @param vert true -> portrait; false -> landscape
+   * @returns WH
+   */
+  static getWH(r = 525, a = 2.5/1.75, vert = false) {
+    return (a < 1)
+      ? (vert ? { w: r*a, h: r } : { w: r, h: r*a })
+      : (vert ? { w: r, h: r*a } : { w: r*a, h: r })
+  }
 
   /**
    * Modified RectShape: place border stroke inside the WH perimeter.
@@ -17,11 +34,10 @@ export class CardShape extends RectShape {
    * @param ss [rad * .04] StrokeSize for outer border.
    * @param rr [max(w,h) * .05] rounded corner radius
    */
-  constructor(fillc = 'lavender', strokec = C.grey64, rad = CardShape.onScreenRadius, portrait = false, ss?: number, rr?: number) {
-    if (rad <= 1) rad = rad * CardShape.onScreenRadius;
+  constructor(fillc = 'lavender', strokec = C.grey64, { w: w0, h: h0 } = CardShape.onScreenWH, portrait = false, ss?: number, rr?: number) {
+    const rad = portrait ? w0 : h0;
     const s = ss ?? rad * .04;
-    const a = 3.5 / 2.5; // aspect: length of long side relative to short side = 1.4
-    const w = (portrait ? rad : rad * a) - 2 * s, h = (portrait ? rad * a : rad) - 2 * s;
+    const w = w0 - 2 * s, h = h0 - 2 * s;
     const r = rr ?? Math.max(h, w) * .05;
     super({ x: -w / 2, y: -h / 2, w, h, r, s }, fillc, strokec);
     this.radius = rad;

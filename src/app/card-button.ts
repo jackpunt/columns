@@ -35,8 +35,9 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
 
     // make dimmer & highlight:
     const dColor = C.rgba(C.grey92, .7), vert = true;
-    this.addChild(this.dimmer = new CardShape(dColor, '', rad, vert)); // on Top
-    this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, rad, vert), 0); // under baseShape
+    const wh = CardShape.getWH(rad, 2.5/1.75, vert)
+    this.addChild(this.dimmer = new CardShape(dColor, '', wh, vert)); // on Top
+    this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, wh, vert), 0); // under baseShape
     this.highlight.scaleX = 1.17; this.highlight.scaleY = 1.10; // 10 ~= 3/5 * 17
     this.addChild(this.canceled = this.makeCancelShape())
     this.addChild(this.outbid = this.makeOutbidShape())
@@ -169,7 +170,8 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   /** replace UtilButton's border RectShape with CardShape */
   altRectShape(color = C.WHITE, rad = CardButton.radius) {
     this.removeChild(this.rectShape);
-    this.rectShape = new CardShape(color, C.grey224, rad, true, rad * .03);
+    const wh = CardShape.getWH(rad, 2.5/1.75, true);
+    this.rectShape = new CardShape(color, C.grey224, wh, true, rad * .03);
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
@@ -178,7 +180,8 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
 
   makeShape() {
     const { radius: rad, strokec } = this.rectShape;
-    return new CardShape(strokec, strokec, rad, true)
+    const wh = CardShape.getWH(rad, 2.5/1.75, true);
+    return new CardShape(strokec, strokec, wh, true)
   }
   makeBleed(bleed: number) {
     return (new Tile('bleed')).makeBleed.call(this, bleed)
