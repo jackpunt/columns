@@ -28,7 +28,7 @@ export class TileExporter extends TileExporterLib {
 };
   static cardSingle_1_75_in = {
     dpi: 300, width: 14, height: 20, nrow: 6, ncol: 6, cardh: 1.75, cardw: 2.5, double: false, split: false,
-    x0: 1.33 + 1.75/2, y0: .5 + 2.5/2, delx: 2, dely: 2.75, bleed: .125, // (2705-305)/4, (1770-120)/2
+    x0: 1.33 + 1.75/2, y0: .5 + 2.5/2, delx: 2.1, dely: 2.80, bleed: .125, // (2705-305)/4, (1770-120)/2
 };
 
   override makeImagePages() {
