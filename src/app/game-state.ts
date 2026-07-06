@@ -1,6 +1,7 @@
 import { C, stime } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
+import type { CardButton } from "./card-button";
 import { type ColMeeple } from "./col-meeple";
 import { type ColTable as Table } from "./col-table";
 import type { AdvDir, BumpDir2, BumpDirC, GamePlay, Step } from "./game-play";
@@ -60,10 +61,22 @@ export class GameState extends GameStateLib {
   // auto-proceed to done() vs wait for click
   get autoDone() { return this.state && ['SelectCol'].includes(this.state.Aname!) }
 
-
+  _cardDone?: CardButton = undefined;
+  get cardDone() { return this._cardDone; }
+  set cardDone(v) { // BidCard or CoinCard selected [not committed]; "maybeDone"
+    this._cardDone = v;    // most recent selection, pro'ly not useful
+    // console.log(stime(this, `.cardDone: ${v?.Aname} ${v?.player.Aname} \n`), this.gamePlay.mapString);
+    const allDone = this.allDone;
+    this.table.doneButton.paint(allDone ? C.lightgreen : C.YELLOW);
+    this.gamePlay.table.stage.update()
+    if (allDone && this.autoDone) {
+      setTimeout(() => this.done(true), 4); // CollectBids / SelectCol is done
+    }
+  }
   get allDone() {
     const notDone = this.gamePlay.allPlayers.find(plyr => !plyr.isDoneSelecting())
     if (notDone) this.table.gamePlay.curPlayer = notDone;
+    const plyr = notDone, card = this._cardDone, card_plyr = card?.player;
     // console.log(stime(`gameState.allDone: ${this.state.Aname} card_plyr: ${card_plyr?.Aname} `), this._cardDone?.Aname, plyr?.isDoneSelecting()?.Aname)
     return !notDone;
   }

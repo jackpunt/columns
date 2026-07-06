@@ -625,9 +625,15 @@ export class DetailCard extends TextCard {
 
 
 export class Decorator {
+  /**
+   *
+   * @param w total width of card
+   * @param f nominal icon width as fraction of total width
+   * @param thick stroke size ()
+   */
   constructor(w = 36, f = .08) {
     this.wd = w * f;
-    this.thick = 4 * this.wd/36;
+    this.thick = this.wd * 4/36;
   }
 
   c0 = C.BLACK;

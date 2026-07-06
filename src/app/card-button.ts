@@ -1,8 +1,9 @@
-import { C, S, stime, type XYWH } from "@thegraid/common-lib";
+import { arrayN, C, S, stime, type XYWH } from "@thegraid/common-lib";
 import { CenterText, CircleShape, RectShape, UtilButton, type CountClaz, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { Container, Graphics, Shape, type DisplayObject } from "@thegraid/easeljs-module";
 import { Table, Tile } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
+import { Decorator } from "./col-card";
 import { type ColTable } from "./col-table";
 import { FacShape } from "./fac-shape";
 import type { } from "./game-play";
@@ -133,7 +134,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         this.dimmer.visible = false;
         this.highlight.visible = this.showBidNow;
         this.state = state;
-        // this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
+        this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
         break
       }
       case CB.done: {
@@ -228,10 +229,12 @@ export class ColBidButton extends CardButton {
     super(`${colBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
     this.Aname = `ColBid-${this.player?.index ?? opts.pid ?? '?'}_${colBid}`;
     const { y, height, width } = this.getBounds()
-    this.addFactionColors(colBid, width * .9, y + height * .33)
+    const w = width * .8;
+    this.addFactionColors(colBid, w, y + height * .36)
     this.label.y = (y + height * .18)
     this.border = 0;
     this.addSideNum('', .3);
+    this.addColorIcons(w)
     this.paint();
   }
 
@@ -255,7 +258,22 @@ export class ColBidButton extends CardButton {
     fIcon.x = -.36 * this.radius;
     fIcon.y = -.28 * 5/3 * this.radius;
     this.addChild(fIcon)
+  }
 
+  /**
+   *
+   * @param w width of square; (h = w/2)
+   * @returns
+   */
+  addColorIcons(w: number) {
+    const nfacs = this.factions.length;
+    if (nfacs == 1 || nfacs == 4) return; // no icon on 4-color or single color
+    const dx = [0, 0, 0, 0, w/4][nfacs], deco = new Decorator(w, .18);
+    arrayN(nfacs).forEach(ndx => {
+      const icon = deco.icon(this.factions[ndx]);
+      icon.x = [dx, dx, -dx, -dx][ndx], icon.y = [0, w/2, 0, w/2][ndx] ;
+      this.addChild(icon);
+    })
   }
 }
 
