@@ -15,6 +15,7 @@ export class TileExporter extends TileExporterLib {
   override makeImagePages() {
 
     // MPC: min size: 597 x 822 pixels (300DPI) 1.99 x 2.74; 2.0 (600?) x 2.75 (825?)
+    // MPC: 555 x 816 !?
     const dpi = 300, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi; // bleed*2 = .25
     // [TileExporter.cardSingle_1_75_in, TileExporter.cardSingle_3_5_in].forEach(ig => ig.dpi = dpi);
     // [...[count, claz, ...constructorArgs]]
@@ -65,10 +66,10 @@ export class TileExporter extends TileExporterLib {
 
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    this.clazToTemplate(cardSingle_3_5_track, Statics.cardSingle_3_5_in, pageSpecs);
+    // this.clazToTemplate(cardSingle_3_5_track, Statics.cardSingle_3_5_in, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
     this.clazToTemplate(cardSingle_1_75_hand, Statics.cardSingle_1_75_px, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
     return pageSpecs;
   }
 

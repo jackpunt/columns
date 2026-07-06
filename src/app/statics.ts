@@ -26,10 +26,10 @@ export class Statics {
     x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.75, dely: 2.75, bleed: 32/300, double: false, land: true,
   };
 
-  // { ...ImageGrid, ncol: 6, width: 4200, split: false }
+  // { ...ImageGrid, ncol: 6, width: 4200, split: false } MPC: 597 x 822
   static cardSingle_1_75_px = {
     width: 4200, height: 5400, nrow: 6, ncol: 6, cardh: 525, cardw: 750, double: false, split: false,
-    x0: 334 + 1.75 * 150, y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30, // (2705-305)/4, (1770-120)/2
+    x0: 334 + 1.75 * 150, y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 36, // (2705-305)/4, (1770-120)/2
   };
 
   static cardSingle_1_75_in = { // mini-card aspect = 2.5/1.75 = 1.429!

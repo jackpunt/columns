@@ -234,7 +234,7 @@ export class ColCard extends Tile {
 
   static makeColCards(nCards = 60) {
     return arrayN(nCards).map(n => {
-      const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
+      const fact = 1 + (n % nFacs) as Faction, aname = `${String(n).padStart(2, '0')}_${fact}`;
       const card = new ColCard(aname, fact);
       card.addIcons();
       return card;
@@ -244,7 +244,7 @@ export class ColCard extends Tile {
     return arrayN(nFacs * nFacs).map(n => {
       const n4 = Math.floor(n / nFacs)
       const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
-      const card = new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
+      const card = new DualCard(`${n + nCards}_${f1}&${f2}`, f1, f2);
       card.addIcons();
       return card;
     })
@@ -416,14 +416,14 @@ class XtensaCard extends ColCard {
 
 export class BlackCard extends XtensaCard {
   // super(Aname, col = 0, fac = 0, fs)
-  static countClaz(n = 0, size = 525): CountClaz[] {   //    name, size, colNum, fs
-    return arrayN(n, i => 0).map(colNum => [1, PrintBlack, `Black:0`, size, colNum, .5])
+  static countClaz(n = 0, size = 525): CountClaz[] {   //             name, size, colNum, fs
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Black_${colNum}`, size, 0, .5])
   }
 }
 
 export class WhiteCard extends XtensaCard {
   static countClaz(n = 0, size = 525): CountClaz[] {
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `White:N`, size, colNum, .5]); // row: N
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `White_${colNum}`, size, colNum, .5]); // row: N
   }
 
   constructor(aname = 'white?', col?: number, fs?: number) {
@@ -439,7 +439,7 @@ export class WhiteCard extends XtensaCard {
 
 // Null card: paint WHITE (as if row:N, but do not display colId)
 export class WhiteNull extends WhiteCard {
-  constructor(aname = 'Null:0', col?: number, fs?: number) {
+  constructor(aname = 'Null_0', col?: number, fs?: number) {
     super(aname, 0, fs); // with zero length factions.
     this.factions = [];
     this.maxCells = 0;
@@ -453,7 +453,7 @@ export class WhiteNull extends WhiteCard {
 
 export class BlackNull extends BlackCard {
 
-  constructor(aname = 'Null:0', col?: number, fs?: number) {
+  constructor(aname = 'Null_0', col?: number, fs?: number) {
     super(aname, 0, fs); // with zero length factions.
     this.factions = [];
     this.maxCells = 0;
@@ -467,7 +467,7 @@ export class BlackNull extends BlackCard {
 /** dead card where Col-C is not playable && rank > 0 */
 export class SpecialDead extends ColCard {
   static countClaz(n = 0, rad = 525): CountClaz[] {
-    return arrayN(n).map(colNum => [1, PrintSpecial, 'Special', rad])
+    return arrayN(n).map(colNum => [1, PrintSpecial, `Dead_${colNum}`, rad])
   }
 
   /** single cell with faction=5 */

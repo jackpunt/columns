@@ -20,7 +20,7 @@ export namespace CB {
 }
 /** clear, selected, done */
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel | typeof CB.outbid;
-type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, radius?: number }
+type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, pid?: number, radius?: number }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
 
   static gridSpec = Statics.cardSingle_1_75_in;  // set in GameSetup?
@@ -199,7 +199,7 @@ export class ColSelButton extends CardButton {
   constructor(public colNum = 0, opts: CardButtonOpts) {
     const colId = Statics.colNames[colNum];
     super(`${colId}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `ColSel-${this.player?.index ?? '?'}:${colId}`;
+    this.Aname = `ColSel-${this.player?.index ?? opts.pid ?? '?'}_${colId}`;
     this.colId = colId;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
@@ -226,7 +226,7 @@ export class ColBidButton extends CardButton {
    */
   constructor(public colBid = 0, opts: CardButtonOpts) {
     super(`${colBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `ColBid-${this.player?.index ?? '?'}:${colBid}`;
+    this.Aname = `ColBid-${this.player?.index ?? opts.pid ?? '?'}_${colBid}`;
     const { y, height, width } = this.getBounds()
     this.addFactionColors(colBid, width * .9, y + height * .33)
     this.label.y = (y + height * .18)
@@ -269,7 +269,7 @@ export class PrintColSelect extends ColSelButton {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = (seqLim > 0) ? 1 : 0;
     const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
-    const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
+    const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
     super(col, opts)
     this.addSideNum();
     const { x, y, width, height } = this.getBounds()
@@ -287,7 +287,7 @@ export class PrintBidValue extends ColBidButton {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
     const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
-    const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
+    const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
     super(col, opts)
 
     this.addSideNum();
