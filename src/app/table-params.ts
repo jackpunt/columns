@@ -1,6 +1,5 @@
-import { C } from "@thegraid/common-lib";
 import { PaintableShape } from "@thegraid/easeljs-lib";
-import { TP as TPLib, playerColorRecord } from "@thegraid/hexlib";
+import { TP as TPLib } from "@thegraid/hexlib";
 
 declare type Params = Record<string, any>;
 

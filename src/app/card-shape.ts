@@ -9,23 +9,12 @@ export class CardShape extends RectShape {
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
   static get onScreenWH() {
     const w = CardShape.onScreenRadius;
-    const h = w * 2.5/1.75; // for mini cards!
+    const h = w * 2.5/1.75; // for mini cards! ASSERT: (h > w)
     return { w, h }
   }
-  /**
-   *
-   * @param r the know size
-   * @param a ration to the other size: 3.5/2.5 or 2.5/1.75 (or inverse)
-   * @param vert true -> portrait; false -> landscape
-   * @returns WH
-   */
-  static getWH0(r = 525, a = 2.5/1.75, vert = false) {
-    return (a < 1)
-      ? (vert ? { w: r*a, h: r } : { w: r, h: r*a })
-      : (vert ? { w: r, h: r*a } : { w: r*a, h: r })
-  }
+
   static getWH(r: number, gs: GridSpec, vert = false) {
-    const a = gs.cardw! / gs.cardh!;
+    const a = gs.cardw! / gs.cardh!;  // aspect ration is independent of dpi
     return (a < 1)
       ? (vert ? { w: r*a, h: r } : { w: r, h: r*a })
       : (vert ? { w: r, h: r*a } : { w: r*a, h: r })

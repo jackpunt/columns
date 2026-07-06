@@ -22,7 +22,6 @@ export class ColCard extends Tile {
 
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
   static nextRadius = CardShape.onScreenRadius; // when super() -> this.makeShape()
-  static nextWH = CardShape.onScreenWH;
   _radius = ColCard.nextRadius;           // when PathCard.constructor eventually runs
   override get radius() { return (this?._radius ?? ColCard.nextRadius )}
   override get isMeep() { return false; }
@@ -233,6 +232,32 @@ export class ColCard extends Tile {
   // 2. for each Player - [1..nc] ColSelect cards
   // 3. for each Player - [1..nc-1 max 4] BidCoin cards
 
+  static makeColCards(nCards = 60) {
+    return arrayN(nCards).map(n => {
+      const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
+      const card = new ColCard(aname, fact);
+      card.addIcons();
+      return card;
+    })
+  }
+  static makeDualCards(nCards = 60) {
+    return arrayN(nFacs * nFacs).map(n => {
+      const n4 = Math.floor(n / nFacs)
+      const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
+      const card = new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
+      card.addIcons();
+      return card;
+    })
+  }
+  /**
+   * Make enough cards to populate the HexMap.
+   *
+   * nCards = TP.cardsInPlay; either nc*nr OR 31/28 or whatever for pyramid?
+   *
+   * @param nr number of Rows (for straight column layout?)
+   * @param nc number of Columns to build (white cards)
+   * @returns black0, whiteN, allCols, allDuals
+   */
   static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
     const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
     ColCard.decorator = undefined;  // reset in case printer set alternate decorator
@@ -243,21 +268,8 @@ export class ColCard extends Tile {
     const whiteN = arrayN(ncb, 1).map(i => new WhiteCard(`N:${nw++}`, i)); // row N (bottom: rank-0)
     whiteN.forEach(card => card.paint(C.grey224));   // shade for visible highlights
 
-    const allCols = arrayN(nCards).map(n => {
-      const fact = 1 + (n % nFacs) as Faction, aname = `${n}:${fact}`;
-      const card = new ColCard(aname, fact);
-      card.addIcons();
-      return card;
-    })
-
-    const allDuals = arrayN(nFacs * nFacs).map(n => {
-      const n4 = Math.floor(n / nFacs)
-      const f1 = 1 + (n % nFacs) as Faction, f2 = 1 + (n4 % nFacs) as Faction;
-      const card = new DualCard(`${n + nCards}:${f1}&${f2}`, f1, f2);
-      card.addIcons();
-      return card;
-    })
-
+    const allCols = ColCard.makeColCards(nCards);
+    const allDuals = ColCard.makeDualCards(nCards);
     return { black0, whiteN, allCols, allDuals }
   }
 
@@ -474,9 +486,10 @@ export class SpecialDead extends ColCard {
 export class PrintCol extends ColCard {
   static seqN = 0;
   /** how many of which Claz to construct & print: for TileExporter */
-  static countClaz(n = 1, size = 525, allCards: ColCard[]): CountClaz[] {
+  static countClaz(n = 1, size = 525): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, PrintCol, size, allCards]]
+    const allColCards = ColCard.makeColCards(n);
+    return [[n, PrintCol, size, allColCards]]
   }
 
   constructor(size = 525, allCards: ColCard[]) {
@@ -492,9 +505,10 @@ export class PrintCol extends ColCard {
 }
 export class PrintDual extends DualCard {
   static seqN = 0;
-  static countClaz(n = 20, size = 525, allCards: ColCard[]): CountClaz[] {
+  static countClaz(n = 20, size = 525): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, PrintDual, size, allCards]];
+    const allDualCards = ColCard.makeDualCards(60);
+    return [[n, PrintDual, size, allDualCards]];
   }
   constructor(size = 525, allCards: ColCard[]) {
     ColCard.nextRadius = size;

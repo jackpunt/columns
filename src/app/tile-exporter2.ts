@@ -1,22 +1,21 @@
 import { stime } from "@thegraid/common-lib";
 import { ImageGrid, PageSpec, type NamedObject, } from "@thegraid/easeljs-lib";
-import type { Container } from "@thegraid/easeljs-module";
+import { Container } from "@thegraid/easeljs-module";
 import JSZip from 'jszip';
 import { TileExporter } from "./tile-exporter";
 
 /** zip each card image, suitable for makeplayingcards.com (MPC) */
 class ImageGridFile extends ImageGrid {
 
-  pageCont!: Container;  // guarantee to set before using
-  // override setCanvasSize(width = 200, height = 600): void {
-  //   super.setCanvasSize(width,height*1.5)
-  // }
+  // pageCont: Container<Cards> for each canvas
+  pageCont = new Map<string, Container>();
+
   // View button was clicked, process a nrow X ncol grid of frontObjs.
   // in this case, all we have are the single-sided fronts.
   // first we write them to a directory, upload to the 'library' and see what choice we have for single-sided.
   override addObjects(pageSpec: PageSpec): Container {
     const cont = super.addObjects(pageSpec); // so they appear as pages on screen: fill nRow X nCol on a canvas
-    this.pageCont = cont;
+    this.pageCont.set(this.canvas.id, cont);
     this.dpi = pageSpec.layoutSpec?.dpi ?? 300; // DUBIOUS!?
     return cont;
   }
@@ -27,20 +26,19 @@ class ImageGridFile extends ImageGrid {
   override async downloadCanvas(canvas: HTMLCanvasElement, filename?: string, dpi = this.dpi) {
     const zip = new JSZip();
     const logId = filename?.replace(/\.png/, '');
-    for (const [n, dObj] of this.pageCont.children.entries()) {
+    const cont = this.pageCont.get(canvas.id) ?? new Container();
+    if (cont.numChildren == 0) { debugger; }
+    for (const [n, dObj] of cont.children.entries()) {
       const { x, y, width, height } = dObj.getBounds();
       console.log(stime(this, `.downloadCanvas dObj:`), x, y, width, height, dObj.rotation)
       dObj.cache(x, y, width, height);
-      // if (dObj.rotation == 90) {
-      //   dObj.setBounds(y, x, height, width);
-      // }
       const imageURL = (dObj.cacheCanvas as HTMLCanvasElement).toDataURL("image/png");
       const imageURL_300DPI = this.injectDPI(imageURL, dpi);
       const name = `${n}-${(dObj as NamedObject).Aname ?? dObj}`;
       // Extract the raw base64 string from the Data URL
       const base64Data = imageURL_300DPI.split(',')[1];
       // Add file to the zip archive hierarchy (base64: true tells JSZip to decode it)
-      zip.file(`cursus/${name}.png`, base64Data, { base64: true });
+      zip.file(`${logId}/${name}.png`, base64Data, { base64: true });
     }
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     this.downloadBlob(zipBlob, `${logId}.zip`, logId);
