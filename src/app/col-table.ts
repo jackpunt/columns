@@ -1,13 +1,14 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
-import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type CountClaz, type GridSpec, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
+import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type GridSpec, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Shape, Stage } from "@thegraid/easeljs-module";
 import { Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard, Decorator } from "./col-card";
 import type { ColMeeple } from "./col-meeple";
-import { type Faction, type GamePlay } from "./game-play";
+import { type GamePlay } from "./game-play";
 import { type ColHex2, type HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
+import { Statics, type Faction } from "./statics";
 import { TP } from "./table-params";
 
 export class ColTable extends Table {
@@ -522,7 +523,7 @@ export class TrackSegment extends ColCard {
   static override decorator?: Decorator;
 
   addSlot(n: number, f1: Faction, f2: Faction, w: number, h: number, bleed = 0, s = 1) {
-    const factionColor = (faction: Faction) => ColCard.factionColors[faction];
+    const factionColor = (faction: Faction) => Statics.factionColors[faction];
     const b0 = (bleed == 0), c1 = factionColor(f1), c2 = factionColor(f2);
     const we = (f1 == 0) ? (b0 ? w / 2 : w / 2 + bleed) : w;
     const x = w * n + ((n == 0) ? (b0 ? 0 : -bleed) : - w / 2) + 1; // shift right by 1 px to align with counters

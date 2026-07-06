@@ -1,5 +1,5 @@
 import { C } from "@thegraid/common-lib";
-import { RectShape, type CGF } from "@thegraid/easeljs-lib";
+import { RectShape, type CGF, type GridSpec } from "@thegraid/easeljs-lib";
 import { Graphics } from "@thegraid/easeljs-module";
 import { H, TP } from "@thegraid/hexlib";
 
@@ -19,7 +19,13 @@ export class CardShape extends RectShape {
    * @param vert true -> portrait; false -> landscape
    * @returns WH
    */
-  static getWH(r = 525, a = 2.5/1.75, vert = false) {
+  static getWH0(r = 525, a = 2.5/1.75, vert = false) {
+    return (a < 1)
+      ? (vert ? { w: r*a, h: r } : { w: r, h: r*a })
+      : (vert ? { w: r, h: r*a } : { w: r*a, h: r })
+  }
+  static getWH(r: number, gs: GridSpec, vert = false) {
+    const a = gs.cardw! / gs.cardh!;
     return (a < 1)
       ? (vert ? { w: r*a, h: r } : { w: r, h: r*a })
       : (vert ? { w: r, h: r*a } : { w: r*a, h: r })

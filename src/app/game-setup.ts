@@ -1,15 +1,14 @@
-import { C, stime, type Constructor } from '@thegraid/common-lib';
+import { arrayN, C, stime, type Constructor } from '@thegraid/common-lib';
 import { AliasLoader, makeStage, type NamedObject } from '@thegraid/easeljs-lib';
 import { GameSetup as GameSetupLib, HexMap, LogWriter, MapCont, Scenario as Scenario0, TP as TPLib, type Hex, type HexAspect, type StartElt } from '@thegraid/hexlib';
-import { CardShape } from './card-shape';
-import { ColCard } from './col-card';
 import { ColTable } from './col-table';
-import { arrayN, GamePlay } from './game-play';
+import { GamePlay } from './game-play';
+import { GameState } from './game-state';
 import { ColHex2 as Hex2, HexMap2 } from './ortho-hex';
 import { Player, SubPlayer } from './player';
 import { ScenarioParser, type SetupElt } from './scenario-parser';
 import { TP } from './table-params';
-import { TileExporter } from './tile-exporter';
+import { type TileExporter } from './tile-exporter';
 import { TileExporter2 } from './tile-exporter2';
 
 type Params = Record<string, any>; // until hexlib supplies
@@ -55,7 +54,7 @@ class ColGameSetup extends GameSetupLib {
     const msImage = loader.getImage('meeple-shape'); // just to show we can
     if (!msImage || msImage.width == 0) debugger;
     console.log(stime(this, `.startup: meeple-shape.width =`), msImage.width);
-    ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
+    // ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
     super.startup(qParams); // -->  initialScenario(qParams)
   }
 
@@ -143,7 +142,9 @@ class ColGameSetup extends GameSetupLib {
   }
 
   override makeGamePlay(scenario: Scenario): GamePlay {
-    return new GamePlay(this, scenario); // sure, we could specialize here (recordMeep)
+    const gp = new GamePlay(this, scenario); // sure, we could specialize here (recordMeep)
+    gp.gameState = new GameState(gp);
+    return gp
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {

@@ -1,20 +1,16 @@
-import { json, stime } from "@thegraid/common-lib";
+import { arrayN, json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type SetupElt } from "@thegraid/hexlib";
-import { CB, type ColId } from "./card-button";
 import type { BlackCard, ColCard, DualCard } from "./col-card";
 import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import type { GameSetup } from "./game-setup";
-import { GameState } from "./game-state";
+import { type GameState } from "./game-state";
 import { RectTopoEWC, type HexMap2 } from "./ortho-hex";
 import type { Player } from "./player";
 import { ScenarioParser } from "./scenario-parser";
+import { type ColId, type Faction } from "./statics";
 import { TP } from "./table-params";
-
-/** 0: Black, 1: r, 2: g, 3: b, 4: v, 5: white */ // white: for blank cards
-export type Faction =  (0 | 1 | 2 | 3 | 4 | 5);
-export const nFacs = 4;
 
 // TODO: 4-color card for dead-end spots
 // TODO: try no dead in cols A-E
@@ -54,11 +50,6 @@ export interface Step<T extends AdvDir | BumpDir2> {
   scoreStr?: string; // scoreStr: 0|(meeps + cards + tracks) + rankDiff
   bump?: Step<T>;    // next bump is in same direction
 }
-/** returns an Array filled with n Elements: [0 .. n-1] or [dn .. dn+n-1] or [f(0) .. f(n-1)] */
-export function arrayN(n: number, nf: number | ((i: number) => number) = 0) {
-  const fi = (typeof nf === 'number') ? (i: number) => (i + nf) : nf;
-  return Array.from(Array(n), (_, i) => fi(i))
-}
 
 export type CardContent = { fac: Faction[], meeps?: string[] };
 export class GamePlay extends GamePlayLib {
@@ -76,7 +67,7 @@ export class GamePlay extends GamePlayLib {
     this.nRows = TP.nHexes;
   }
 
-  override readonly gameState: GameState = new GameState(this);
+  declare gameState: GameState;  // set by gameSetup.makeGamePlay(scenario)
   declare gameSetup: GameSetup;
   declare hexMap: HexMap2;
   declare table: ColTable;

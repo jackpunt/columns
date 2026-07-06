@@ -1,20 +1,24 @@
-import { C, F, type XY } from "@thegraid/common-lib";
-import { CenterText, CircleShape, NamedContainer, type CountClaz, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import { arrayN, C, F, type XY } from "@thegraid/common-lib";
+import { CenterText, CircleShape, NamedContainer, type CountClaz, type GridSpec, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import type { DisplayObject } from "@thegraid/easeljs-module";
 import { Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
-import { ColSelButton, FacShape, type ColId } from "./card-button";
 import { CardShape } from "./card-shape";
 import { ColMeeple } from "./col-meeple";
-import { arrayN, nFacs, type BumpDir, type BumpDir2, type Faction, type GamePlay } from "./game-play";
-import { GameSetup } from "./game-setup";
+import { FacShape } from "./fac-shape";
+import { type BumpDir, type BumpDir2, type GamePlay } from "./game-play";
 import { ColHex2 as Hex2, type HexMap2 } from "./ortho-hex";
-import { Player } from "./player";
+import { type Player } from "./player";
+import { nFacs, Statics, type ColId, type Faction } from "./statics";
 import { TP } from "./table-params";
-// import type { CountClaz } from "./tile-exporter";
 
 export class ColCard extends Tile {
   static decorator?: Decorator;
+
+  static gridSpec: GridSpec = Statics.cardSingle_1_75_in;
+  static getWH(rad: number, vert = false) {
+    return CardShape.getWH(rad, ColCard.gridSpec, vert)
+  }
 
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
   static nextRadius = CardShape.onScreenRadius; // when super() -> this.makeShape()
@@ -27,8 +31,6 @@ export class ColCard extends Tile {
   override set hex(hex: Hex1) { super.hex = hex }
   declare baseShape: CardShape;
 
-  static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
-  static factionColors = [C.BLACK, C.RED, '#fff205', '#0066CC', '#AA00EE', C.WHITE]; // #00DD00
   factions: Faction[] = [0];
   maxCells: number;
 
@@ -37,10 +39,11 @@ export class ColCard extends Tile {
     this.factions = factions;
     this.maxCells = factions.length;
     // this.addChild(this.meepCont);
-    const color = ColCard.factionColors[factions[0]], tColor = C.pickTextColor(color);
+    const color = Statics.factionColors[factions[0]], tColor = C.pickTextColor(color);
     this.nameText.color = tColor;
     this.setNameText(aname, this.radius * .35);
     this.paint(color)
+    ColCard.nextRadius = CardShape.onScreenRadius;  // reset in case printing set alternate radius
   }
 
   meepCont = new NamedContainer(`meepCont-${this.Aname}`)
@@ -201,7 +204,7 @@ export class ColCard extends Tile {
 
   // invoked by constructor.super()
   override makeShape(): Paintable {
-    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    const wh = ColCard.getWH(this.radius, false);
     return new CardShape('lavender', C.black, wh);
   }
 
@@ -232,6 +235,7 @@ export class ColCard extends Tile {
 
   static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
     const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
+    ColCard.decorator = undefined;  // reset in case printer set alternate decorator
 
     let nb = 0, nw = 0;
     const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
@@ -272,7 +276,7 @@ export class DualCard extends ColCard {
 
   constructor(Aname: string, faction0: Faction, faction1: Faction) {
     super(Aname, faction0, faction1);
-    this.baseShape.dualCgf('d', ...[faction0, faction1].map(f => ColCard.factionColors[f]));
+    this.baseShape.dualCgf('d', ...[faction0, faction1].map(f => Statics.factionColors[f]));
     this.paint('ignored')
     this.setMarks();
   }
@@ -351,7 +355,7 @@ class XtensaCard extends ColCard {
     const factions = arrayN(nCells, i => fac) as Faction[]; // 0: black, 5: white
     super(Aname, ...factions);
     this.addChild(this.meepCont);
-    this._colId = ColSelButton.colNames[colNum];
+    this._colId = Statics.colNames[colNum];
     this.setLabel(this.colId, fs)
   }
   _colId: ColId;
@@ -416,7 +420,7 @@ export class WhiteCard extends XtensaCard {
   }
 
   override makeShape(): Paintable {
-    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    const wh = ColCard.getWH(this.radius, false);
     return new CardShape(C.grey92, '', wh, false, 0); // no border stroke when printing
   }
 }
@@ -470,12 +474,12 @@ export class SpecialDead extends ColCard {
 export class PrintCol extends ColCard {
   static seqN = 0;
   /** how many of which Claz to construct & print: for TileExporter */
-  static countClaz(n = 1, size = 525): CountClaz[] {
+  static countClaz(n = 1, size = 525, allCards: ColCard[]): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, PrintCol, size]]
+    return [[n, PrintCol, size, allCards]]
   }
 
-  constructor(size = 525, allCards = GameSetup.gameSetup.gamePlay.allCols) {
+  constructor(size = 525, allCards: ColCard[]) {
     ColCard.nextRadius = size;
     if (PrintCol.seqN  >= allCards.length) PrintCol.seqN = 0
     const n = PrintCol.seqN++;
@@ -488,11 +492,11 @@ export class PrintCol extends ColCard {
 }
 export class PrintDual extends DualCard {
   static seqN = 0;
-  static countClaz(n = 20, size = 525): CountClaz[] {
+  static countClaz(n = 20, size = 525, allCards: ColCard[]): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, PrintDual, size]];
+    return [[n, PrintDual, size, allCards]];
   }
-  constructor(size = 525, allCards = GameSetup.gameSetup.gamePlay.allDuals) {
+  constructor(size = 525, allCards: ColCard[]) {
     ColCard.nextRadius = size;
     if (PrintDual.seqN >= allCards.length) PrintDual.seqN = 0
     const n = PrintDual.seqN++;
@@ -509,7 +513,7 @@ export class PrintBlack extends XtensaCard {
   }
 
   override makeShape(): Paintable {
-    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    const wh = ColCard.getWH(this.radius, false);
     return new CardShape(C.WHITE, '', wh, false, 0); // no border stroke when printing
   }
 }
@@ -529,7 +533,7 @@ class TextCard extends ColCard {
   }
 
   override makeShape(): Paintable {
-    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    const wh = ColCard.getWH(this.radius, false);
     return new CardShape(C.WHITE, C.WHITE, wh, false, 0);
   }
 }
@@ -544,7 +548,7 @@ export class CursusBack extends TextCard {
     this.paint(C.WHITE)
   }
   override makeShape(): Paintable {
-    const wh = CardShape.getWH(this.radius, 2.5/1.75, false);
+    const wh = ColCard.getWH(this.radius, false);
     return new CardShape(C.WHITE, '', wh, false, 0)
   }
   override get bleedColor(): string { return C.WHITE }

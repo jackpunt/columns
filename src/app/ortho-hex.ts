@@ -1,5 +1,5 @@
 import { C, type Constructor, type RC } from "@thegraid/common-lib";
-import { PaintableShape, type CGF, type Paintable } from "@thegraid/easeljs-lib";
+import { PaintableShape, type CGF, type GridSpec, type Paintable } from "@thegraid/easeljs-lib";
 import type { DisplayObject } from "@thegraid/easeljs-module";
 import { Graphics } from "@thegraid/easeljs-module";
 import { Hex, Hex1 as Hex1Lib, Hex2Mixin, HexMap, LegalMark, TopoC, TopoEWC, TopoOR4C as TopoOR4CLib, type DCR, type DirDCR, type HexDir, type IHex2, type Tile, type TopoXYWH } from "@thegraid/hexlib";
@@ -58,9 +58,12 @@ export class RectHex2 extends RectHex2Mixed {
     return super.xywh(radius, topo, row, col);
   }
 
+  // sufficient for CardShape.getWH
+  static gridSpec: GridSpec = { cardw: 3.5, cardh: 2.5 } as GridSpec;
+
   /** Hex2 include GUI and a Paintable DisplayObject */
   override makeHexShape(colorn = C.grey224): Paintable {
-    return new CardShape(colorn, undefined, CardShape.getWH(CardShape.onScreenRadius, 3.5/2.5, false));
+    return new CardShape(colorn, undefined, CardShape.getWH(CardShape.onScreenRadius, RectHex2.gridSpec, false));
   }
 
   override makeLegalMark(): LegalMark {
@@ -155,7 +158,7 @@ export class HexMap2 extends HexMap<ColHex2> {
   }
 
   override makeMark(rh?: number, rc?: number): DisplayObject {
-    const wh = CardShape.getWH(CardShape.onScreenRadius * .85, 2.5/1.75, false);
+    const wh = CardShape.getWH(CardShape.onScreenRadius * .85, RectHex2.gridSpec, false);
     const mark = new CardShape(C.nameToRgbaString(C.grey224, .7), '', wh);
     mark.mouseEnabled = false; // prevent objectUnderPoint!
     return mark

@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "assets": "npx gulp asset-tags",
+    "circles": "npx madge --circular --extensions ts --ts-config ./tsconfig.json ./src",
     "build": "ng build",
     "builds": "ng build --configuration standalone",
     "buildss": "ng build --configuration standalone --optimization=false --source-map=true",
@@ -37,6 +38,16 @@
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
+  },
+  "madge": {
+    "detectiveOptions": {
+      "ts": {
+        "skipTypeImports": true
+      },
+      "tsx": {
+        "skipTypeImports": true
+      }
+    }
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.7",

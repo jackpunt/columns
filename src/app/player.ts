@@ -1,13 +1,13 @@
-import { AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
+import { arrayN, AT, C, permute, Random, S, stime, type Constructor, type XY } from "@thegraid/common-lib";
 import { afterUpdate, UtilButton, type TextInRectOptions, type UtilButtonOptions } from "@thegraid/easeljs-lib";
 import { H, NumCounterBox, Player as PlayerLib, Tile, type DragContext, type NumCounter } from "@thegraid/hexlib";
-import { CardButton, CB, ColBidButton, ColSelButton, type CardButtonState, type ColId } from "./card-button";
-import { ColCard } from "./col-card";
+import { CardButton, CB, ColBidButton, ColSelButton, type CardButtonState } from "./card-button";
 import { ColMeeple } from "./col-meeple";
 import type { ColTable, MarkerShape } from "./col-table";
-import { arrayN, BD_N, BD_S, BD_SS, GamePlay, nFacs, type AdvDir, type BumpDir, type BumpDir2, type BumpDirA, type BumpDirC, type BumpDirP, type BumpDn, type BumpDn2, type CB_Step, type Faction, type Step } from "./game-play";
+import { BD_N, BD_S, BD_SS, GamePlay, type AdvDir, type BumpDir, type BumpDir2, type BumpDirA, type BumpDirC, type BumpDirP, type BumpDn, type BumpDn2, type CB_Step, type Step } from "./game-play";
 import { SubGameSetup } from "./game-setup";
 import type { ColHex2 } from "./ortho-hex";
+import { nFacs, Statics, type ColId, type Faction } from "./statics";
 import { TP } from "./table-params";
 
 type PlyrBid = { plyr: Player; bid: number; }
@@ -382,7 +382,7 @@ export class Player extends PlayerLib implements ColPlayer {
       [-dx * 4, 0],
     ];
     let pc: XY = { x: x - wide * 0, y }
-    this.factionCounters = ColCard.factionColors.slice(0, 5).reverse().map((color, ndx) => {
+    this.factionCounters = Statics.factionColors.slice(0, 5).reverse().map((color, ndx) => {
       if (ngt4) {
         return pc = this.makeCounter(leftOf(pc), color, fs)
       } else { // purple, blue, gold, red, black
@@ -398,7 +398,7 @@ export class Player extends PlayerLib implements ColPlayer {
    */
   factionTotals(markers = this.markers, inPlay = true, cv = 1) {
     const cards = this.colBidButtons.filter(b => b.inPlay(inPlay)) // false --> yet to play
-    const nFacs = ColCard.factionColors.length - 1; // exclude white/quad faction
+    const nFacs = Statics.factionColors.length - 1; // exclude white/quad faction
     const factionTotals = (arrayN(nFacs) as Faction[]).map(faction => 0
       + this.meepScore(faction)
       + this.trackScore(faction, markers)
@@ -426,7 +426,7 @@ export class Player extends PlayerLib implements ColPlayer {
    * @param faction marker.faction
    */
   scoreCount(marker: MarkerShape) {
-    const color = ColCard.factionColors[marker.faction];
+    const color = Statics.factionColors[marker.faction];
     this.scoreCounters[marker.index].setValue(marker.value, color);
     this.score = Math.sum(...this.scoreCounters.map(ctr => ctr.value))
   }

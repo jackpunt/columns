@@ -1,12 +1,12 @@
 import { F } from "@thegraid/common-lib";
 import type { Paintable } from "@thegraid/easeljs-lib";
 import { Meeple, type DragContext, type Hex1, type IHex2, type MeepleShape as MeepleShapeLib, type Player as PlayerLib } from "@thegraid/hexlib";
-import type { ColId } from "./card-button";
 import type { ColCard } from "./col-card";
-import type { Faction, GamePlay } from "./game-play";
+import type { GamePlay } from "./game-play";
 import { MeepleShape } from "./meeple-shape";
 import { ColHex2 } from "./ortho-hex";
 import type { Player } from "./player";
+import type { Faction } from "./statics";
 import { TP } from "./table-params";
 
 

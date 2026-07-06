@@ -1,8 +1,10 @@
 import { arrayN } from "@thegraid/common-lib";
-import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
+import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
 import { PrintBidValue, PrintColSelect } from "./card-button";
-import { BlackCard, DetailCard, PrintCol, PrintDual, PrintSpecial, CursusBack, SummaryCard, WhiteCard } from "./col-card";
+import { BlackCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
 import { TrackLabel, TrackSegment } from "./col-table";
+import { GameSetup } from "./game-setup";
+import { Statics } from "./statics";
 // end imports
 
 export class TileExporter extends TileExporterLib {
@@ -10,31 +12,14 @@ export class TileExporter extends TileExporterLib {
     super(pageMaker);
     this.imageGrid.setScale('.05');  // start small
   }
-  static cardSingle_3_5_px: GridSpec = {
-    width: 3600, height: 5400, nrow: 6, ncol: 3, cardw: 1050, cardh: 750, // (inch_w*dpi + 2*bleed)
-    x0: 120 + 3.5 * 150 + 30, y0: 83 + 3.5 * 150 + 30, delx: 1125, dely: 825, bleed: 30, double: false,
-  };
-
-  // 18 cards: portrait mode; browser viewport may cut off bottom
-  static cardSingle_3_5_in: GridSpec = {
-    dpi: 300, width: 12, height: 18, nrow: 6, ncol: 3, cardh: 3.5, cardw: 2.5, // (inch_w*dpi + 2*bleed)
-    x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.75, dely: 2.75, bleed: 32/300, double: false, land: true,
-  };
-
-  // { ...ImageGrid, ncol: 6, width: 4200, split: false }
-  static cardSingle_1_75_px = {
-    width: 4200, height: 5400, nrow: 6, ncol: 6, cardh: 525, cardw: 750, double: false, split: false,
-    x0: 334 + 1.75 * 150, y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30, // (2705-305)/4, (1770-120)/2
-};
-  static cardSingle_1_75_in = {
-    dpi: 300, width: 14, height: 20, nrow: 6, ncol: 6, cardh: 1.75, cardw: 2.5, double: false, split: false,
-    x0: 1.33 + 1.75/2, y0: .5 + 2.5/2, delx: 2.1, dely: 2.80, bleed: .125, // (2705-305)/4, (1770-120)/2
-};
 
   override makeImagePages() {
+    const allCols = GameSetup.gameSetup.gamePlay.allCols;
+    const allDuals = GameSetup.gameSetup.gamePlay.allDuals;
+
     // MPC: min size: 597 x 822 pixels (300DPI) 1.99 x 2.74; 2.0 (600?) x 2.75 (825?)
     const dpi = 300, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi; // bleed*2 = .25
-    [TileExporter.cardSingle_1_75_in, TileExporter.cardSingle_3_5_in].forEach(ig => ig.dpi = dpi);
+    // [TileExporter.cardSingle_1_75_in, TileExporter.cardSingle_3_5_in].forEach(ig => ig.dpi = dpi);
     // [...[count, claz, ...constructorArgs]]
     const cardSingle_3_5_track = [
       [3, SummaryCard, 'Summary', p2_5],
@@ -45,16 +30,31 @@ export class TileExporter extends TileExporterLib {
       [18, CursusBack, 'Back', 'Cursus\nHonorum'],   // card back if we want it.
     ] as CountClaz[];
     const cardSingle_1_75_base = [
-      ...BlackCard.countClaz(7, p1_75),  // black cards (blank)
-      ...WhiteCard.countClaz(7, p1_75),  // white cards (col nums)
-      ...PrintDual.countClaz(6, p1_75),  // 16
-      ...PrintCol.countClaz(16, p1_75),  // 60
+      ...PrintDual.countClaz(16, p1_75, allDuals),  // 16
+      ...PrintCol.countClaz(48, p1_75, allCols),  // 48
+      ...BlackCard.countClaz(6, p1_75),  // black cards (blank)
+      ...WhiteCard.countClaz(6, p1_75),  // white cards (col nums)
+
+      // 16(D) 48(C) 18(B, W, SD) = 82;
+      // 7 player * 11 (bid/col)  = 77; 159 <-- Straight up = 25.15
+
+      // could make multi decks for the table cards: 3 decks of
+
+      // 6 Special, 3 small Summary + 9 * (12 bid/sel) 9*12 = 108; 9 * 13 = 121 + 78 = 199!
+      // Player bag: 4 (bid) 7 (sel) 11 * 9 = 99 cards!
+
+
+      // 64 + 14 = 78;
+      // 6 x SpecialDead among the Bid/ColSelect cards
+      // 6 Special, 3 small Summary + 9 * (12 bid/sel) 9*12 = 108; 9 * 13 = 121 + 78 = 199!
+      // Player bag: 4 (bid) 7 (sel) 11 * 9 = 99 cards!
+      //
     ] as CountClaz;
-    const cardSingle_1_75_hand = arrayN(3).flatMap(f => [   // 6-9 sets?
+    const cardSingle_1_75_hand = arrayN(9).flatMap(f => [   // 6-9 sets?
       // 9 groups of 12 cards: bid, col, dead office
       ...PrintBidValue.countClaz(4, f, p3_5/2),
       ...PrintColSelect.countClaz(7, f, p3_5/2),
-      ...(f < 6) ? PrintSpecial.countClaz(1) : [[1, SummaryCard, 'Summary', undefined, p3_5/2]],
+      ...(f < 6) ? PrintSpecial.countClaz(1) : [[1, SummaryCard, 'Summary', p3_5/2]],
     ]) as CountClaz[];
 
     const gs = TrackLabel.gridSpec; gs.dpi = 300
@@ -70,10 +70,10 @@ export class TileExporter extends TileExporterLib {
 
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    // this.clazToTemplate(cardSingle_3_5_track, TileExporter.cardSingle_3_5_in, pageSpecs);
+    // this.clazToTemplate(cardSingle_3_5_track, Statics.cardSingle_3_5_in, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, TileExporter.cardSingle_1_75_in, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand, TileExporter.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_hand, Statics.cardSingle_1_75_px, pageSpecs);
     return pageSpecs;
   }
 

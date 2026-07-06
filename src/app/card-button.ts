@@ -3,10 +3,11 @@ import { CenterText, CircleShape, RectShape, UtilButton, type CountClaz, type Te
 import { Container, Graphics, Shape, type DisplayObject } from "@thegraid/easeljs-module";
 import { Table, Tile } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
-import { ColCard } from "./col-card";
-import { ColTable } from "./col-table";
-import type { Faction } from "./game-play";
+import { type ColTable } from "./col-table";
+import { FacShape } from "./fac-shape";
+import type { } from "./game-play";
 import { Player } from "./player";
+import { Statics, type ColId, type Faction } from "./statics";
 import { TP } from "./table-params";
 
 
@@ -21,11 +22,15 @@ export namespace CB {
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel | typeof CB.outbid;
 type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, radius?: number }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
+
+  static gridSpec = Statics.cardSingle_1_75_in;  // set in GameSetup?
+  static getWH(cardw = 525, vert = true) { return CardShape.getWH(cardw, CardButton.gridSpec, vert)}
+
   static radius = .67 // * CardShape.onScreenRadius
   radius!: number;
   constructor(label: string, opts: CardButtonOpts) {
     const { bgColor, player, radius } = opts, rad = radius ?? CardButton.radius * CardShape.onScreenRadius;
-    opts.fontSize = 30 * rad / 60;
+    opts.fontSize = rad * 30 / TP.hexRad;
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
     this.altRectShape(bgColor, rad); // rectShape = CardShape;
     this.player = player;
@@ -35,7 +40,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
 
     // make dimmer & highlight:
     const dColor = C.rgba(C.grey92, .7), vert = true;
-    const wh = CardShape.getWH(rad, 2.5/1.75, vert)
+    const wh = CardButton.getWH(rad, vert)
     this.addChild(this.dimmer = new CardShape(dColor, '', wh, vert)); // on Top
     this.addChildAt(this.highlight = new CardShape(C.BLACK, C.BLACK, wh, vert), 0); // under baseShape
     this.highlight.scaleX = 1.17; this.highlight.scaleY = 1.10; // 10 ~= 3/5 * 17
@@ -128,7 +133,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
         this.dimmer.visible = false;
         this.highlight.visible = this.showBidNow;
         this.state = state;
-        this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
+        // this.player.gamePlay.gameState.cardDone = this; // notify gamePlay
         break
       }
       case CB.done: {
@@ -170,7 +175,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   /** replace UtilButton's border RectShape with CardShape */
   altRectShape(color = C.WHITE, rad = CardButton.radius) {
     this.removeChild(this.rectShape);
-    const wh = CardShape.getWH(rad, 2.5/1.75, true);
+    const wh = CardButton.getWH(rad, true);
     this.rectShape = new CardShape(color, C.grey224, wh, true, rad * .03);
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
@@ -180,7 +185,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
 
   makeShape() {
     const { radius: rad, strokec } = this.rectShape;
-    const wh = CardShape.getWH(rad, 2.5/1.75, true);
+    const wh = CardButton.getWH(rad, true);
     return new CardShape(strokec, strokec, wh, true)
   }
   makeBleed(bleed: number) {
@@ -188,13 +193,11 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
 }
 
-export type ColId = ''|'A'|'B'|'C'|'D'|'E'|'F'|'G'|'H';
 export class ColSelButton extends CardButton {
-  static colNames = ['','A','B','C','D','E','F','G','H'] as ColId[];
   override get plyrButtons(): CardButton[] { return this.player.colSelButtons }
 
   constructor(public colNum = 0, opts: CardButtonOpts) {
-    const colId = ColSelButton.colNames[colNum];
+    const colId = Statics.colNames[colNum];
     super(`${colId}`, opts); // rectShape = RectShape(borders); label = disp = Text
     this.Aname = `ColSel-${this.player?.index ?? '?'}:${colId}`;
     this.colId = colId;
@@ -213,7 +216,6 @@ export class ColSelButton extends CardButton {
 
 export class ColBidButton extends CardButton {
   // indices into ColCard.factionColors
-  static bidFactions: Faction[][] = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
 
   override get plyrButtons(): CardButton[] { return this.player.colBidButtons }
 
@@ -243,7 +245,7 @@ export class ColBidButton extends CardButton {
   facShape!: Shape;
   addFactionColors(colBid = 0, width = 20, y = 0) {
     const facShape = this.facShape = new FacShape();
-    this.factions = facShape.facRect(colBid, width, y);
+    this.factions = facShape.facRect(colBid, width, y); // factions = Statics.bidFactions(colBid);
     this.addChild(facShape)
   }
 
@@ -257,46 +259,6 @@ export class ColBidButton extends CardButton {
   }
 }
 
-export class FacShape extends Shape {
-
-  /** a square of faction colors at [0,0] */
-  facRect(bidCol: number, d2 = 20, y = 0, g = this.graphics) {
-    const factions = ColBidButton.bidFactions[bidCol];
-    const colors = factions.map(n => ColCard.factionColors[n])
-
-    switch (colors.length) {
-      case 1: this.oneRect(g, colors, d2); break;
-      case 2: this.twoRect(g, colors, d2); break;
-      case 4: this.fourRect(g, colors, d2); break;
-    }
-    this.y += y;
-    return factions;
-  }
-
-  fourRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {
-    const d = d2 / 2;
-    g.ss(1).s(C.black)
-    g.f(c[2]).rc(-d, 0, d, d, r, 0, 0, 0)
-    g.f(c[0]).rc(+0, 0, d, d, 0, r, 0, 0)
-    g.f(c[1]).rc(+0, d, d, d, 0, 0, r, 0)
-    g.f(c[3]).rc(-d, d, d, d, 0, 0, 0, r)
-    return g
-  }
-  twoRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {
-    const d = d2 / 2
-    g.ss(1).s(C.black)
-    g.f(c[0]).rc(-d, 0, d2, d, r, r, 0, 0)
-    g.f(c[1]).rc(-d, d, d2, d, 0, 0, r, r)
-    return g
-  }
-  oneRect(g: Graphics, c: string[], d2 = 20, r = d2 * .05) {
-    const d = d2 / 2
-    g.ss(1).s(C.black)
-    g.f(c[0]).rc(-d, 0, d2, d2, r, r, r, r)
-    return g
-  }
-}
-
 export class PrintColSelect extends ColSelButton {
   static seqN = 1;
   static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
@@ -305,7 +267,7 @@ export class PrintColSelect extends ColSelButton {
 
   constructor(seqLim: number, pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
-    if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = seqLim > 0 ? 1 : 0;
+    if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = (seqLim > 0) ? 1 : 0;
     const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, radius }
     super(col, opts)

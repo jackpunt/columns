@@ -1,11 +1,11 @@
 import { C, stime } from "@thegraid/common-lib";
 import { afterUpdate } from "@thegraid/easeljs-lib";
 import { GameState as GameStateLib, Phase as PhaseLib } from "@thegraid/hexlib";
-import { ColSelButton, type CardButton } from "./card-button";
 import { type ColMeeple } from "./col-meeple";
-import { ColTable as Table } from "./col-table";
+import { type ColTable as Table } from "./col-table";
 import type { AdvDir, BumpDir2, BumpDirC, GamePlay, Step } from "./game-play";
 import { Player } from "./player";
+import { Statics } from "./statics";
 import { TP } from "./table-params";
 
 interface Phase extends PhaseLib {
@@ -60,23 +60,10 @@ export class GameState extends GameStateLib {
   // auto-proceed to done() vs wait for click
   get autoDone() { return this.state && ['SelectCol'].includes(this.state.Aname!) }
 
-  _cardDone?: CardButton = undefined;
-  get cardDone() { return this._cardDone; }
-  set cardDone(v) { // BidCard or CoinCard selected [not committed]; "maybeDone"
-    this._cardDone = v;    // most recent selection, pro'ly not useful
-    // console.log(stime(this, `.cardDone: ${v?.Aname} ${v?.player.Aname} \n`), this.gamePlay.mapString);
-    const allDone = this.allDone;
-    this.table.doneButton.paint(allDone ? C.lightgreen : C.YELLOW);
-    this.gamePlay.table.stage.update()
-    if (allDone && this.autoDone) {
-      setTimeout(() => this.done(true), 4); // CollectBids / SelectCol is done
-    }
-  }
 
   get allDone() {
     const notDone = this.gamePlay.allPlayers.find(plyr => !plyr.isDoneSelecting())
     if (notDone) this.table.gamePlay.curPlayer = notDone;
-    const plyr = notDone, card = this._cardDone, card_plyr = card?.player;
     // console.log(stime(`gameState.allDone: ${this.state.Aname} card_plyr: ${card_plyr?.Aname} `), this._cardDone?.Aname, plyr?.isDoneSelecting()?.Aname)
     return !notDone;
   }
@@ -254,7 +241,7 @@ export class GameState extends GameStateLib {
       draggable: true,
       start: (col: number, meep: ColMeeple) => {
         const step: Step<BumpDirC> = { meep, fromCard: meep.card, ndx: meep.cellNdx!, dir: this.gamePlay.cascDir!, }
-        const colId = ColSelButton.colNames[col];
+        const colId = Statics.colNames[col];
         const other = meep.card.otherMeepInCell(meep)!; // MeepsToCell would not invoke unless other
         const ex = `Col-${colId} from ${step.fromCard}#${step.ndx}[${step.dir}] --> ${meep} & ${other?.toString() ?? '-'}`
         console.log(stime(this, `.BumpAndCascade:`), ex);
