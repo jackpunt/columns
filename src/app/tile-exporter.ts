@@ -3,6 +3,7 @@ import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } 
 import { PrintBidValue, PrintColSelect } from "./card-button";
 import { BlackCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
 import { TrackLabel, TrackSegment } from "./col-table";
+import { Player } from "./player";
 import { Statics } from "./statics";
 // end imports
 
@@ -13,7 +14,8 @@ export class TileExporter extends TileExporterLib {
   }
 
   override makeImagePages() {
-
+    const ncol = 6;
+    const nplyr = 8;
     // MPC: min size: 597 x 822 pixels (300DPI) 1.99 x 2.74; 2.0 (600?) x 2.75 (825?)
     // MPC: 555 x 816 !?
     const dpi = 300, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi; // bleed*2 = .25
@@ -26,16 +28,6 @@ export class TileExporter extends TileExporterLib {
       [3, DetailCard, 'Detail', p2_5], //
       ...TrackSegment.countClaz(12, p3_5, p2_5),
     ] as CountClaz[];
-    const cardSingle_1_75_back = [
-      [18, CursusBack, 'Back', 'Cursus\nHonorum'],   // card back if we want it.
-    ] as CountClaz[];
-    const cardSingle_1_75_base = [
-      ...PrintCol.countClaz(48, p1_75),  // 48
-      ...BlackCard.countClaz(6, p1_75),  //  6 black cards (blank)
-      ...WhiteCard.countClaz(6, p1_75),  //  6 white cards (col nums)
-      ...PrintDual.countClaz(16, p1_75), // 16
-      ...PrintSpecial.countClaz(4),      //  4
-    ] as CountClaz;                      // 80
 
     // 16(D) 48(C) 18(B, W, SD) = 82;
     // 7 player * 11 (bid/col)  = 77; 159 <-- Straight up = 25.15
@@ -47,10 +39,34 @@ export class TileExporter extends TileExporterLib {
     // 7 * (10 bid/sel) 7*10 = 70; 9 * 13 = 121 + 78 = 199!
     // Player bag: 4 (bid) 7 (sel) 11 * 9 = 99 cards!
 
-    const cardSingle_1_75_hand = arrayN(8).flatMap(f => [   // 6-9 sets?
+    const cardSingle_1_75_base = [
+      ...PrintCol.countClaz(48, p1_75),  // 48 00-47
+      ...PrintDual.countClaz(16, p1_75), // 16 60-75
+
+      ...BlackCard.countClaz(6, p1_75),  //  6 Black cards (blank)
+      ...WhiteCard.countClaz(6, p1_75),  //  6 Col0N cards (col nums)
+      ...PrintSpecial.countClaz(4),      //  4 Dead cards
+    ] as CountClaz;                      // 80
+
+    const cardSingle_1_75_base_back = [
+      ...CursusBack.countClaz(48, '00Back', p1_75, 'Cursus\nHonorum'),
+      ...CursusBack.countClaz(16, '60Back', p1_75, 'Cursus\nHonorum'),
+      // double-sided
+      ...BlackCard.countClaz(6, p1_75),  //  6 Black cards (blank)
+      ...WhiteCard.countClaz(6, p1_75),  //  6 Col0N cards (col nums)
+      ...PrintSpecial.countClaz(4),      //  4 DeadCards
+    ] as CountClaz[];
+
+    const cardSingle_1_75_hand = arrayN(nplyr).flatMap(f => [
       // 9 groups of 12 cards: bid, col, dead office
-      ...PrintBidValue.countClaz(4, f, p3_5/2),
-      ...PrintColSelect.countClaz(6, f, p3_5/2),
+      ...PrintBidValue.countClaz(4, f, p1_75),
+      ...PrintColSelect.countClaz(ncol, f, p1_75),
+    ]) as CountClaz[];                  // 80
+
+    const cardSingle_1_75_hand_back = arrayN(nplyr).flatMap(pid => [
+      // 8 groups of 10 cards: 4-bid, 6-col
+      ...[[4, CursusBack, `Hand_${pid}_BidBack`, 4, p1_75, '', Player.playerColor(pid)]], // solid color
+      ...[[ncol, CursusBack, `Hand_${pid}_ColBack`, ncol, p1_75, '', Player.playerColor(pid)]], // solid color
     ]) as CountClaz[];                  // 80
 
     const gs = TrackLabel.gridSpec; gs.dpi = 300
@@ -67,9 +83,10 @@ export class TileExporter extends TileExporterLib {
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
     // this.clazToTemplate(cardSingle_3_5_track, Statics.cardSingle_3_5_in, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_back, ImageGrid.cardSingle_1_75, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand_back, Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base_back, Statics.cardSingle_1_75_px, pageSpecs);
     this.clazToTemplate(cardSingle_1_75_hand, Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
     return pageSpecs;
   }
 

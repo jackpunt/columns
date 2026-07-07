@@ -162,7 +162,10 @@ export class ScenarioParser extends SPLib {
         if (card.hex.row == 0 || card.rank == 0) return;
         const hex = card.hex, { row, col } = hex;
         hex.tile = undefined; // rmCard
-        new SpecialDead(`${row}:${col}`).moveTo(hex);
+        card.hex = undefined;  // ==> hex.tile = undefined;
+        card.parent.removeChild(card);  // else it appears above! dead card
+        const dead = new SpecialDead(`${row}:${col}`);
+        this.placeCardOnHex(dead, hex)
       })
       gamePlay.gameSetup.update()
     }

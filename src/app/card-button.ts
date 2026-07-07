@@ -200,7 +200,7 @@ export class ColSelButton extends CardButton {
   constructor(public colNum = 0, opts: CardButtonOpts) {
     const colId = Statics.colNames[colNum];
     super(`${colId}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `ColSel-${this.player?.index ?? opts.pid ?? '?'}_${colId}`;
+    this.Aname = `HandSel_${this.player?.index ?? opts.pid ?? '?'}_${colId}`;
     this.colId = colId;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
@@ -227,10 +227,10 @@ export class ColBidButton extends CardButton {
    */
   constructor(public colBid = 0, opts: CardButtonOpts) {
     super(`${colBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `ColBid-${this.player?.index ?? opts.pid ?? '?'}_${colBid}`;
+    this.Aname = `HandBid_${this.player?.index ?? opts.pid ?? '?'}_${colBid}`;
     const { y, height, width } = this.getBounds()
-    const w = width * .8;
-    this.addFactionColors(colBid, w, y + height * .36)
+    const w = width * .86;
+    this.addFactionColors(colBid, w, y + height * .34)
     this.label.y = (y + height * .18)
     this.border = 0;
     this.addSideNum('', .3);

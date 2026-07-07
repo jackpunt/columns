@@ -73,9 +73,9 @@ class ColGameSetup extends GameSetupLib {
 
   /** set this.facIds & facNames; return facIds.length */
   override getNPlayers(qParams: Params = this.qParams, nDefault = 3): number {
-    const qn = qParams?.['n'] as string; // "3" OR user-specified number of players
+    const qn = qParams?.['n'] as string | undefined; // "3" OR user-specified number of players
     const pn = qn ? Math.min(TPLib.maxPlayers, Math.max(0, Number.parseInt(qn))) : undefined;
-    const np = pn || nDefault; // fallback default number of players
+    const np = pn ?? nDefault; // fallback default number of players
     return np;
   }
 

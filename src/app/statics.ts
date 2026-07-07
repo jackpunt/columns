@@ -13,7 +13,7 @@ export class Statics {
   static bidFactions: Faction[][] = [[], [2, 4, 1, 3, ], [1, 3], [2, 4], [0]];
 
   static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
-  static factionColors = [C.BLACK, C.RED, '#fff205', '#0066CC', '#AA00EE', C.WHITE]; // #00DD00
+  static factionColors = [C.BLACK, C.RED, '#fff205', '#0066CC', '#c941ff', C.WHITE]; // #00DD00
 
   static cardSingle_3_5_px: GridSpec = {
     width: 3600, height: 5400, nrow: 6, ncol: 3, cardw: 1050, cardh: 750, // (inch_w*dpi + 2*bleed)

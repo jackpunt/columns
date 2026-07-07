@@ -27,7 +27,7 @@ export class ColCard extends Tile {
   override get isMeep() { return false; }
   declare gamePlay: GamePlay;
   override get hex(): Hex2 { return super.hex as Hex2 }
-  override set hex(hex: Hex1) { super.hex = hex }
+  override set hex(hex: Hex1 | undefined) { super.hex = hex }
   declare baseShape: CardShape;
 
   factions: Faction[] = [0];
@@ -232,6 +232,11 @@ export class ColCard extends Tile {
   // 2. for each Player - [1..nc] ColSelect cards
   // 3. for each Player - [1..nc-1 max 4] BidCoin cards
 
+  /**
+   *
+   * @param nCards number to create (60)
+   * @returns
+   */
   static makeColCards(nCards = 60) {
     return arrayN(nCards).map(n => {
       const fact = 1 + (n % nFacs) as Faction, aname = `${String(n).padStart(2, '0')}_${fact}`;
@@ -240,6 +245,11 @@ export class ColCard extends Tile {
       return card;
     })
   }
+  /**
+   * Create 16 DualCards
+   * @param nCards start number in Aname
+   * @returns
+   */
   static makeDualCards(nCards = 60) {
     return arrayN(nFacs * nFacs).map(n => {
       const n4 = Math.floor(n / nFacs)
@@ -264,8 +274,8 @@ export class ColCard extends Tile {
 
     let nb = 0, nw = 0;
     const ncb = TP.usePyrTopo && !TP.fourBase ? Math.max(nc, 5) : nc; // maybe extra col in bottom row
-    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`0:${nb++}`, 0)); // row 0 (top)
-    const whiteN = arrayN(ncb, 1).map(i => new WhiteCard(`N:${nw++}`, i)); // row N (bottom: rank-0)
+    const black0 = arrayN(ncb, 1).map(i => new BlackCard(`0_${nb++}`, 0)); // row 0 (top)
+    const whiteN = arrayN(ncb, 1).map(i => new WhiteCard(`N_${nw++}`, i)); // row N (bottom: rank-0)
     whiteN.forEach(card => card.paint(C.grey224));   // shade for visible highlights
 
     const allCols = ColCard.makeColCards(nCards);
@@ -423,17 +433,17 @@ export class BlackCard extends XtensaCard {
 
 export class WhiteCard extends XtensaCard {
   static countClaz(n = 0, size = 525): CountClaz[] {
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `White_${colNum}`, size, colNum, .5]); // row: N
+    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Col0N_${colNum}`, size, colNum, .5]); // row: N
   }
 
-  constructor(aname = 'white?', col?: number, fs?: number) {
+  constructor(aname = 'White?', col?: number, fs?: number) {
     super(aname, col, fs);
     this.factions = [];     // with zero length factions.
   }
 
   override makeShape(): Paintable {
     const wh = ColCard.getWH(this.radius, false);
-    return new CardShape(C.grey92, '', wh, false, 0); // no border stroke when printing
+    return new CardShape(C.grey92, '', wh, false, 0); // grey on screen; no border stroke when printing
   }
 }
 
@@ -499,7 +509,7 @@ export class PrintCol extends ColCard {
     const card = allCards[n], { Aname, factions } = card;
     super(Aname, ...factions);
     this.addIcons();
-    ;(this.baseShape as PaintableShape).colorn = C.BLACK; // set for bleed.color
+    this.baseShape.colorn = C.BLACK; // set for bleed.color
     return;
   }
 }
@@ -541,9 +551,10 @@ export class PrintSpecial extends SpecialDead {
 
 class TextCard extends ColCard {
   static text = '';
-  constructor(Aname = 'Text', size = 525) {
+  constructor(Aname = 'Text', size = 525, color = C.WHITE) {
     ColCard.nextRadius = size;
     super(Aname, 5);
+    this.paint(color);
   }
 
   override makeShape(): Paintable {
@@ -553,13 +564,33 @@ class TextCard extends ColCard {
 }
 
 export class CursusBack extends TextCard {
-  constructor(Aname = 'Back', size = 525, text = '') {
+  static seqN = 0;
+  static countClaz(n = 20, name = 'Back', size = 525, ...args: any[]): CountClaz[] {
+    ColCard.decorator = undefined;
+    return [[n, CursusBack, name, n, size, ...args]];
+  }
+
+  static family = "Baskerville";
+  // static family3 = "Papyrus";
+  // static family2 = "SignPainter";
+  // static family1 = "Savoye LET";
+
+  static rankSize = 170;
+  static backFont = F.fontSpec(CursusBack.rankSize, `${CursusBack.family}`, undefined, 'italic');
+
+  constructor(Aname = 'Back', seqLim: number, size = 525, text = '', color = C.WHITE) {
+    if (PrintDual.seqN >= seqLim) PrintDual.seqN = 0
+    const n = PrintDual.seqN++;
+    const aname = `${Aname}_${String(n).padStart(2, '0')}`;
+
     ColCard.nextRadius = size;
-    super(Aname, size)
-    const ctext = new CenterText(text, 150, )
+
+    super(aname, size, color)
+
+    const font = CursusBack.backFont;
+    const ctext = new CenterText(text, font)
     ctext.y -= 75;
     this.addChild(ctext)
-    this.paint(C.WHITE)
   }
   override makeShape(): Paintable {
     const wh = ColCard.getWH(this.radius, false);
@@ -645,7 +676,7 @@ export class Decorator {
     g.f(c).ss(t*1.8).s(c).mt(0, -wd).lt(0, wd).mt(-wd, 0).lt(wd, 0);  // sword-like
     return new Shape(g) as DisplayObject;
   }
-  blueIcon(c = this.c1, t = this.thick, wd = this.wd, g = new Graphics()) {
+  blueIcon(c = this.c1, t = this.thick*1.5, wd = this.wd, g = new Graphics()) {
     g.ss(t).s(c).mt(-wd/2, wd/2).lt(0, -wd/2).lt(wd/2, wd/2).cp();  // triangle sails
     return new Shape(g) as DisplayObject;
   }
