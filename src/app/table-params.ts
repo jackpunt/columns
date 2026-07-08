@@ -61,7 +61,7 @@ export class TP extends TPLib {
   /** setAutoPlay unless startManual includes player index */
   static startManual = [0];
   /** enable/disable auto bots */
-  static autoStart = false;
+  static autoStart = true;
   /** for non-auto Players */
   static autoScore = false;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */

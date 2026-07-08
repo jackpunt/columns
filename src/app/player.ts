@@ -38,11 +38,11 @@ export class Player extends PlayerLib implements ColPlayer {
   // set our multi-player colors; we don't use the TP.colorScheme
   // PlayerLib.playerColor(cname|ndx) --> colorScheme[cname]
   static override colorScheme = {
-      pink: '#fd40ff',  // #FF33CC *
-      orange: '#FF9900',// #FF9900 *
       green: '#66CC00', // #66CC00 *
-      grey: '#8a8a8a',  // #8a8a8a *
+      orange: '#FF8800',// #ff9900 *
+      pink: '#fd40ff',  // #FF33CC *
       white: '#ceeef8', // #ceeef8 * (ultra-light-blue -> white meeples)
+      grey: '#8a8a8a',  // #8a8a8a *
       purple: '#7b04b6',// #bc4ed0 *
       blue: '#3fbbe4',  // #2d8be3 *
       brown: '#4f2e00', // #643a00 * (could use brown or black meeps/cubes)

@@ -39,13 +39,24 @@ export class CardShape extends RectShape {
     this.radius = rad;
     this.cache(-w/2-s, -h/2-s, w+s+s, h+s+s);
   }
-
-  triangle(ndx: 0|1, color: string, k = 1, g = new Graphics()) {
+  /**
+   * Fill a triangle inside a CardShape
+   * @param ndx 0: ll, 1: ur
+   * @param color fillc
+   * @param k shrink from size of CardShape._rect WH
+   * @param g Graphics
+   */
+  triangle(ndx: 0|1, color: string, k = 1, strokec = '', g = new Graphics()) {
     const { w: w0, h: h0 } = this._rect, r = this._cRad, s = this._sSiz;
-    const w = (w0 + s) / 2, h = (h0 + s);
-    const cx = w-k, cy = h/2-k, nx = (ndx==0) ? -cx : cx, ny = (ndx==0) ? cy : -cy;
+    const w = (w0 + s) / 2, h = (h0 + s) / 2;
+    const dx = w * .2;
+    const cx0 = [w-k, k-w][ndx], cx = [(cx0-dx), (cx0+dx)][ndx], cy = [h-k, k-h][ndx];
     g.s('').f(color)
-    g.mt(-cx, -cy).lt(cx, cy).lt(nx, ny).cp();
+    g.mt(-cx, -cy).lt(cx, cy).lt(cx0, cy).lt(cx0, -cy).cp();
+    if (strokec) {
+      g.s(strokec).ss(s, 1, 1)          // 3. stroke diagonal line
+      g.mt(-cx, -cy).lt(cx, cy).cp(); // NW -> SE
+    }
     return g;
   }
 
@@ -55,7 +66,7 @@ export class CardShape extends RectShape {
   _rscgf?: CGF;
   form = '';
 
-  /** modify _cgf to produce 2 areas */
+  /** modify _cgf to produce 2 areas for DualCard */
   dualCgf(f: 'd'|'v' = 'd', ...colors: string[]) {
     this.form = f;
     this._rscgf = this._rscgf ?? this.cgf;    // set it once, the first time.
@@ -70,26 +81,12 @@ export class CardShape extends RectShape {
       g.f(cr).rc(0 , -h / 2, w, h, 0, r, r, 0);
       return g
     }
-    /**
-     * Fill a triangle inside a CardShape
-     * @param ndx 0: ll, 1: ur
-     * @param color fillc
-     * @param k shrink from size of CardShape._rect WH
-     * @param g Graphics
-     */
-    const triangle = (ndx: 0|1, color: string, k = 1, g = this.g0) => {
-      const cx = w-k, cy = h/2-k, nx = (ndx==0) ? -cx : cx, ny = (ndx==0) ? cy : -cy;
-      g.s('').f(color)
-      g.mt(-cx, -cy).lt(cx, cy).lt(nx, ny).cp();  //
-    }
 
     // produce left & right triangles
     const cgf_d = (colorn: string, g = this.g0) => {
       // 4 layers of graphics:
-      this.triangle(0, cl, 1, g)              // 1. left/lower triangle
-      this.triangle(1, cr, 1, g)              // 2. right/up  triangle
-      g.s(strokec).ss(s, 1, 1)          // 3. stroke diagonal line
-      g.mt(cc-w, cc-h/2).lt(w-cc, h/2-cc).cp(); // NW -> SE
+      this.triangle(0, cl, 1, strokec, g)              // 1. left/lower triangle
+      this.triangle(1, cr, 1, strokec, g)              // 2. right/up  triangle
       this._rscgf!(C.transparent, g);   // 4. draw outer rect, with "no fill"
       return g;
     }

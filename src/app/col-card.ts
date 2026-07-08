@@ -355,7 +355,7 @@ export class DualCard extends ColCard {
   }
   override bumpLoc(ndx = 0) {
     const meepXY = this.meepleLoc(ndx);
-    return { x: meepXY.x - [.16, .28][ndx] * this.cellWidth, y: meepXY.y - this.radius / 3 }
+    return { x: meepXY.x - [.17, .22][ndx] * this.cellWidth, y: meepXY.y - [.33, .17][ndx] * this.radius }
   }
 }
 
