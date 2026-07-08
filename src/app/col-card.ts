@@ -618,31 +618,45 @@ export class SummaryCard extends TextCard {
   }
 
   static override text = `Round = 3 x Turns:
-  Select Column & Bid
-  Resolve & Advance
-  Bump & Cascade
-  Score for Color
-Then: Score for Rank`;
+  → Select Column & Bid
+  ➢ Resolve & Advance
+  ➢ Bump & Cascade
+  ➢ Score for Color
+End of Round:
+  → Score for Rank`;
 
+  elt!: Text;
   // Note: this could fit on a mini-card (size = 525)
-  constructor(Aname = 'Summary', size = 750, text = SummaryCard.text, fs = size / 9) {
+  /**
+   *
+   * @param Aname
+   * @param size short dim?
+   * @param text
+   * @param fs
+   */
+  constructor(Aname = 'Summary', size = 750, text = SummaryCard.text, fs = size / 9, titleText?: Text) {
     ColCard.nextRadius = size;
     const aname = !!Aname.match(/_[0-9]+$/) ? Aname : `${Aname}_${SummaryCard.nextSeqN()}`
     super(aname, size);
 
     const { x: x0, y: y0, width: w, height: h } = this.getBounds();
-    const title = new CenterText('Cursus Honorum', fs + 1);
-    this.addChild(title);
     const top = y0 + 64;
-    title.y = top + fs/2;
+    const title = titleText ?? this.makeTitle(fs, top);
+    this.addChild(title);
 
-    const elt = new Text(text, F.fontSpec(fs));
+    const elt = this.elt = new Text(text, F.fontSpec(fs * .9));
     elt.textAlign = 'left';
     this.addChild(elt);
     const { x, y, width, height } = elt.getBounds()
     elt.x = 0 + (0  -  width) / 2;
     elt.y = top + (h - height) / 2;
     this.paint(C.WHITE, true)
+  }
+
+  makeTitle(fs: number, top: number) {
+    const title = new CenterText('Cursus Honorum', fs + 1);
+    title.y = top + fs/2;
+    return title;
   }
 }
 
@@ -669,10 +683,26 @@ export class CoverCard extends SummaryCard {
 ➤ Infinitely variable map
 ➤ Simple mechanics:
       Analyze – Plan – Bid
-      Advance (& Cascade) – Score`
+      Advance (& Cascade) – Score`;
+  /**
+   *
+   * @param Aname
+   * @param size short dimension!
+   * @param text
+   * @param fs
+   */
   constructor(Aname = 'Cover', size = 750, text = CoverCard.text, fs = size/14) {
     const n = CoverCard.nextSeqN()
     super(`${Aname}_${n}`, size, text, fs);
+    this.elt.lineHeight = this.elt.getMeasuredLineHeight() + 5;
+    this.elt.y -= fs * .5;
+    this.paint(C.WHITE, true)
+  }
+
+  override makeTitle(fs: number, top: number) {
+    const title = new CenterText('Cursus Honorum (Path to Glory)', fs + 8);
+    title.y = top + fs/2;
+    return title;
   }
 }
 
@@ -690,10 +720,10 @@ export class DetailCard extends TextCard {
   }
 
   static override text = `1. → Analyze & Plan
-    → Bid (Column & Value)
+    → Select Cards (Column & Bid)
     → Commit & Reveal
 2. Resolve each Column: A, B, …
-    ➢ Highest unique bid wins
+    ➢ Highest unique Bid (1..4) wins
     ➢ Advance: winner’s meeple
     ➢ Bump & Cascade: up / down
     ➢ Score = Influence with Faction
@@ -707,6 +737,7 @@ export class DetailCard extends TextCard {
     super(`${Aname}_${n}`, size);
     const elt = new Text(text, F.fontSpec(fs));
     elt.textAlign = 'left';
+    // elt.lineHeight = elt.getMeasuredLineHeight() *1.1; // extra leading
     this.addChild(elt);
     const { x, y, width, height } = elt.getBounds()
     elt.x = (0  -  width) / 2;

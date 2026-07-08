@@ -1,7 +1,7 @@
 import { arrayN } from "@thegraid/common-lib";
 import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
 import { PrintBidValue, PrintColSelect } from "./card-button";
-import { BlackCard, CoverCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
+import { BlackCard, ColCard, CoverCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
 import { TrackLabel, TrackSegment } from "./col-table";
 import { Player } from "./player";
 import { Statics } from "./statics";
@@ -18,15 +18,16 @@ export class TileExporter extends TileExporterLib {
     const nplyr = 8;
     // MPC: min size: 597 x 822 pixels (300DPI) 1.99 x 2.74; 2.0 (600?) x 2.75 (825?)
     // MPC: 555 x 816 !?
-    const dpi = 300, p3_5 = 3.5 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi; // bleed*2 = .25
+    const dpi = 300, p3_5 = 3.48 * dpi, p2_5 = 2.5*dpi, p1_75 = 1.75*dpi; // bleed*2 = .25
     // [TileExporter.cardSingle_1_75_in, TileExporter.cardSingle_3_5_in].forEach(ig => ig.dpi = dpi);
     // [...[count, claz, ...constructorArgs]]
 
-    // 12 track + 3 detail + 3 summary = 18 @ $ 10.95 (MPC)
+    // 3 Cover + 12 Track + 3 Summary = 18 @ $ 10.95 (MPC)
+    // 2D + 1S + 12 Detail + 3 Detail
     const cardSingle_3_5_track = [
       ...SummaryCard.countClaz(6, 'Summary', p2_5),
       ...TrackSegment.countClaz(12, p3_5, p2_5),
-      ...CoverCard.countClaz(6, 'Cover', p2_5),      // === SummaryCard.seqLim !!
+      ...CoverCard.countClaz(6, 'Cover', p2_5),
       ...DetailCard.countClaz(12, 'Detail', p2_5),
     ] as CountClaz[];
 
@@ -81,13 +82,14 @@ export class TileExporter extends TileExporterLib {
       ...TrackLabel.countClaz(gs, 180, pp, pp),
     ] as CountClaz[];
 
+    // ColCard.gridSpec set the aspect ratio (ColCard.getWH) for all the ColCard derivatives:
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    // this.clazToTemplate(cardSingle_3_5_track, Statics.cardSingle_3_5_in, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_hand_back, Statics.cardSingle_1_75_px, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base_back, Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand, Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = Statics.cardSingle_3_5_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
     return pageSpecs;
   }
 

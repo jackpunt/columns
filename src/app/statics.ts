@@ -15,15 +15,16 @@ export class Statics {
   static candyColors = [C.BLACK, '#FF0000', '#ebb000', '#0066FF', '#9900CC', C.WHITE];
   static factionColors = [C.BLACK, C.RED, '#fff205', '#0066CC', '#c941ff', C.WHITE]; // #00DD00
 
+  // 816 x 1110; 816-66=750px 1110-66=1044px (2.5" = 63.5mm x 3.48" = 88.4 mm) (248.03 x 346.5) (826.7 x 1044.8)
   static cardSingle_3_5_px: GridSpec = {
-    width: 3600, height: 5400, nrow: 6, ncol: 3, cardw: 1050, cardh: 750, // (inch_w*dpi + 2*bleed)
-    x0: 120 + 3.5 * 150 + 30, y0: 83 + 3.5 * 150 + 30, delx: 1125, dely: 825, bleed: 30, double: false,
+    width: 3600, height: 5400, nrow: 6, ncol: 3, cardw: 1044, cardh: 750, // (inch_w*dpi + 2*bleed)
+    x0: 120 + 3.5 * 150 + 30, y0: 83 + 3.5 * 150 + 30, delx: 1155, dely: 825, bleed: 33, double: false, land: true,
   };
 
   // 18 cards: portrait mode; browser viewport may cut off bottom
   static cardSingle_3_5_in: GridSpec = {
     dpi: 300, width: 12, height: 18, nrow: 6, ncol: 3, cardh: 3.5, cardw: 2.5, // (inch_w*dpi + 2*bleed)
-    x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.85, dely: 2.95, bleed: 32/300, double: false, land: true,
+    x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.85, dely: 2.95, bleed: 33/300, double: false, land: true,
   };
 
   // { ...ImageGrid, ncol: 6, width: 4200, split: false } MPC: 597 x 822
