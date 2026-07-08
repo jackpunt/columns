@@ -475,12 +475,18 @@ export class TrackSegment extends ColCard {
     'vrgb+rvbg', 'brvg+rbgv', 'bgrv+gbvr', 'grbv+rgvb',
     'rbvg+brgv', 'gvrb+vgbr', 'vbrg+bvgr', 'vbgr+bvrg',
   ];
-  static seqN = 0;
+  static seqN = 1;
+  static seqLim = 12;
   static countClaz(n = 12, w = 1050, h = 750) {
+    TrackSegment.seqN = 1;
+    TrackSegment.seqLim = n;
     TrackSegment.decorator = undefined;
     return [[n, TrackSegment, '', w / 9, h / 2]];
   }
-
+  static nextSeqN() {
+    if (TrackSegment.seqN > TrackSegment.seqLim) TrackSegment.seqN = 1;
+    return TrackSegment.seqN++
+  }
   /**
    * End of Game: nElts * 18; 5 => 90, 6 => 108
    * @example
@@ -492,9 +498,11 @@ export class TrackSegment extends ColCard {
    * @param h [72] height of cell, marker radius * nPlayers
    */
   constructor(Aname: string, w = 36, h = 72, bleed = 0) {
-    if (!Aname) {
-      if (TrackSegment.seqN >= TrackSegment.anames.length) TrackSegment.seqN = 0;
-      Aname = TrackSegment.anames[TrackSegment.seqN++]
+      if (!Aname) {
+      const n = TrackSegment.nextSeqN();
+      Aname = `${String(n).padStart(2, '0')}_${TrackSegment.anames[n-1]}`;
+    } else {
+      Aname.replace(/[0-9_]+/, '');
     }
     super(Aname, 5)
     this.removeAllChildren();
@@ -502,7 +510,7 @@ export class TrackSegment extends ColCard {
     this.addChild(this.slots); this.slots.x = w * -4.5;
     this.wh = { w, h }
     const B = ['B'] as RGBV[];
-    const [rgbv0, rgbv1] = Aname.split('+');
+    const [, rgbv0, rgbv1] = Aname.match(/([rgbv]+)\+([rgbv]+)/)!;
     const ary0 = rgbv0.split('') as RGBV[], ary1 = rgbv1.split('') as RGBV[];
     const factions01 = B.concat(ary0, ary1, B).map(s => rgbvIndex[s]);
     const factions10 = B.concat(ary1, ary0, B).reverse().map(s => rgbvIndex[s]);

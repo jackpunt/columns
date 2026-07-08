@@ -23,7 +23,7 @@ export class Statics {
   // 18 cards: portrait mode; browser viewport may cut off bottom
   static cardSingle_3_5_in: GridSpec = {
     dpi: 300, width: 12, height: 18, nrow: 6, ncol: 3, cardh: 3.5, cardw: 2.5, // (inch_w*dpi + 2*bleed)
-    x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.75, dely: 2.75, bleed: 32/300, double: false, land: true,
+    x0: .5 + 3.5 * .5, y0: 113/300 + 2.5/2, delx: 3.85, dely: 2.95, bleed: 32/300, double: false, land: true,
   };
 
   // { ...ImageGrid, ncol: 6, width: 4200, split: false } MPC: 597 x 822

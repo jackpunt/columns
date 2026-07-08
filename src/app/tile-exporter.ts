@@ -1,7 +1,7 @@
 import { arrayN } from "@thegraid/common-lib";
 import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
 import { PrintBidValue, PrintColSelect } from "./card-button";
-import { BlackCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
+import { BlackCard, CoverCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
 import { TrackLabel, TrackSegment } from "./col-table";
 import { Player } from "./player";
 import { Statics } from "./statics";
@@ -24,9 +24,10 @@ export class TileExporter extends TileExporterLib {
 
     // 12 track + 3 detail + 3 summary = 18 @ $ 10.95 (MPC)
     const cardSingle_3_5_track = [
-      [3, SummaryCard, 'Summary', p2_5],
-      [3, DetailCard, 'Detail', p2_5], //
+      ...SummaryCard.countClaz(6, 'Summary', p2_5),
       ...TrackSegment.countClaz(12, p3_5, p2_5),
+      ...CoverCard.countClaz(6, 'Cover', p2_5),      // === SummaryCard.seqLim !!
+      ...DetailCard.countClaz(12, 'Detail', p2_5),
     ] as CountClaz[];
 
     // 16(D) 48(C) 18(B, W, SD) = 82;
@@ -65,8 +66,8 @@ export class TileExporter extends TileExporterLib {
 
     const cardSingle_1_75_hand_back = arrayN(nplyr).flatMap(pid => [
       // 8 groups of 10 cards: 4-bid, 6-col
-      ...[[4, CursusBack, `Hand_${pid}_BidBack`, 4, p1_75, '', Player.playerColor(pid)]], // solid color
-      ...[[ncol, CursusBack, `Hand_${pid}_ColBack`, ncol, p1_75, '', Player.playerColor(pid)]], // solid color
+      ...[[4, CursusBack, `Hand${pid}_BidBack`, 4, p1_75, '', Player.playerColor(pid)]], // solid color
+      ...[[ncol, CursusBack, `Hand${pid}_ColBack`, ncol, p1_75, '', Player.playerColor(pid)]], // solid color
     ]) as CountClaz[];                  // 80
 
     const gs = TrackLabel.gridSpec; gs.dpi = 300
@@ -83,10 +84,10 @@ export class TileExporter extends TileExporterLib {
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
     // this.clazToTemplate(cardSingle_3_5_track, Statics.cardSingle_3_5_in, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand_back, Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_base_back, Statics.cardSingle_1_75_px, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_hand, Statics.cardSingle_1_75_px, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_hand_back, Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_base_back, Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_hand, Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_1_75_base, Statics.cardSingle_1_75_px, pageSpecs);
     return pageSpecs;
   }
 

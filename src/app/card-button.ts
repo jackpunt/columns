@@ -200,7 +200,7 @@ export class ColSelButton extends CardButton {
   constructor(public colNum = 0, opts: CardButtonOpts) {
     const colId = Statics.colNames[colNum];
     super(`${colId}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `HandSel_${this.player?.index ?? opts.pid ?? '?'}_${colId}`;
+    this.Aname = `Hand${this.player?.index ?? opts.pid ?? '?'}_Sel${colId}`;
     this.colId = colId;
     const { y, height } = this.getBounds()
     this.label.y = (y + height / 5)
@@ -227,7 +227,7 @@ export class ColBidButton extends CardButton {
    */
   constructor(public colBid = 0, opts: CardButtonOpts) {
     super(`${colBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.Aname = `HandBid_${this.player?.index ?? opts.pid ?? '?'}_${colBid}`;
+    this.Aname = `Hand${this.player?.index ?? opts.pid ?? '?'}_Bid${colBid}`;
     const { y, height, width } = this.getBounds()
     const w = width * .86;
     this.addFactionColors(colBid, w, y + height * .34)
@@ -279,14 +279,22 @@ export class ColBidButton extends CardButton {
 
 export class PrintColSelect extends ColSelButton {
   static seqN = 1;
-  static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
-    return [[n, PrintColSelect, n, pid, rad]];
+  static seqLim = 8;  // seqLim given in constructor (max number of players)
+  static nextSeqN(seqLim: number) {
+    if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = 1;
+    return PrintColSelect.seqN++
   }
 
-  constructor(seqLim: number, pid: number, radius: number) {
+  static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
+    PrintColSelect.seqLim = n;
+    PrintColSelect.seqN = 1;
+    return [[n, PrintColSelect, pid, rad]];
+  }
+
+  constructor(pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
-    if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = (seqLim > 0) ? 1 : 0;
-    const col = PrintColSelect.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
+    const col = PrintColSelect.nextSeqN(PrintColSelect.seqLim);
+    const player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
     super(col, opts)
     this.addSideNum();
@@ -297,16 +305,21 @@ export class PrintColSelect extends ColSelButton {
 
 export class PrintBidValue extends ColBidButton {
   static seqN = 1;
+  static seqLim = 4;
+  static nextSeqN(seqLim: number) {
+    if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
+    return PrintBidValue.seqN++
+  }
   static countClaz(n: number, pid: number, rad = 525): CountClaz[] {
-    return [[n, PrintBidValue, n, pid, rad]]
+    return [[n, PrintBidValue, pid, rad]]
   }
 
-  constructor(seqLim: number, pid: number, radius: number) {
+  constructor(pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
-    if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
-    const col = PrintBidValue.seqN++, player = allPlayers[pid], bgColor = Player.playerColor(pid);
+    const bid = PrintBidValue.nextSeqN(PrintBidValue.seqLim);
+    const player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
-    super(col, opts)
+    super(bid, opts)
 
     this.addSideNum();
     this.addSideIcon();

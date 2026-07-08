@@ -564,10 +564,16 @@ class TextCard extends ColCard {
 }
 
 export class CursusBack extends TextCard {
-  static seqN = 0;
-  static countClaz(n = 20, name = 'Back', size = 525, ...args: any[]): CountClaz[] {
+  static seqN = 1;
+  static countClaz(n = 20, name = 'Back', ...args: any[]): CountClaz[] {
     ColCard.decorator = undefined;
-    return [[n, CursusBack, name, n, size, ...args]];
+    // CursusBack.seqN = n; // <== do not reset!
+    return [[n, CursusBack, name, n, ...args]];
+  }
+
+  static nextSeqN(seqLim: number) {
+    if (CursusBack.seqN > seqLim) CursusBack.seqN = 1;
+    return CursusBack.seqN++
   }
 
   static family = "Baskerville";
@@ -579,8 +585,7 @@ export class CursusBack extends TextCard {
   static backFont = F.fontSpec(CursusBack.rankSize, `${CursusBack.family}`, undefined, 'italic');
 
   constructor(Aname = 'Back', seqLim: number, size = 525, text = '', color = C.WHITE) {
-    if (PrintDual.seqN >= seqLim) PrintDual.seqN = 0
-    const n = PrintDual.seqN++;
+    const n = CursusBack.nextSeqN(seqLim);
     const aname = `${Aname}_${String(n).padStart(2, '0')}`;
 
     ColCard.nextRadius = size;
@@ -600,6 +605,18 @@ export class CursusBack extends TextCard {
 }
 
 export class SummaryCard extends TextCard {
+  static seqLim = 10;
+  static seqN = 1;
+  static nextSeqN(seqLim = SummaryCard.seqLim) {
+    if (SummaryCard.seqN > seqLim) SummaryCard.seqN = 1;
+    return SummaryCard.seqN++
+  }
+  static countClaz(n: number, ...args: any[]): CountClaz[] {
+    SummaryCard.seqLim = n;
+    SummaryCard.seqN = 1;
+    return [[n, SummaryCard, ...args]];
+  }
+
   static override text = `Round = 3 x Turns:
   Select Column & Bid
   Resolve & Advance
@@ -610,7 +627,8 @@ Then: Score for Rank`;
   // Note: this could fit on a mini-card (size = 525)
   constructor(Aname = 'Summary', size = 750, text = SummaryCard.text, fs = size / 9) {
     ColCard.nextRadius = size;
-    super(Aname, size);
+    const aname = !!Aname.match(/_[0-9]+$/) ? Aname : `${Aname}_${SummaryCard.nextSeqN()}`
+    super(aname, size);
 
     const { x: x0, y: y0, width: w, height: h } = this.getBounds();
     const title = new CenterText('Cursus Honorum', fs + 1);
@@ -628,7 +646,49 @@ Then: Score for Rank`;
   }
 }
 
+export class CoverCard extends SummaryCard {
+  static override seqLim = 10;
+  static override seqN = 1;
+  static override nextSeqN(seqLim = CoverCard.seqLim) {
+    if (CoverCard.seqN > seqLim) CoverCard.seqN = 1;
+    return CoverCard.seqN++
+  }
+  static override countClaz(n: number, ...args: any[]): CountClaz[] {
+    CoverCard.seqLim = n;
+    CoverCard.seqN = 1;
+    return [[n, CoverCard, ...args]];
+  }
+
+  //➤ Balance self-promotion vs opponent interference
+  static override text = `➤ No random effects
+➤ No table order effects
+➤ Simultaneous analysis
+➤ Scales to any number (2 – 7+)
+➤ Adjustable game length
+➤ Light → Studious
+➤ Infinitely variable map
+➤ Simple mechanics:
+      Analyze – Plan – Bid
+      Advance (& Cascade) – Score`
+  constructor(Aname = 'Cover', size = 750, text = CoverCard.text, fs = size/14) {
+    const n = CoverCard.nextSeqN()
+    super(`${Aname}_${n}`, size, text, fs);
+  }
+}
+
 export class DetailCard extends TextCard {
+  static seqLim = 10;
+  static seqN = 1;
+  static nextSeqN(seqLim = DetailCard.seqLim) {
+    if (DetailCard.seqN > seqLim) DetailCard.seqN = 1;
+    return DetailCard.seqN++
+  }
+  static countClaz(n: number, ...args: any[]): CountClaz[] {
+    DetailCard.seqLim = n;
+    DetailCard.seqN = 1;
+    return [[n, DetailCard, ...args]];
+  }
+
   static override text = `1. → Analyze & Plan
     → Bid (Column & Value)
     → Commit & Reveal
@@ -643,7 +703,8 @@ export class DetailCard extends TextCard {
 4. Repeat until someone wins`
 
   constructor(Aname = 'Detail', size = 750, text = DetailCard.text, fs = size/14) {
-    super(Aname, size);
+    const n = DetailCard.nextSeqN();
+    super(`${Aname}_${n}`, size);
     const elt = new Text(text, F.fontSpec(fs));
     elt.textAlign = 'left';
     this.addChild(elt);
