@@ -42,12 +42,13 @@ export class TileExporter extends TileExporterLib {
     // Player bag: 4 (bid) 7 (sel) 11 * 9 = 99 cards!
 
     const cardSingle_1_75_base = [
-      ...PrintCol.countClaz(48, p1_75),  // 48 00-47
       ...PrintDual.countClaz(16, p1_75), // 16 60-75
 
       ...BlackCard.countClaz(6, p1_75),  //  6 Black cards (blank)
       ...WhiteCard.countClaz(6, p1_75),  //  6 Col0N cards (col nums)
       ...PrintSpecial.countClaz(4),      //  4 Dead cards
+
+      ...PrintCol.countClaz(48, p1_75),  // 48 00-47
     ] as CountClaz;                      // 80
 
     const cardSingle_1_75_base_back = [
@@ -85,11 +86,11 @@ export class TileExporter extends TileExporterLib {
     // ColCard.gridSpec set the aspect ratio (ColCard.getWH) for all the ColCard derivatives:
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = Statics.cardSingle_3_5_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = Statics.cardSingle_3_5_px, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_hand_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
     // this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_hand, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
+    this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
     return pageSpecs;
   }
 

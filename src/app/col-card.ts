@@ -15,7 +15,7 @@ import { TP } from "./table-params";
 export class ColCard extends Tile {
   static decorator?: Decorator;
 
-  static gridSpec: GridSpec = Statics.cardSingle_1_75_in;
+  static gridSpec: GridSpec = Statics.cardSingle_1_75_in;  // or set by TileExporter
   static getWH(rad: number, vert = false) {
     return CardShape.getWH(rad, ColCard.gridSpec, vert)
   }

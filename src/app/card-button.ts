@@ -177,7 +177,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   altRectShape(color = C.WHITE, rad = CardButton.radius) {
     this.removeChild(this.rectShape);
     const wh = CardButton.getWH(rad, true);
-    this.rectShape = new CardShape(color, C.grey224, wh, true, rad * .03);
+    this.rectShape = new CardShape(color, C.grey224, wh, true, rad * .03); // border line
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
@@ -279,8 +279,8 @@ export class ColBidButton extends CardButton {
 
 export class PrintColSelect extends ColSelButton {
   static seqN = 1;
-  static seqLim = 8;  // seqLim given in constructor (max number of players)
-  static nextSeqN(seqLim: number) {
+  static seqLim = 8;  // seqLim given in countClaz (max number of players)
+  static nextSeqN(seqLim = PrintColSelect.seqLim) {
     if (PrintColSelect.seqN > seqLim) PrintColSelect.seqN = 1;
     return PrintColSelect.seqN++
   }
@@ -293,7 +293,7 @@ export class PrintColSelect extends ColSelButton {
 
   constructor(pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
-    const col = PrintColSelect.nextSeqN(PrintColSelect.seqLim);
+    const col = PrintColSelect.nextSeqN();
     const player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
     super(col, opts)
@@ -306,7 +306,7 @@ export class PrintColSelect extends ColSelButton {
 export class PrintBidValue extends ColBidButton {
   static seqN = 1;
   static seqLim = 4;
-  static nextSeqN(seqLim: number) {
+  static nextSeqN(seqLim = PrintBidValue.seqLim) {
     if (PrintBidValue.seqN > seqLim) PrintBidValue.seqN = 1;
     return PrintBidValue.seqN++
   }
@@ -316,7 +316,7 @@ export class PrintBidValue extends ColBidButton {
 
   constructor(pid: number, radius: number) {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
-    const bid = PrintBidValue.nextSeqN(PrintBidValue.seqLim);
+    const bid = PrintBidValue.nextSeqN();
     const player = allPlayers[pid], bgColor = Player.playerColor(pid);
     const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
     super(bid, opts)

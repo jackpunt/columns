@@ -32,7 +32,7 @@ export class CardShape extends RectShape {
    */
   constructor(fillc = 'lavender', strokec = C.grey64, { w: w0, h: h0 } = CardShape.onScreenWH, portrait = false, ss?: number, rr?: number) {
     const rad = portrait ? w0 : h0;
-    const s = ss ?? rad * .04;
+    const s = ss ?? rad * .048;      // fill the safe area at MPC
     const w = w0 - 2 * s, h = h0 - 2 * s;
     const r = rr ?? Math.max(h, w) * .05;
     super({ x: -w / 2, y: -h / 2, w, h, r, s }, fillc, strokec);
@@ -50,7 +50,7 @@ export class CardShape extends RectShape {
     const { w: w0, h: h0 } = this._rect, r = this._cRad, s = this._sSiz;
     const w = (w0 + s) / 2, h = (h0 + s) / 2;
     const dx = w * .2;
-    const cx0 = [w-k, k-w][ndx], cx = [(cx0-dx), (cx0+dx)][ndx], cy = [h-k, k-h][ndx];
+    const cx0 = [k-w, w-k, ][ndx], cx = [(cx0+dx), (cx0-dx), ][ndx], cy = [k-h, h-k, ][ndx];
     g.s('').f(color)
     g.mt(-cx, -cy).lt(cx, cy).lt(cx0, cy).lt(cx0, -cy).cp();
     if (strokec) {
