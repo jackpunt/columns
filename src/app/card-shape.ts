@@ -20,6 +20,7 @@ export class CardShape extends RectShape {
       ? (vert ? { w: ra, h: r } : { w: r, h: ra })
       : (vert ? { w: r, h: ra } : { w: ra, h: r })
   }
+  static ssm = .069; // ss multiplier for MPC @ 525 => 36 px
 
   /**
    * Modified RectShape: place border stroke inside the WH perimeter.
@@ -27,17 +28,17 @@ export class CardShape extends RectShape {
    * @param strokec [C.grey64] supply '' for no stroke
    * @param rad [CardShape.onScreenRadius] size of shorter side [longer is (rad * 1.4)]
    * @param portrait [false] height is shorter; true -> width is shorter
-   * @param ss [rad * .04] StrokeSize for outer border.
+   * @param ss [rad * .069] StrokeSize for outer border.
    * @param rr [max(w,h) * .05] rounded corner radius
    */
   constructor(fillc = 'lavender', strokec = C.grey64, { w: w0, h: h0 } = CardShape.onScreenWH, portrait = false, ss?: number, rr?: number) {
     const rad = portrait ? w0 : h0;
-    const s = ss ?? rad * .048;      // fill the safe area at MPC
+    const s = ss ?? rad * CardShape.ssm;      // fill the safe area at MPC = 32px 32/575 = .069
     const w = w0 - 2 * s, h = h0 - 2 * s;
     const r = rr ?? Math.max(h, w) * .05;
     super({ x: -w / 2, y: -h / 2, w, h, r, s }, fillc, strokec);
     this.radius = rad;
-    this.cache(-w/2-s, -h/2-s, w+s+s, h+s+s);
+    this.cache(-w/2-s, -h/2-s, w+s+s, h+s+s, 4);
   }
   /**
    * Fill a triangle inside a CardShape

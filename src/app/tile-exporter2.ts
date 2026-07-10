@@ -24,7 +24,7 @@ class ImageGridFile extends ImageGrid {
   addToZip(zip: JSZip, cont: Container, logId: string, dpi = this.dpi) {
     for (const [n, dObj] of cont.children.entries()) {
       const { x, y, width, height } = dObj.getBounds();
-      console.log(stime(this, `.downloadCanvas dObj:`), x, y, width, height, dObj.rotation)
+      console.log(stime(this, `.downloadCanvas dObj: ${dObj.name}`), x, y, width, height, dObj.rotation)
       dObj.cache(x, y, width, height);
       const imageURL = (dObj.cacheCanvas as HTMLCanvasElement).toDataURL("image/png");
       const imageURL_300DPI = this.injectDPI(imageURL, dpi);
@@ -146,7 +146,7 @@ export class TileExporter2 extends TileExporter {
     const cont = super.composeTile(claz, args, gridSpec, back, edge);
     const { x, y, width, height } = cont.getBounds(); // clean up ratio noise/fractions:
     const db = ((gridSpec.land ? Math.min(width, height) : Math.max(width, height)) - 822)/2; // normalize/trim for oversize [bleed, ss, etc] PrintCol
-    cont.setBounds(Math.round(x-db), Math.round(y-db), Math.round(width-2*db), Math.round(height-2*db));
+    cont.setBounds(Math.round(x+db), Math.round(y+db), Math.round(width-2*db), Math.round(height-2*db));
     return cont;
   }
 }

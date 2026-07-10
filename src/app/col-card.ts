@@ -711,6 +711,7 @@ export class CoverCard extends SummaryCard {
     super(`${Aname}_${n}`, size, text, fs);
     this.elt.lineHeight = this.elt.getMeasuredLineHeight() + 5;
     this.elt.y -= fs * .5;
+    this.rotation = n < 4 ? 0 : 180;
     this.paint(C.WHITE, true)
   }
 
@@ -757,6 +758,7 @@ export class DetailCard extends TextCard {
     const { x, y, width, height } = elt.getBounds()
     elt.x = (0  -  width) / 2;
     elt.y = (0 - height) / 2;
+    this.rotation = 180;
     this.paint(C.WHITE, true);
   }
 }

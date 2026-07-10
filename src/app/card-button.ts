@@ -21,7 +21,8 @@ export namespace CB {
 }
 /** clear, selected, done */
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel | typeof CB.outbid;
-type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, pid?: number, radius?: number, strokec?: string }
+type CardButtonOpts = UtilButtonOptions & TextInRectOptions
+      & { player: Player, pid?: number, radius?: number, strokec?: string, ssm?: number }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
 
   static gridSpec = Statics.cardSingle_1_75_in;  // set in GameSetup?
@@ -30,10 +31,10 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   static radius = .67 // * CardShape.onScreenRadius
   radius!: number;
   constructor(label: string, opts: CardButtonOpts) {
-    const { bgColor, player, radius, strokec } = opts, rad = radius ?? CardButton.radius * CardShape.onScreenRadius;
-    opts.fontSize = rad * 30 / TP.hexRad;
+    const { bgColor, player, radius, strokec, ssm } = opts, rad = radius ?? CardButton.radius * CardShape.onScreenRadius;
+    opts.fontSize = rad * 28 / TP.hexRad;
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.altRectShape(bgColor, rad, strokec); // rectShape = CardShape;
+    this.altRectShape(bgColor, rad, strokec, ssm); // rectShape = CardShape;
     this.player = player;
     this.mouseEnabled = true;
     this.on(S.click, this.onClick as any, this, false, player);
@@ -58,7 +59,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   addSideNum(txt = this.label.text, ds = .15) {
     const rad = this.radius
     const ll = this._sideNum = new CenterText(txt, rad * ds, this.label.color)
-    ll.x = (-.39 +.03 * ds/.15) * rad; // -.36 * rad
+    ll.x = (-.366 +.03 * ds/.15) * rad; // -.36 * rad
     ll.y = (-.60 +.05 * ds/.15) * rad; // .33 * 5/3 * rad
     this.addChild(ll)
   }
@@ -173,11 +174,13 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     return { x, y, w, h };
   }
 
-  /** replace UtilButton's border RectShape with CardShape */
-  altRectShape(color = C.WHITE, rad = CardButton.radius, strokec = C.grey224) {
+  /** replace UtilButton's border RectShape with CardShape
+   * @param ssm ss multiplier (.03) for thin line on screen; .069 for MPC (36px)
+  */
+  altRectShape(color = C.WHITE, rad = CardButton.radius, strokec = C.grey224, ssm = .03) {
     this.removeChild(this.rectShape);
     const wh = CardButton.getWH(rad, true);
-    this.rectShape = new CardShape(color, strokec, wh, true, rad * .03); // border line
+    this.rectShape = new CardShape(color, strokec, wh, true, rad * ssm); // border line
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
@@ -203,7 +206,7 @@ export class ColSelButton extends CardButton {
     this.Aname = `Hand${this.player?.index ?? opts.pid ?? '?'}_Sel${colId}`;
     this.colId = colId;
     const { y, height } = this.getBounds()
-    this.label.y = (y + height / 5)
+    this.label.y = (y + height * .21)
     this.border = 0;
     this.addSideNum('', .3);
     this.paint();
@@ -229,9 +232,9 @@ export class ColBidButton extends CardButton {
     super(`${colBid}`, opts); // rectShape = RectShape(borders); label = disp = Text
     this.Aname = `Hand${this.player?.index ?? opts.pid ?? '?'}_Bid${colBid}`;
     const { y, height, width } = this.getBounds()
-    const w = width * .86;
-    this.addFactionColors(colBid, w, y + height * .34)
-    this.label.y = (y + height * .18)
+    const w = width * .8;
+    this.addFactionColors(colBid, w, y + height * .36)
+    this.label.y = (y + height * .21)
     this.border = 0;
     this.addSideNum('', .3);
     this.addColorIcons(w)
@@ -255,7 +258,7 @@ export class ColBidButton extends CardButton {
   addSideIcon() {
     const fIcon = new Shape(this.facShape.graphics);
     fIcon.scaleX = fIcon.scaleY = .16
-    fIcon.x = -.36 * this.radius;
+    fIcon.x = -.336 * this.radius;
     fIcon.y = -.28 * 5/3 * this.radius;
     this.addChild(fIcon)
   }
@@ -318,7 +321,8 @@ export class PrintBidValue extends ColBidButton {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     const bid = PrintBidValue.nextSeqN();
     const player = allPlayers[pid], bgColor = Player.playerColor(pid);
-    const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
+    const ssm = (36)/radius;
+    const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius, ssm }
     super(bid, opts)
 
     this.addSideNum();
