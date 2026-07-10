@@ -21,7 +21,7 @@ export namespace CB {
 }
 /** clear, selected, done */
 export type CardButtonState = typeof CB.clear | typeof CB.selected | typeof CB.done | typeof CB.cancel | typeof CB.outbid;
-type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, pid?: number, radius?: number }
+type CardButtonOpts = UtilButtonOptions & TextInRectOptions & { player: Player, pid?: number, radius?: number, strokec?: string }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
 
   static gridSpec = Statics.cardSingle_1_75_in;  // set in GameSetup?
@@ -30,10 +30,10 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   static radius = .67 // * CardShape.onScreenRadius
   radius!: number;
   constructor(label: string, opts: CardButtonOpts) {
-    const { bgColor, player, radius } = opts, rad = radius ?? CardButton.radius * CardShape.onScreenRadius;
+    const { bgColor, player, radius, strokec } = opts, rad = radius ?? CardButton.radius * CardShape.onScreenRadius;
     opts.fontSize = rad * 30 / TP.hexRad;
     super(label, opts); // rectShape = RectShape(borders); label = disp = Text
-    this.altRectShape(bgColor, rad); // rectShape = CardShape;
+    this.altRectShape(bgColor, rad, strokec); // rectShape = CardShape;
     this.player = player;
     this.mouseEnabled = true;
     this.on(S.click, this.onClick as any, this, false, player);
@@ -174,10 +174,10 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
   }
 
   /** replace UtilButton's border RectShape with CardShape */
-  altRectShape(color = C.WHITE, rad = CardButton.radius) {
+  altRectShape(color = C.WHITE, rad = CardButton.radius, strokec = C.grey224) {
     this.removeChild(this.rectShape);
     const wh = CardButton.getWH(rad, true);
-    this.rectShape = new CardShape(color, C.grey224, wh, true, rad * .03); // border line
+    this.rectShape = new CardShape(color, strokec, wh, true, rad * .03); // border line
     this.addChildAt(this.rectShape, 0)
     this.alsoPickTextColor(); // label.color was already set, but in case fillc changes...
     this.setBoundsNull()
@@ -254,7 +254,7 @@ export class ColBidButton extends CardButton {
 
   addSideIcon() {
     const fIcon = new Shape(this.facShape.graphics);
-    fIcon.scaleX = fIcon.scaleY = .20
+    fIcon.scaleX = fIcon.scaleY = .16
     fIcon.x = -.36 * this.radius;
     fIcon.y = -.28 * 5/3 * this.radius;
     this.addChild(fIcon)
@@ -326,5 +326,26 @@ export class PrintBidValue extends ColBidButton {
 
     const { x, y, width, height } = this.getBounds()
     this.cache(x, y, width, height)
+  }
+}
+
+/** Make a ColSelButton with '' ColName */
+export class ColButtonBack extends ColSelButton {
+  static seqN = 1;
+  static seqLim = 4;
+  static nextSeqN(seqLim = ColButtonBack.seqLim) {
+    if (ColButtonBack.seqN > seqLim) ColButtonBack.seqN = 1;
+    return ColButtonBack.seqN++
+  }
+  static countClaz(n: number, ...args: any[]): CountClaz[] {
+    ColButtonBack.seqLim = n;
+    ColButtonBack.seqN = 1;
+    return [[n, ColButtonBack, ...args]];
+  }
+
+  constructor(opts: CardButtonOpts) {
+    const n = ColButtonBack.nextSeqN();
+    super(0, opts);
+    this.Aname = this.Aname.replace('_Sel', `_Back${String(n).padStart(2, '0')}`)
   }
 }

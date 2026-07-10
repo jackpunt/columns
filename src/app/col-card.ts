@@ -370,6 +370,12 @@ export class DualCard extends ColCard {
    * @param fs [undefined -> .5 in setLabel]
    */
 class XtensaCard extends ColCard {
+  /**
+   *
+   * @param Aname
+   * @param colNum (0) -> fac=0 -> bgColor=black; 1-n -> fac=5 -> bgColor=white
+   * @param fs
+   */
   constructor(Aname: string, colNum = 0, fs?: number) {
     // initial maxCells & factions.length (even number! > 2)
     const nCells = Math.max(4, Math.ceil(TP.numPlayers/2) * 2); // must be > 2, to distinguish from DualCard
@@ -427,13 +433,13 @@ class XtensaCard extends ColCard {
 export class BlackCard extends XtensaCard {
   // super(Aname, col = 0, fac = 0, fs)
   static countClaz(n = 0, size = 525): CountClaz[] {   //             name, size, colNum, fs
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Black_${colNum}`, size, 0, .5])
+    return arrayN(n, i => i+1).map(colNum => [1, PrintWhite, `Black_${colNum}`, size, 0, .5])
   }
 }
 
 export class WhiteCard extends XtensaCard {
-  static countClaz(n = 0, size = 525): CountClaz[] {
-    return arrayN(n, i => i+1).map(colNum => [1, PrintBlack, `Col0N_${colNum}`, size, colNum, .5]); // row: N
+  static countClaz(n = 0, size = 525, rot = 0): CountClaz[] {
+    return arrayN(n, i => i+1).map(colNum => [1, PrintWhite, `Col0N_${colNum}`, size, colNum, .5, rot]); // row: N
   }
 
   constructor(aname = 'White?', col?: number, fs?: number) {
@@ -530,10 +536,19 @@ export class PrintDual extends DualCard {
   }
 }
 
-export class PrintBlack extends XtensaCard {
-  constructor(Aname: string, size = 525, colNum = 0, fs?: number) {
+export class PrintWhite extends XtensaCard {
+  /**
+   * Print White with colId, unless colNum == 0: print black w/no colId.
+   * @param Aname
+   * @param size
+   * @param colNum 1..n => colId on White; 0 solid black
+   * @param fs [.5] multiply by this.radius (size)
+   * @rot [0] 180 to rotate back cards
+   */
+  constructor(Aname: string, size = 525, colNum = 0, fs?: number, rot = 0) {
     ColCard.nextRadius = size;
     super(Aname, colNum, fs)
+    this.rotation = rot;
   }
 
   override makeShape(): Paintable {

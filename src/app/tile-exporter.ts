@@ -1,6 +1,6 @@
 import { arrayN } from "@thegraid/common-lib";
-import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz } from "@thegraid/easeljs-lib";
-import { PrintBidValue, PrintColSelect } from "./card-button";
+import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
+import { ColButtonBack, ColSelButton, PrintBidValue, PrintColSelect } from "./card-button";
 import { BlackCard, ColCard, CoverCard, CursusBack, DetailCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
 import { TrackLabel, TrackSegment } from "./col-table";
 import { Player } from "./player";
@@ -11,6 +11,12 @@ export class TileExporter extends TileExporterLib {
   constructor(pageMaker = ImageGrid) {
     super(pageMaker);
     this.imageGrid.setScale('.05');  // start small
+  }
+
+  override clazToTemplate(countClaz: CountClaz[], gridSpec?: GridSpec, pageSpecs?: PageSpec[], open?: boolean, baseName = ''): PageSpec[] {
+    const rv = super.clazToTemplate(countClaz, gridSpec, pageSpecs, open)
+    rv.forEach(ps => ps.basename = ps.basename ?? baseName);
+    return rv;
   }
 
   override makeImagePages() {
@@ -42,34 +48,39 @@ export class TileExporter extends TileExporterLib {
     // Player bag: 4 (bid) 7 (sel) 11 * 9 = 99 cards!
 
     const cardSingle_1_75_base = [
+      ...PrintCol.countClaz(48, p1_75),  // 48 00-47
       ...PrintDual.countClaz(16, p1_75), // 16 60-75
 
-      ...BlackCard.countClaz(6, p1_75),  //  6 Black cards (blank)
       ...WhiteCard.countClaz(6, p1_75),  //  6 Col0N cards (col nums)
-      ...PrintSpecial.countClaz(4),      //  4 Dead cards
+      ...PrintSpecial.countClaz(10),     //  4 Dead cards (backs are black)
 
-      ...PrintCol.countClaz(48, p1_75),  // 48 00-47
     ] as CountClaz;                      // 80
 
     const cardSingle_1_75_base_back = [
       ...CursusBack.countClaz(48, '00Back', p1_75, 'Cursus\nHonorum'),
       ...CursusBack.countClaz(16, '60Back', p1_75, 'Cursus\nHonorum'),
       // double-sided
-      ...BlackCard.countClaz(6, p1_75),  //  6 Black cards (blank)
-      ...WhiteCard.countClaz(6, p1_75),  //  6 Col0N cards (col nums)
-      ...PrintSpecial.countClaz(4),      //  4 DeadCards
+      ...WhiteCard.countClaz(6, p1_75, 180),  //  6 Col0N cards (col nums) [rotate 180!]
+      ...BlackCard.countClaz(10, p1_75),  // 10 Black cards (blank) back of SpecialDead
     ] as CountClaz[];
 
-    const cardSingle_1_75_hand = arrayN(nplyr).flatMap(f => [
+    const cardSingle_1_75_hand = arrayN(nplyr).flatMap(pid => [
       // 9 groups of 12 cards: bid, col, dead office
-      ...PrintBidValue.countClaz(4, f, p1_75),
-      ...PrintColSelect.countClaz(ncol, f, p1_75),
+      ...PrintBidValue.countClaz(4, pid, p1_75),
+      ...PrintColSelect.countClaz(ncol, pid, p1_75),
     ]) as CountClaz[];                  // 80
 
+    // ColButton with altRectShape(strokec = bgColor)
+    const cbb_opts = (pid: number)  => (
+      { player: { index: pid },
+        bgColor: Player.playerColor(pid),
+        strokec: Player.playerColor(pid),
+        radius: ColSelButton.getWH(undefined, true).w,
+        visible: true,
+      }
+    );
     const cardSingle_1_75_hand_back = arrayN(nplyr).flatMap(pid => [
-      // 8 groups of 10 cards: 4-bid, 6-col
-      ...[[4, CursusBack, `Hand${pid}_BidBack`, 4, p1_75, '', Player.playerColor(pid)]], // solid color
-      ...[[ncol, CursusBack, `Hand${pid}_ColBack`, ncol, p1_75, '', Player.playerColor(pid)]], // solid color
+      ...ColButtonBack.countClaz(4 + ncol, cbb_opts(pid)), // nplyr (8) groups of 10 cards: 4-bid, 6-col
     ]) as CountClaz[];                  // 80
 
     const gs = TrackLabel.gridSpec; gs.dpi = 300
@@ -86,11 +97,11 @@ export class TileExporter extends TileExporterLib {
     // ColCard.gridSpec set the aspect ratio (ColCard.getWH) for all the ColCard derivatives:
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, TrackLabel.gridSpec, pageSpecs)
-    // this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = Statics.cardSingle_3_5_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_hand_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
-    // this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_hand, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
-    this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs);
+    // this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = Statics.cardSingle_3_5_px, pageSpecs, false, 'Track');
+    this.clazToTemplate(cardSingle_1_75_hand_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs, false, 'Backs');
+    this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs, false, 'Backs');
+    // this.clazToTemplate(cardSingle_1_75_hand, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs, false, 'Front');
+    // this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = Statics.cardSingle_1_75_px, pageSpecs, false, 'Front');
     return pageSpecs;
   }
 
