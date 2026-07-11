@@ -1,6 +1,6 @@
 import { C, permute, removeEltFromArray, S, stime, type XY, type XYWH } from "@thegraid/common-lib";
 import { afterUpdate, CircleShape, NamedContainer, PaintableShape, ParamGUI, RectShape, TextInRect, type GridSpec, type ParamItem, type ScaleableContainer } from "@thegraid/easeljs-lib";
-import { Container, DisplayObject, Shape, Stage } from "@thegraid/easeljs-module";
+import { Container, DisplayObject, Graphics, Shape, Stage } from "@thegraid/easeljs-module";
 import { Table, Tile, TileSource, type DragContext, type IHex2 } from "@thegraid/hexlib";
 import { CardShape } from "./card-shape";
 import { ColCard, Decorator } from "./col-card";
@@ -477,16 +477,17 @@ export class TrackSegment extends ColCard {
   ];
   static seqN = 1;
   static seqLim = 12;
-  static countClaz(n = 12, w = 1050, h = 750) {
+  static countClaz(n = 12, gs: GridSpec) {
     TrackSegment.seqN = 1;
     TrackSegment.seqLim = n;
     TrackSegment.decorator = undefined;
-    return [[n, TrackSegment, '', w / 9, h / 2]];
+    return [[n, TrackSegment, '', gs.cardw! / 9, gs.cardh! / 2]];
   }
   static nextSeqN() {
     if (TrackSegment.seqN > TrackSegment.seqLim) TrackSegment.seqN = 1;
     return TrackSegment.seqN++
   }
+  static override gridSpec: GridSpec; // override ColCard.gridSpec
   /**
    * End of Game: nElts * 18; 5 => 90, 6 => 108
    * @example
@@ -496,6 +497,7 @@ export class TrackSegment extends ColCard {
    *
    * @param w [36] width of cell, marker radius * 1.1      1050/9 = 116.7 x 750/2 = 375
    * @param h [72] height of cell, marker radius * nPlayers
+   * @param bleed [0] set to ~36px by makeBleed to extend h and fac==0
    */
   constructor(Aname: string, w = 36, h = 72, bleed = 0) {
       if (!Aname) {
@@ -510,19 +512,23 @@ export class TrackSegment extends ColCard {
     this.addChild(this.slots); this.slots.x = w * -4.5;
     this.wh = { w, h }
     const B = ['B'] as RGBV[];
+    const isPrint = w > 90;
     const [, rgbv0, rgbv1] = Aname.match(/([rgbv]+)\+([rgbv]+)/)!;
     const ary0 = rgbv0.split('') as RGBV[], ary1 = rgbv1.split('') as RGBV[];
     const factions01 = B.concat(ary0, ary1, B).map(s => rgbvIndex[s]);
     const factions10 = B.concat(ary1, ary0, B).reverse().map(s => rgbvIndex[s]);
+    const s = isPrint ? 4 : 1;
     factions01.forEach((f0, n) => {
       const f1 = factions10[n];
-      this.addSlot(n, f0, f1, w, h + bleed, bleed); // half-slot for B on each end.
+      this.addSlot(n, f0, f1, w, h + bleed, bleed, s); // half-slot for B on each end.
     })
+    this.addLine(h + bleed, isPrint ? w * .08 : w * .05);
     this.facts = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
     this.addIcons();
-    this.setBounds(-4.5 * w -bleed, -h -bleed, 9*w+2*bleed, 2*(h+bleed));
+    const wb = 9 * w + 2 * bleed, hb = 2 * (h + bleed);
+    this.setBounds(-wb/2-s, -hb/2, wb+2*s, hb);
     const { x, y, width, height } = this.getBounds() // x = 0, y = -dy, width = 9 * dx, height = 2 * dy;
-    this.cache(x, y, width, height, 4);
+    this.cache(x, y, width, height, 4);         // crop: removing top/bot edge of slot rectangles (stroke line)
   }
   /** slot size */
   wh!: { w: number, h: number }
@@ -532,13 +538,21 @@ export class TrackSegment extends ColCard {
 
   addSlot(n: number, f1: Faction, f2: Faction, w: number, h: number, bleed = 0, s = 1) {
     const factionColor = (faction: Faction) => Statics.factionColors[faction];
-    const b0 = (bleed == 0), c1 = factionColor(f1), c2 = factionColor(f2);
-    const we = (f1 == 0) ? (b0 ? w / 2 : w / 2 + bleed) : w;
-    const x = w * n + ((n == 0) ? (b0 ? 0 : -bleed) : - w / 2) + 1; // shift right by 1 px to align with counters
+    const c1 = factionColor(f1), c2 = factionColor(f2);
+    const we = (f1 == 0) ? (w + bleed) : w;
+    const x = w * n + ((n == 0) ? (-bleed) : - w / 2) + 1; // shift right by 1 px to align with counters
     const rect1 = new RectShape({ s, x, w: we, h, y: -h }, c1);
     const rect2 = new RectShape({ s, x, w: we, h, y: .0 }, c2);
     this.slots.addChild(rect1, rect2)
     this.setBoundsNull(); // so createjs will compute containers bounds from children.
+  }
+
+  /** verical line to indicate center of card */
+  addLine(h: number, t = 2) {
+    const x0 = 0; - t/2;
+    const g = new Graphics().s(C.BLACK).ss(t).mt(x0, -h).lt(x0, h);
+    const line = new Shape(g);
+    this.addChild(line);
   }
 
   override addIcons(): void {
@@ -562,6 +576,7 @@ export class TrackSegment extends ColCard {
     }
 
   }
+  // do not 'scale' the slot width:
   override makeBleed(bleed: number) {
     const { w, h } = this.wh;
     const rv = new TrackSegment(this.Aname, w, h, bleed);

@@ -15,9 +15,9 @@ import { TP } from "./table-params";
 export class ColCard extends Tile {
   static decorator?: Decorator;
 
-  static gridSpec: GridSpec = Statics.cardSingle_1_75_in;  // or set by TileExporter
+  static gridSpec: GridSpec = Statics.cardSingle_1_75_in;  // to be set by TileExporter
   static getWH(rad: number, vert = false) {
-    return CardShape.getWH(rad, ColCard.gridSpec, vert)
+    return CardShape.getWH(rad, this.gridSpec, vert)
   }
 
   /** out-of-scope parameter to this.makeShape(); vs trying to tweak TP.hexRad for: get radius() */
@@ -204,7 +204,8 @@ export class ColCard extends Tile {
   // invoked by constructor.super()
   override makeShape(): Paintable {
     const wh = ColCard.getWH(this.radius, false);
-    return new CardShape('lavender', C.black, wh);
+    // ss fills the outer edge of card with 'safe'; undefined=.069 --> 36px;  .05--> 26px
+    return new CardShape('lavender', C.black, wh, undefined, wh.h * .05); // 'bleed' ()
   }
 
   override reCache(scale?: number): void {
@@ -305,6 +306,7 @@ export class DualCard extends ColCard {
 
   static cardMarks: DisplayObject[] = [];
 
+  /** special LegalMarks for DualCard */
   setMarks() {
     const c0 = `rgba(180, 180, 180, .7)`;
     if (!DualCard.cardMarks[1]) {
@@ -632,7 +634,7 @@ export class SummaryCard extends TextCard {
     return [[n, SummaryCard, ...args]];
   }
 
-  static override text = `Round = 3 x Turns:
+  static summaryText = `Round = 3 x Turns:
   → Select Column & Bid
   ➢ Resolve & Advance
   ➢ Bump & Cascade
@@ -649,7 +651,7 @@ End of Round:
    * @param text
    * @param fs
    */
-  constructor(Aname = 'Summary', size = 750, text = SummaryCard.text, fs = size / 9, titleText?: Text) {
+  constructor(Aname = 'Summary', size = 750, text = SummaryCard.summaryText, fs = size / 9, titleText?: Text) {
     ColCard.nextRadius = size;
     const aname = !!Aname.match(/_[0-9]+$/) ? Aname : `${Aname}_${SummaryCard.nextSeqN()}`
     super(aname, size);
@@ -665,13 +667,44 @@ End of Round:
     const { x, y, width, height } = elt.getBounds()
     elt.x = 0 + (0  -  width) / 2;
     elt.y = top + (h - height) / 2;
+    this.rotation = 0;
     this.paint(C.WHITE, true)
   }
 
-  makeTitle(fs: number, top: number) {
-    const title = new CenterText('Cursus Honorum', fs + 1);
+  makeTitle(fs: number, top: number, text = 'Cursus Honorum') {
+    const title = new CenterText(text, fs + 1);
     title.y = top + fs/2;
     return title;
+  }
+}
+export class EoGCard extends SummaryCard {
+  static override seqLim = 10;
+  static override seqN = 1;
+  static override nextSeqN(seqLim = EoGCard.seqLim) {
+    if (EoGCard.seqN > seqLim) EoGCard.seqN = 1;
+    return EoGCard.seqN++
+  }
+  static override countClaz(n: number, ...args: any[]): CountClaz[] {
+    EoGCard.seqLim = n;
+    EoGCard.seqN = 1;
+    return [[n, EoGCard, ...args]];
+  }
+
+  static endGameText = `Any of:
+
+➤ Both markers at end of score track
+➤ Each Black card occupied
+➤ One Black occupied by each player
+
+Highest total score wins
+`;
+
+  constructor(Aname = 'EoG', size = 750, text = EoGCard.endGameText, fs = size / 11, titleText?: Text) {
+    super(Aname, size, text, fs, titleText)
+    this.rotation = 180;
+  }
+  override makeTitle(fs: number, top: number, text?: string): CenterText {
+    return super.makeTitle(fs, top, 'End of Game:');
   }
 }
 
@@ -689,7 +722,7 @@ export class CoverCard extends SummaryCard {
   }
 
   //➤ Balance self-promotion vs opponent interference
-  static override text = `➤ No random effects
+  static coverText = `➤ No random effects
 ➤ No table order effects
 ➤ Simultaneous analysis
 ➤ Scales to any number (2 – 7+)
@@ -706,19 +739,17 @@ export class CoverCard extends SummaryCard {
    * @param text
    * @param fs
    */
-  constructor(Aname = 'Cover', size = 750, text = CoverCard.text, fs = size/14) {
+  constructor(Aname = 'Cover', size = 750, text = CoverCard.coverText, fs = size/14) {
     const n = CoverCard.nextSeqN()
     super(`${Aname}_${n}`, size, text, fs);
     this.elt.lineHeight = this.elt.getMeasuredLineHeight() + 5;
     this.elt.y -= fs * .5;
-    this.rotation = n < 4 ? 0 : 180;
+    this.rotation = 0;      // override SummaryCard constructor!
     this.paint(C.WHITE, true)
   }
 
   override makeTitle(fs: number, top: number) {
-    const title = new CenterText('Cursus Honorum (Path to Glory)', fs + 8);
-    title.y = top + fs/2;
-    return title;
+    return super.makeTitle(fs + 7, top, 'Cursus Honorum (Path to Glory)')
   }
 }
 
@@ -801,7 +832,7 @@ export class Decorator {
   /** add 2 children: icons for each faction color */
   addCardIcons(card: ColCard) {
     const { x, y, width, height } = card.getBounds();
-    const dw = .12 * width;  // <-- offset from corners
+    const dw = .13 * width;  // <-- offset from corners
     const facs = [0, 1].map(fac => card.factions[fac] ?? card.factions[0]);
     const locs = [{ x: x + dw, y: y + height - dw }, { x: x + width - dw, y: y + dw }, ];
     facs.forEach((fac, ndx) => {

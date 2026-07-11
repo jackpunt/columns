@@ -145,8 +145,13 @@ export class TileExporter2 extends TileExporter {
   override composeTile(claz: Claz, args: any[], gridSpec: GridSpec, back?: boolean, edge?: "L" | "R" | "C"): NamedContainer {
     const cont = super.composeTile(claz, args, gridSpec, back, edge);
     const { x, y, width, height } = cont.getBounds(); // clean up ratio noise/fractions:
-    const db = ((gridSpec.land ? Math.min(width, height) : Math.max(width, height)) - 822)/2; // normalize/trim for oversize [bleed, ss, etc] PrintCol
-    cont.setBounds(Math.round(x+db), Math.round(y+db), Math.round(width-2*db), Math.round(height-2*db));
+    const { land, cardw, cardh, bleed } = gridSpec as Required<GridSpec>;
+
+    // normalize/crop for oversize [onScreen] cache [bleed, ss, etc] PrintCol
+    const cw = cardw, ch = cardh;
+    const dw = Math.round(1000*(width - (cw + 2 * bleed)))/1000; // assume there are no 90-degree rotations
+    const dh = Math.round(1000*(height - (ch + 2 * bleed)))/1000; // overkill: (dw == dh)
+    cont.setBounds(Math.round(x+dw/2), Math.round(y+dh/2), Math.round(width-dw), Math.round(height-dh));
     return cont;
   }
 }

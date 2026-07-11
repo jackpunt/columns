@@ -5,11 +5,14 @@ import { H, TP } from "@thegraid/hexlib";
 
 
 export class CardShape extends RectShape {
+  static gridSpec: GridSpec = { cardw: 2.5, cardh: 1.75 } as GridSpec;  // to be set by TileExporter
+
   /** => TP.hexRad * H.sqrt3; for current value of TP.hexRad */
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };
   static get onScreenWH() {
     const w = CardShape.onScreenRadius;
-    const h = w * 2.5/1.75; // for mini cards! ASSERT: (h > w)
+    const r = (this.gridSpec.cardw ?? 2.5)/(this.gridSpec.cardh ?? 1.75);
+    const h = w * r; // for mini cards! ASSERT: (h > w)
     return { w, h }
   }
 
@@ -26,19 +29,19 @@ export class CardShape extends RectShape {
    * Modified RectShape: place border stroke inside the WH perimeter.
    * @param fillc base color of card
    * @param strokec [C.grey64] supply '' for no stroke
-   * @param rad [CardShape.onScreenRadius] size of shorter side [longer is (rad * 1.4)]
+   * @param wh [CardShape.onScreenWH] based on onScreenRadius
    * @param portrait [false] height is shorter; true -> width is shorter
    * @param ss [rad * .069] StrokeSize for outer border.
    * @param rr [max(w,h) * .05] rounded corner radius
    */
   constructor(fillc = 'lavender', strokec = C.grey64, { w: w0, h: h0 } = CardShape.onScreenWH, portrait = false, ss?: number, rr?: number) {
     const rad = portrait ? w0 : h0;
-    const s = ss ?? rad * CardShape.ssm;      // fill the safe area at MPC = 32px 32/575 = .069
+    const s = ss ?? rad * CardShape.ssm;      // fill the safe area at MPC = 36px 36/575 = .069
     const w = w0 - 2 * s, h = h0 - 2 * s;
     const r = rr ?? Math.max(h, w) * .05;
     super({ x: -w / 2, y: -h / 2, w, h, r, s }, fillc, strokec);
     this.radius = rad;
-    this.cache(-w/2-s, -h/2-s, w+s+s, h+s+s, 4);
+    // this.cache(-w/2-s, -h/2-s, w+s+s, h+s+s, 4);
   }
   /**
    * Fill a triangle inside a CardShape
@@ -48,7 +51,7 @@ export class CardShape extends RectShape {
    * @param g Graphics
    */
   triangle(ndx: 0|1, color: string, k = 1, strokec = '', g = new Graphics()) {
-    const { w: w0, h: h0 } = this._rect, r = this._cRad, s = this._sSiz;
+    const { w: w0, h: h0 } = this._rect, r = this._cRad, s = h0 * .04;
     const w = (w0 + s) / 2, h = (h0 + s) / 2;
     const dx = w * .2;
     const cx0 = [k-w, w-k, ][ndx], cx = [(cx0+dx), (cx0-dx), ][ndx], cy = [k-h, h-k, ][ndx];
@@ -72,7 +75,7 @@ export class CardShape extends RectShape {
     this.form = f;
     this._rscgf = this._rscgf ?? this.cgf;    // set it once, the first time.
     const [cl, cr] = colors, strokec = C.BLACK;
-    const { w: w0, h: h0 } = this._rect, r = this._cRad, s = this._sSiz;
+    const { w: w0, h: h0 } = this._rect, r = this._cRad, s = w0 * .04; // ss for triangles
     const w = (w0 + s) / 2, h = (h0 + s), cc = r*.5; // cc to prevent diagonal exiting the roundrect
 
     // produce left/right rectangles
