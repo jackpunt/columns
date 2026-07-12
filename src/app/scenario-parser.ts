@@ -172,6 +172,7 @@ export class ScenarioParser extends SPLib {
     return;
   }
 
+  static alert_on_card = false;
   placeCardOnHex(card: ColCard, hex: ColHex2) {
     if (card) {
       card.moveTo(hex);                // ASSERT: each Hex has a Card, each Card is on a Hex.
@@ -179,6 +180,7 @@ export class ScenarioParser extends SPLib {
       card.setMeepCont();              // meepCont above all the Cards
       hex.legalMark.doGraphicsDual(card);
     } else {
+      ScenarioParser.alert_on_card &&
       alert(`No card at (row ${hex.row}, col ${hex.col})`);  // except that time we wanted to remove the bottom 'C' card...
     }
   }

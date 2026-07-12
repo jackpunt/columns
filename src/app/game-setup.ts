@@ -96,16 +96,16 @@ class ColGameSetup extends GameSetupLib {
 
   /** compute nRows & nCols for nPlayers; set TP.nHexes = nr & TP.mHexes = nc */
   setRowsCols(np = TP.numPlayers) {
-    let nr = TP.nHexes, nc = TP.mHexes;
+    let nr = 5, nc = 5;   // default, computed below:
     let tc = 0;
     if (TP.usePyrTopo) {
       // [5],6,7,6,5,4,3,[4] np>=4
       // [5],6,7,6,5,4,[5]   np==3
       // [5],6,5,4,3,[4]     np==2
-      const nr4 = [4, 4, 5, 5, 5, 6, 6, 6, 6, 6]
-      const nr0 = [4, 4, 4, 5, 6, 6, 6, 6, 6, 6]
+      const nr4 = [4, 4, 5, 5, 5, 5, 5, 5, 5]; // <-- fourBase
+      const nr0 = [4, 4, 4, 5, 5, 5, 5, 5, 5]; // <-- otherwise
       nr = (TP.fourBase ? nr4 : nr0)[np] + 2; // include 2 black rows
-      nc = (np <= 4) ? 4 : 5;
+      nc = (np <= 4) ? 4 : np;
       tc = (np == 2) ? TP.fourBase ? 22 : 18 : (np == 3 ? 28 : 31); // 18 for np=2
     } else {
       // nr includes top & bottom [black/white] cells;
@@ -115,8 +115,11 @@ class ColGameSetup extends GameSetupLib {
       //    np =  0  1  2  3  4  5  6  7  8  9
       //    score      40 50 60 72 84 98 112 128  (nr+1)*(nc+1)*2
     }
-    TP.setParams({ nHexes: nr, mHexes: nc, }, false, TPLib);  // TODO: revert to setting directly in TPLib
-    TP.setParams({ cardsInPlay: tc }, false, TP)
+    TPLib.nHexes = nr;
+    TPLib.mHexes = nc;
+    // TP.setParams({ nHexes: nr, mHexes: nc, }, false, TPLib);  // TODO: revert to setting directly in TPLib
+    TP.cardsInPlay = tc;  // probably wrong, recomputed in OrthoHex.makeAllHexes
+    // TP.setParams({ cardsInPlay: tc }, false, TP)
     return [nr, nc] as [nr: number, nc: number];
   }
 

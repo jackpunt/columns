@@ -8,10 +8,10 @@ export class TP extends TPLib {
     const tp = TPLib;
     // do not 'override' --> set lib value
     tp.useEwTopo = true;
-    tp.maxPlayers = 9;       // playerPanel for 6,7,8 overlap
+    tp.maxPlayers = 8;       // playerPanel for 6,7,8 overlap
     tp.numPlayers = 2;
     tp.cacheTiles = 2.5;
-    tp.bgColor = 'rgba(200, 120, 40, 0.8)';
+    tp.bgColor = 'white'; // rgba(200, 120, 40, 0.8)';
     PaintableShape.defaultRadius = tp.hexRad;
   }
   static override setParams(qParams?: Params, force?: boolean, target?: Params) {
@@ -61,7 +61,7 @@ export class TP extends TPLib {
   /** setAutoPlay unless startManual includes player index */
   static startManual = [0];
   /** enable/disable auto bots */
-  static autoStart = true;
+  static autoStart = false;
   /** for non-auto Players */
   static autoScore = false;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */

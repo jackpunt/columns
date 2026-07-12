@@ -174,7 +174,7 @@ export class ColTable extends Table {
       PaintableShape.defaultRadius = item.value;
       gameSetup.restart({ hexRad: item.value })
     }
-    gui.makeParamSpec('numPlayers', [2, 3, 4, 5, 6, 7, 8, 9,], { fontColor: 'red', name: 'nPlayers' }); TP.numPlayers;
+    gui.makeParamSpec('numPlayers', [2, 3, 4, 5, 6, 7, 8], { fontColor: 'red', name: 'nPlayers' }); TP.numPlayers;
     gui.spec('numPlayers').onChange = (item: ParamItem) => {
       gui.setInheritedValue(item);
       gameSetup.restart({});
