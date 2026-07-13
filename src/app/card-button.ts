@@ -298,7 +298,8 @@ export class PrintColSelect extends ColSelButton {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     const col = PrintColSelect.nextSeqN();
     const player = allPlayers[pid], bgColor = Player.playerColor(pid);
-    const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius }
+    const ssm = (36)/radius;     // see also: CardShape.ssm
+    const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius, ssm }
     super(col, opts)
     this.addSideNum();
     const { x, y, width, height } = this.getBounds()
