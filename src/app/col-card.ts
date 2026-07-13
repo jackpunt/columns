@@ -224,7 +224,7 @@ export class ColCard extends Tile {
   override makeShape(): Paintable {
     const wh = ColCard.getWH(this.radius, false);
     // ss fills the outer edge of card with 'safe'; undefined=.069 --> 36px;  .05--> 26px
-    return new CardShape('lavender', C.black, wh, undefined, wh.h * .05); // 'bleed' ()
+    return new CardShape('lavender', C.black, wh, false, wh.h * .05); // 'bleed' ()
   }
 
   override reCache(scale?: number): void {

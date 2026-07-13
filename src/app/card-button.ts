@@ -321,7 +321,7 @@ export class PrintBidValue extends ColBidButton {
     const allPlayers = (Table.table as ColTable).gamePlay.allPlayers;
     const bid = PrintBidValue.nextSeqN();
     const player = allPlayers[pid], bgColor = Player.playerColor(pid);
-    const ssm = (36)/radius;
+    const ssm = (36)/radius;     // see also: CardShape.ssm
     const opts: CardButtonOpts = { visible: true, bgColor, player, pid, radius, ssm }
     super(bid, opts)
 

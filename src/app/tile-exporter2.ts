@@ -1,5 +1,6 @@
 import { stime } from "@thegraid/common-lib";
-import { ImageGrid, PageSpec, type Claz, type GridSpec, type NamedContainer, type NamedObject, } from "@thegraid/easeljs-lib";
+import { ImageGrid, PageSpec, type Claz, type GridSpec, type LayoutSpec, type NamedContainer, type NamedObject, } from "@thegraid/easeljs-lib";
+import type { DisplayObject } from "@thegraid/easeljs-module";
 import { Container } from "@thegraid/easeljs-module";
 import JSZip from 'jszip';
 import { TileExporter } from "./tile-exporter";
@@ -16,17 +17,87 @@ class ImageGridFile extends ImageGrid {
   override addObjects(pageSpec: PageSpec): Container {
     const cont = super.addObjects(pageSpec); // so they appear as pages on screen: fill nRow X nCol on a canvas
     this.pageCont.set(this.canvas.id, cont);
+    this.layoutSpec = pageSpec.layoutSpec;
     this.dpi = pageSpec.layoutSpec?.dpi ?? 300; // DUBIOUS!?
+    this.land = (pageSpec.layoutSpec as GridSpec).land ?? false;
     return cont;
   }
+  layoutSpec!: LayoutSpec;
   dpi = 300;
+  land = false;
+
+  /**
+   * create HTMLCanvasElement containing rendering dObj, maybe rotate 90-degrees
+   * @param dObj
+   * @param rot
+   * @returns canvas
+   */
+  renderToCanvas0(dObj: DisplayObject, rot = false): HTMLCanvasElement {
+    const bounds = dObj.getBounds();
+    if (!bounds) {
+        throw new Error("DisplayObject must have bounds defined (via getBounds or setBounds).");
+    }
+    const { x, y, width, height } = bounds;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
+
+    if (rot) {
+        // 90-degree rotation: Swap width and height
+        canvas.width = height;
+        canvas.height = width;
+
+        // Move to top-right corner, rotate 90 degrees, and align local bounds origin
+        ctx.translate(height, 0);
+        ctx.rotate(90 * Math.PI / 180);
+        ctx.translate(-x, -y);
+    } else {
+        // 0-degree rotation: Standard dimensions
+        canvas.width = width;
+        canvas.height = height;
+
+        // Align local bounds origin
+        ctx.translate(-x, -y);
+    }
+
+    // Force EaselJS to draw its vector/bitmap instructions directly to our custom context
+    dObj.draw(ctx, true);
+
+    return this.canvas = canvas;
+  }
+  renderToCanvas1(dObj: DisplayObject, rot = false): HTMLCanvasElement {
+    const { x, y, width: w0, height: h0 } = dObj.getBounds(); //this.layoutSpec as Required<GridSpec>;
+    // const width = this.land ? Math.max(w0, h0) : Math.min(w0, h0);
+    // const height = this.land? Math.min(w0, h0) : Math.max(w0, h0);
+    const width = rot ? h0 : w0;
+    const height = rot? w0 : h0;
+    const layoutSpec: LayoutSpec = { width, height, dpi: 1, scale: 0, bgColor: '' }; // do not set canvas-div scale
+    // set this.canvas and this.stage
+    this.setStageAndCanvas(layoutSpec, 'temp');
+    // dObj.x = -w0/2, dObj.y = -h0/2;
+    if (rot) {
+      // dObj.regX = -x; dObj.regY = -y;
+      dObj.x = -y; dObj.y = -x;
+      dObj.rotation = 90;
+    } else {
+      dObj.x = -x; dObj.y = -y;
+    }
+    this.stage.addChild(dObj);
+    this.stage.update();
+    return this.canvas;
+  }
 
   addToZip(zip: JSZip, cont: Container, logId: string, dpi = this.dpi) {
-    for (const [n, dObj] of cont.children.entries()) {
-      const { x, y, width, height } = dObj.getBounds();
-      console.log(stime(this, `.downloadCanvas dObj: ${dObj.name}`), x, y, width, height, dObj.rotation)
-      dObj.cache(x, y, width, height);
-      const imageURL = (dObj.cacheCanvas as HTMLCanvasElement).toDataURL("image/png");
+
+    // renderToCanvas1 will pull dObj from cont to render it!
+    for (const [n, dObj] of [...cont.children].entries()) {
+      dObj.cacheID && dObj.uncache();
+
+      const { width, height } = dObj.getBounds();
+      const rot = (this.land !== (width > height));
+      const canvas = this.renderToCanvas1(dObj, rot);
+      console.log(stime(this, `.downloadCanvas dObj: ${dObj.name}`), width, height, dObj.scaleX, dObj.rotation, rot, canvas.width, canvas.height)
+      const imageURL = this.canvas.toDataURL("image/png");
       const imageURL_300DPI = this.injectDPI(imageURL, dpi);
       const name = `${(dObj as NamedObject).Aname ?? dObj}`;
       // Extract the raw base64 string from the Data URL
@@ -146,9 +217,11 @@ export class TileExporter2 extends TileExporter {
     const cont = super.composeTile(claz, args, gridSpec, back, edge);
     const { x, y, width, height } = cont.getBounds(); // clean up ratio noise/fractions:
     const { land, cardw, cardh, bleed } = gridSpec as Required<GridSpec>;
+    const card = cont.children[1];
 
     // normalize/crop for oversize [onScreen] cache [bleed, ss, etc] PrintCol
-    const cw = cardw, ch = cardh;
+    const cw = (width > height) ? Math.max(cardw, cardh) : Math.min(cardw, cardh)
+    const ch = (width > height) ? Math.min(cardw, cardh) : Math.max(cardw, cardh)
     const dw = Math.round(1000*(width - (cw + 2 * bleed)))/1000; // assume there are no 90-degree rotations
     const dh = Math.round(1000*(height - (ch + 2 * bleed)))/1000; // overkill: (dw == dh)
     cont.setBounds(Math.round(x+dw/2), Math.round(y+dh/2), Math.round(width-dw), Math.round(height-dh));

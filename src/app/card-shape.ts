@@ -23,7 +23,7 @@ export class CardShape extends RectShape {
       ? (vert ? { w: ra, h: r } : { w: r, h: ra })
       : (vert ? { w: r, h: ra } : { w: ra, h: r })
   }
-  static ssm = .069; // ss multiplier for MPC @ 525 => 36 px
+  static ssm = .069; // ss multiplier for MPC @ 525 => 36 px (gridSpec. bleed/(land?cardh:cardw))
 
   /**
    * Modified RectShape: place border stroke inside the WH perimeter.

@@ -312,7 +312,9 @@ class ScoreTrack extends NamedContainer {
 
   /** [0] upper-row factions; [1] lower-row factions  */
   factions: [Faction[], Faction[]] = [[0], [0]]; // initial 0 ('B') cell
+  /** width of slot: placement of MarkerShape */
   dx: number;
+  /** height of slot: placement of MarkerShape, upper or lower track */
   dy: number;
   maxValue!: number;
   trackSegs!: string[]; // anames of each TrackSegment in use
@@ -322,7 +324,7 @@ class ScoreTrack extends NamedContainer {
    * @param table to find bgRect
    * @param parent probably scalecont
    * @param nElts 6 is generally enough
-   * @param radius [TP.hexRad/2]
+   * @param radius [TP.hexRad/2] diameter of Marker
    */
   constructor(public table: ColTable, parent: Container, nElts = 6, public radius = TP.hexRad * .5) {
     super('ScoreTrack');
@@ -522,7 +524,7 @@ export class TrackSegment extends ColCard {
       const f1 = factions10[n];
       this.addSlot(n, f0, f1, w, h + bleed, bleed, s); // half-slot for B on each end.
     })
-    this.addLine(h + bleed, isPrint ? w * .08 : w * .05);
+    this.addLine(h + bleed, isPrint ? w * .09 : w * .05);
     this.facts = [factions01.slice(1), factions10.slice(1)]; // remove initial 'B'
     this.addIcons();
     const wb = 9 * w + 2 * bleed, hb = 2 * (h + bleed);
