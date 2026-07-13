@@ -140,7 +140,7 @@ export class DualLegalMark extends LegalMark {
   pc = ['rgba(163, 163, 163, 0.7)', 'rgba(138, 138, 138, 0.7)']
   paint(i = 0, isBid = false) {
     const ib = isBid ? 0 : 1;
-    this.children[i].rotation = [0, 45][ib];
+    this.children[i].rotation = [0, 45][ib];  // DualLegalMark
     this.children[i].paint(this.pc[ib]);
   }
 }

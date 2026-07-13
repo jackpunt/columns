@@ -5,7 +5,7 @@ import { H, TP } from "@thegraid/hexlib";
 
 
 export class CardShape extends RectShape {
-  static gridSpec: GridSpec = { cardw: 2.5, cardh: 1.75 } as GridSpec;  // to be set by TileExporter
+  static gridSpec: GridSpec = { cardw: 2.5, cardh: 1.75 } as GridSpec;  // onScreen spec
 
   /** => TP.hexRad * H.sqrt3; for current value of TP.hexRad */
   static get onScreenRadius() { return TP.hexRad * H.sqrt3 };

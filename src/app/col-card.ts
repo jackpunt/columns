@@ -453,8 +453,8 @@ class XtensaCard extends ColCard {
 
 export class BlackCard extends XtensaCard {
   // super(Aname, col = 0, fac = 0, fs)
-  static countClaz(n = 0, size = 525): CountClaz[] {   //             name, size, colNum, fs
-    return arrayN(n, i => i+1).map(colNum => [1, PrintWhite, `Black_${colNum}`, size, 0, .5])
+  static countClaz(n = 0, size = 525, aname='Black'): CountClaz[] {   //             name, size, colNum, fs
+    return arrayN(n, i => i+1).map(colNum => [1, PrintWhite, `${aname}_${colNum}`, size, 0, .5])
   }
 }
 
@@ -569,7 +569,7 @@ export class PrintWhite extends XtensaCard {
   constructor(Aname: string, size = 525, colNum = 0, fs?: number, rot = 0) {
     ColCard.nextRadius = size;
     super(Aname, colNum, fs)
-    this.rotation = rot;
+    this.rotation = rot; // PrintWhite
   }
 
   override makeShape(): Paintable {
@@ -702,7 +702,7 @@ End of Round:
     const { x, y, width, height } = elt.getBounds()
     elt.x = 0 + (0  -  width) / 2;
     elt.y = top + (h - height) / 2;
-    this.rotation = 0;
+    this.rotation = 0;   // SummaryCard
     this.paint(C.WHITE, true)
   }
 
@@ -728,8 +728,9 @@ Highest total score wins
 `;
 
   constructor(Aname = 'EoG', size = 750, text = EoGCard.endGameText, fs = size / 11, titleText?: Text) {
-    super(Aname, size, text, fs, titleText)
-    this.rotation = 180;
+    const n = EoGCard.clazCounter.nextSeqN()
+    super(`${Aname}_${n}`, size, text, fs, titleText)
+    this.rotation = 180;  // EoG
   }
   override makeTitle(fs: number, top: number, text?: string): CenterText {
     return super.makeTitle(fs, top, 'End of Game:');
@@ -757,16 +758,16 @@ Score for color: If meeple lands on color of bid,
 Score for rank: Each player advances twice,
   by rank of 2 meeples; top to bottom; A, B, ...`;
 
-constructor(Aname: string, size: 737, n0 = 0, rot = 0) {
+constructor(Aname: string, size: 737, n0?: number, rot = 0) {
     const n = (n0 !== undefined) ? n0 : RulesCard.clazCounter.nextSeqN();
     super(`${Aname}_${n}`, size, 'Rules Details')
     const fs = size/16, elt = new CenterText(RulesCard.text, fs)
     elt.textAlign = 'left';
     this.addToCenter(elt, 0, .63 * fs);
-    this.rotation = rot;
+    this.rotation = rot;   // RulesCard
     const {x, y, w, h} = this.baseShape._rect, b = 36;
     this.baseShape.setRectRad({x: x+b, y: y+b, w: w-b-b, h: h-b-b, s: b})
-    this.paint(C.grey, true)
+    // this.paint(C.grey, true)
   }
   override placeTitle(text: string, fs = this.radius * .08, y0 = .58 * fs - this.radius/2) {
     super.placeTitle(text, fs, y0)
@@ -838,7 +839,7 @@ export class DetailCard extends TextCard {
     elt.textAlign = 'left';
     // elt.lineHeight = elt.getMeasuredLineHeight() *1.1; // extra leading
     this.addToCenter(elt);
-    this.rotation = 180;
+    this.rotation = 180;  // Detail
     this.paint(C.WHITE, true);
   }
 }
@@ -890,12 +891,7 @@ export class LayoutCard extends TextCard {
       const ty = bmi.y + LayoutCard.maxh/2 + .3 * fs; elt.lineHeight;
       this.addImage(elt, dx*[-1, 1][i], ty, false); // dy from maxh?
     })
-
-    // const img0 = loader.getBitmap(aname0, size * .6)
-    // this.addImage(img0, -dx, -dy);
-    // const img1 = loader.getBitmap(aname1, size * .6)
-    // this.addImage(img1, +dx, -dy);
-    this.rotation = rot;
+    this.rotation = rot; // Layout
     this.paint(C.WHITE, true);
   }
 
@@ -966,7 +962,7 @@ export class Decorator {
     facs.forEach((fac, ndx) => {
       if (fac > 4) return;
       const icon = this.icon(fac);
-      icon.rotation = [0, 180][ndx];
+      icon.rotation = [0, 180][ndx];  // Decorator
       const loc = locs[ndx];
       icon.x = loc.x; icon.y = loc.y;
       card.addChild(icon);

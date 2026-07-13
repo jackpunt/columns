@@ -500,11 +500,11 @@ export class TrackSegment extends ColCard {
    * @param bleed [0] set to ~36px by makeBleed to extend h and fac==0
    */
   constructor(Aname: string, w = 36, h = 72, bleed = 0) {
-      if (!Aname) {
+    if (!Aname) {
       const n = TrackSegment.nextSeqN();
-      Aname = `${String(n).padStart(2, '0')}_${TrackSegment.anames[n-1]}`;
+      Aname = `T${String(n).padStart(2, '0')}_${TrackSegment.anames[n-1]}`;
     } else {
-      Aname.replace(/[0-9_]+/, '');
+      Aname.replace(/T[0-9_]+/, '');
     }
     super(Aname, 5)
     this.removeAllChildren();
@@ -580,7 +580,7 @@ export class TrackSegment extends ColCard {
   override makeBleed(bleed: number) {
     const { w, h } = this.wh;
     const rv = new TrackSegment(this.Aname, w, h, bleed);
-    rv.rotation = this.rotation;
+    rv.rotation = this.rotation; // bleed=track
     return rv
   }
 }
@@ -598,7 +598,7 @@ export class TrackLabel extends TextInRect {
     if (TrackLabel.seqN >= seqLim) TrackLabel.seqN = 0;
     const i = TrackLabel.seqN++, fontSize = (gs.dpi ?? 1) * .1;
     super(`${ i }`, { fontSize })
-    this.rotation = rot;
+    this.rotation = rot;    // TrackSegment
     this.borders = [fontSize, fontSize, 1, 1]; // ensure single digits are landscape
     this.setBounds(undefined, 0, 0, 0);
   }

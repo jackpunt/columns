@@ -25,7 +25,7 @@ type CardButtonOpts = UtilButtonOptions & TextInRectOptions
       & { player: Player, pid?: number, radius?: number, strokec?: string, ssm?: number }
 export abstract class CardButton extends UtilButton { // > TextWithRect > RectWithDisp > Paintable Container
 
-  static gridSpec = Statics.cardSingle_1_75_in;  // set in GameSetup?
+  static gridSpec = Statics.cardSingle_1_75_in;  // set in TileExporter
   static getWH(cardw = 525, vert = true) { return CardShape.getWH(cardw, CardButton.gridSpec, vert)}
 
   static radius = .67 // * CardShape.onScreenRadius
@@ -97,7 +97,7 @@ export abstract class CardButton extends UtilButton { // > TextWithRect > RectWi
     const circ = new CircleShape('', rad, C.RED, new Graphics().ss(ss))
     const slash = new Shape()
     slash.graphics.ss(ss).s(C.RED).mt(-rad, 0).lt(rad, 0);
-    slash.rotation = 45;
+    slash.rotation = 45;  // CancelShape
     const cancel = new Container()
     cancel.y = height / 2 - width / 2; // center on diagonal from bottom
     cancel.addChild(back, circ, slash)
