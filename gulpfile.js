@@ -22,8 +22,8 @@ const fs = require('fs');
 gulp.task('asset-tags', () => {
   const imgTags = [];
 
-  // 1. Match all images in assets and its subfolders using a glob pattern
-  return gulp.src('./src/assets/**/*.{png,jpg,jpeg,ico}')
+  // 1. Match all images in assets and its subfolders using a glob pattern; ignore dev-time "NP*.png"
+  return gulp.src(['./src/assets/**/*.{png,jpg,jpeg,ico}', '!./src/assets/**/NP*.png'])
     .on('data', (file) => {
       // Extract the path relative to the 'src/' directory (e.g., "assets/images/fileName.png")
       const relativePath = file.relative;

@@ -31,8 +31,13 @@ export class Statics {
 
   // "2.45 x 3.95": (804 x 1251)px -72 = (732 x 1179)px =  (2.44 x 3.93)"
   static cardSingle_trump_px: GridSpec = {
-    width: 1300*3, height: 880*6, nrow: 6, ncol: 3, cardw: 1179, cardh: 732, // (inch_w*dpi + 2*bleed)
+    width: 1300*4, height: 880*6, nrow: 6, ncol: 4, cardw: 1179, cardh: 732, // (inch_w*dpi + 2*bleed)
     x0: 650, y0: 440, delx: 1300, dely: 880, bleed: 36, double: false, land: true,
+  };
+
+  static cardSingle_trump_pxv: GridSpec = {
+    width: 880*4, height: 1300*6, nrow: 6, ncol: 4, cardw: 1179, cardh: 732, // (inch_w*dpi + 2*bleed)
+    x0: 440, y0: 650, dely: 1300, delx: 880, bleed: 36, double: false, land: false,
   };
 
   // 18 cards: portrait mode; browser viewport may cut off bottom

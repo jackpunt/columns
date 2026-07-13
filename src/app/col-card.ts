@@ -1,5 +1,5 @@
 import { arrayN, C, F, type XY } from "@thegraid/common-lib";
-import { CenterText, CircleShape, NamedContainer, type CountClaz, type GridSpec, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import { AliasLoader, CenterText, CircleShape, NamedContainer, type Claz, type CountClaz, type GridSpec, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
 import type { DisplayObject } from "@thegraid/easeljs-module";
 import { Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
@@ -11,6 +11,25 @@ import { ColHex2 as Hex2, type HexMap2 } from "./ortho-hex";
 import { type Player } from "./player";
 import { nFacs, Statics, type ColId, type Faction } from "./statics";
 import { TP } from "./table-params";
+
+
+class ClazCounter {
+  seqLim = 1;
+  seqN = 1;
+
+  constructor(public claz: Claz, public seq0 = 1) {
+  }
+
+  nextSeqN(seqLim = this.seqLim) {
+    if (this.seqLim > seqLim) this.seqN = 0;
+    return this.seqN++
+  }
+  countClaz(n: number, ...args: any[]): CountClaz[] {
+    this.seqLim = n;
+    this.seqN = this.seq0;
+    return [[n, this.claz, ...args]]
+  }
+}
 
 export class ColCard extends Tile {
   static decorator?: Decorator;
@@ -234,7 +253,7 @@ export class ColCard extends Tile {
   // 3. for each Player - [1..nc-1 max 4] BidCoin cards
 
   /**
-   *
+   * Create nCards in Faction order. 'C' cards
    * @param nCards number to create (60)
    * @returns
    */
@@ -247,8 +266,8 @@ export class ColCard extends Tile {
     })
   }
   /**
-   * Create 16 DualCards
-   * @param nCards start number in Aname
+   * Create 16 DualCards. 'D' cards
+   * @param nCards start number in Aname (60)
    * @returns
    */
   static makeDualCards(nCards = 60) {
@@ -263,14 +282,14 @@ export class ColCard extends Tile {
   /**
    * Make enough cards to populate the HexMap.
    *
-   * nCards = TP.cardsInPlay; either nc*nr OR 31/28 or whatever for pyramid?
+   * nCards = TP.cardsInPlay = hexMap.hexesInPlay
    *
    * @param nr number of Rows (for straight column layout?)
    * @param nc number of Columns to build (white cards)
+   * @param nCards number of hexes with cards (C, D, X, B, W?) not on row0 or rank0
    * @returns black0, whiteN, allCols, allDuals
    */
-  static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, ) {
-    const nCards = TP.cardsInPlay ; // number of ColCards (nc*nr or 31/28)
+  static makeAllCards(nr = TP.nHexes, nc = TP.mHexes, nCards = TP.cardsInPlay) {
     ColCard.decorator = undefined;  // reset in case printer set alternate decorator
 
     let nb = 0, nw = 0;
@@ -428,7 +447,7 @@ class XtensaCard extends ColCard {
       this.maxCells = len + (len % 2);  // space for meep and one more, keeping 2 rows
       this.meepsOnCard.forEach(m => super.addMeep(m, m.cellNdx))
     }
-    return super.addMeep(meep, ndx, xy)
+    return super.addMeep(meep, ndx, xy); // for screen-grab: ndx == 4 ? 5: ndx
   }
 }
 
@@ -566,17 +585,38 @@ export class PrintSpecial extends SpecialDead {
   }
 }
 
-class TextCard extends ColCard {
-  static text = '';
-  constructor(Aname = 'Text', size = 525, color = C.WHITE) {
+export class TextCard extends ColCard {
+
+  /** color for TextCard */
+  get color() { return C.WHITE }
+
+  constructor(Aname = 'Text', size = 525, titleText?: string) {
     ColCard.nextRadius = size;
     super(Aname, 5);
-    this.paint(color);
+    if (titleText !== undefined) {
+      this.placeTitle(titleText);
+    }
+    this.paint(this.color);
   }
 
   override makeShape(): Paintable {
     const wh = ColCard.getWH(this.radius, false);
     return new CardShape(C.WHITE, C.WHITE, wh, false, 0);
+  }
+  title?: Text;
+  placeTitle(text: string, fs = this.radius * .08, y0 = .8 * fs - this.radius/2) {
+    const title = this.title = new CenterText(text, fs)
+    title.textBaseline = 'top';
+    title.y = y0;
+    this.addChild(title)
+  }
+
+  /** add left-aligned dObj to card at (x0, y0) */
+  addToCenter(dObj: DisplayObject, x0 = 0, y0 = 0) {
+    this.addChild(dObj);
+    const { x, y, width, height } = dObj.getBounds()
+    dObj.x = x0 + (0  -  width * dObj.scaleX) / 2;
+    dObj.y = y0 + (0 - height * dObj.scaleY) / 2;
   }
 }
 
@@ -601,13 +641,13 @@ export class CursusBack extends TextCard {
   static rankSize = 170;
   static backFont = F.fontSpec(CursusBack.rankSize, `${CursusBack.family}`, undefined, 'italic');
 
-  constructor(Aname = 'Back', seqLim: number, size = 525, text = '', color = C.WHITE) {
+  constructor(Aname = 'Back', seqLim: number, size = 525, text = '') {
     const n = CursusBack.nextSeqN(seqLim);
     const aname = `${Aname}_${String(n).padStart(2, '0')}`;
 
     ColCard.nextRadius = size;
 
-    super(aname, size, color)
+    super(aname, size)
 
     const font = CursusBack.backFont;
     const ctext = new CenterText(text, font)
@@ -622,16 +662,10 @@ export class CursusBack extends TextCard {
 }
 
 export class SummaryCard extends TextCard {
-  static seqLim = 10;
-  static seqN = 1;
-  static nextSeqN(seqLim = SummaryCard.seqLim) {
-    if (SummaryCard.seqN > seqLim) SummaryCard.seqN = 1;
-    return SummaryCard.seqN++
-  }
+  static clazCounter = new ClazCounter(SummaryCard, 1);
+
   static countClaz(n: number, ...args: any[]): CountClaz[] {
-    SummaryCard.seqLim = n;
-    SummaryCard.seqN = 1;
-    return [[n, SummaryCard, ...args]];
+    return SummaryCard.clazCounter.countClaz(n, ...args);
   }
 
   static summaryText = `Round = 3 x Turns:
@@ -653,7 +687,8 @@ End of Round:
    */
   constructor(Aname = 'Summary', size = 750, text = SummaryCard.summaryText, fs = size / 9, titleText?: Text) {
     ColCard.nextRadius = size;
-    const aname = !!Aname.match(/_[0-9]+$/) ? Aname : `${Aname}_${SummaryCard.nextSeqN()}`
+    const n = SummaryCard.clazCounter.nextSeqN();
+    const aname = !!Aname.match(/_[0-9]+$/) ? Aname : `${Aname}_${n}`
     super(aname, size);
 
     const { x: x0, y: y0, width: w, height: h } = this.getBounds();
@@ -678,16 +713,9 @@ End of Round:
   }
 }
 export class EoGCard extends SummaryCard {
-  static override seqLim = 10;
-  static override seqN = 1;
-  static override nextSeqN(seqLim = EoGCard.seqLim) {
-    if (EoGCard.seqN > seqLim) EoGCard.seqN = 1;
-    return EoGCard.seqN++
-  }
+  static override clazCounter = new ClazCounter(EoGCard, 1);
   static override countClaz(n: number, ...args: any[]): CountClaz[] {
-    EoGCard.seqLim = n;
-    EoGCard.seqN = 1;
-    return [[n, EoGCard, ...args]];
+    return EoGCard.clazCounter.countClaz(n, ...args);
   }
 
   static endGameText = `Any of:
@@ -708,17 +736,48 @@ Highest total score wins
   }
 }
 
-export class CoverCard extends SummaryCard {
-  static override seqLim = 10;
-  static override seqN = 1;
-  static override nextSeqN(seqLim = CoverCard.seqLim) {
-    if (CoverCard.seqN > seqLim) CoverCard.seqN = 1;
-    return CoverCard.seqN++
+export class RulesCard extends TextCard {
+  static clazCounter = new ClazCounter(RulesCard, 1);
+  static countClaz(n: number, ...args: any[]): CountClaz[] {
+    return RulesCard.clazCounter.countClaz(n, ...args);
   }
+
+static text = `
+Resolve bids: equal bids are canceled.
+Advance: meeple in column moves up 1 rank.
+  If empty office on card: take it, no Bump.
+Bump:
+  If Advance to friend, all bumps are UP by 1.
+  If Advance to opponent, all bumps are DOWN.
+  Bump DOWN is by 1 or 2; use either side of Dual.
+Cascade: arriving meeple chooses meeple to bump.
+Score for color: If meeple lands on color of bid,
+  score 1 for your Presence in that color.
+  Presence: bids plus offices & score cells w/meeple.
+Score for rank: Each player advances twice,
+  by rank of 2 meeples; top to bottom; A, B, ...`;
+
+constructor(Aname: string, size: 737, n0 = 0, rot = 0) {
+    const n = (n0 !== undefined) ? n0 : RulesCard.clazCounter.nextSeqN();
+    super(`${Aname}_${n}`, size, 'Rules Details')
+    const fs = size/16, elt = new CenterText(RulesCard.text, fs)
+    elt.textAlign = 'left';
+    this.addToCenter(elt, 0, .63 * fs);
+    this.rotation = rot;
+    const {x, y, w, h} = this.baseShape._rect, b = 36;
+    this.baseShape.setRectRad({x: x+b, y: y+b, w: w-b-b, h: h-b-b, s: b})
+    this.paint(C.grey, true)
+  }
+  override placeTitle(text: string, fs = this.radius * .08, y0 = .58 * fs - this.radius/2) {
+    super.placeTitle(text, fs, y0)
+    this.title!.x -= fs;
+  }
+}
+
+export class CoverCard extends SummaryCard {
+  static override clazCounter = new ClazCounter(CoverCard, 1)
   static override countClaz(n: number, ...args: any[]): CountClaz[] {
-    CoverCard.seqLim = n;
-    CoverCard.seqN = 1;
-    return [[n, CoverCard, ...args]];
+    return CoverCard.clazCounter.countClaz(n, ...args);
   }
 
   //➤ Balance self-promotion vs opponent interference
@@ -740,7 +799,7 @@ export class CoverCard extends SummaryCard {
    * @param fs
    */
   constructor(Aname = 'Cover', size = 750, text = CoverCard.coverText, fs = size/14) {
-    const n = CoverCard.nextSeqN()
+    const n = CoverCard.clazCounter.nextSeqN()
     super(`${Aname}_${n}`, size, text, fs);
     this.elt.lineHeight = this.elt.getMeasuredLineHeight() + 5;
     this.elt.y -= fs * .5;
@@ -754,46 +813,115 @@ export class CoverCard extends SummaryCard {
 }
 
 export class DetailCard extends TextCard {
-  static seqLim = 10;
-  static seqN = 1;
-  static nextSeqN(seqLim = DetailCard.seqLim) {
-    if (DetailCard.seqN > seqLim) DetailCard.seqN = 1;
-    return DetailCard.seqN++
-  }
+  static clazCounter = new ClazCounter(DetailCard, 1)
   static countClaz(n: number, ...args: any[]): CountClaz[] {
-    DetailCard.seqLim = n;
-    DetailCard.seqN = 1;
-    return [[n, DetailCard, ...args]];
+    return DetailCard.clazCounter.countClaz(n, ...args);
   }
 
-  static override text = `1. → Analyze & Plan
+  static text = `1. → Analyze & Plan
     → Select Cards (Column & Bid)
     → Commit & Reveal
 2. Resolve each Column: A, B, …
     ➢ Highest unique Bid (1..4) wins
     ➢ Advance: winner’s meeple
-    ➢ Bump & Cascade: up / down
+    ➢ Bump & Cascade: UP or DOWN
     ➢ Score = Influence with Faction
     ➢ Invest on Score Track
 3. After 3 turns:
    → Score for Rank (2 per player)
-4. Repeat until someone wins`
+4. Repeat until end of game`
 
   constructor(Aname = 'Detail', size = 750, text = DetailCard.text, fs = size/14) {
-    const n = DetailCard.nextSeqN();
+    const n = DetailCard.clazCounter.nextSeqN();
     super(`${Aname}_${n}`, size);
     const elt = new Text(text, F.fontSpec(fs));
     elt.textAlign = 'left';
     // elt.lineHeight = elt.getMeasuredLineHeight() *1.1; // extra leading
-    this.addChild(elt);
-    const { x, y, width, height } = elt.getBounds()
-    elt.x = (0  -  width) / 2;
-    elt.y = (0 - height) / 2;
+    this.addToCenter(elt);
     this.rotation = 180;
     this.paint(C.WHITE, true);
   }
 }
 
+
+export class LayoutCard extends TextCard {
+  static clazCounter = new ClazCounter(LayoutCard, 0);
+  static countClaz(n: number, ...args: any[]): CountClaz[] {
+    return LayoutCard.clazCounter.countClaz(n, ...args);
+  }
+  /** align & scale images to height of previous image(s) */
+  static maxh = 0;
+
+  static text = `layout`;
+  //                 0      1       2      3       4      5       6      7
+  static fnames = ['NP2', 'NP5', 'NP2a', 'NP4a'];
+  //               2-3-4   std   2-small  3-4
+  static pix =    [[0,  1], [ 2,  3]];
+  static flabel = [['2, 3, 4\nplayers', '5 or more:\ncolumn per player'], ['2 players\n(small)', '3 or 4 players\n(alternative)'],];
+  static titles = ['Standard Layout', 'Alterative Layouts\n(or make your own!)']
+
+  /**
+   *
+   * @param Aname
+   * @param n the card number; a pair of images with text
+   * @param size
+   * @param text
+   * @param fs
+   */
+  constructor(Aname = 'Layout', size = 750, n0 = 0, rot = 0, fs = size/14) {
+    const n = (n0 != undefined) ? n0 : LayoutCard.clazCounter.nextSeqN();
+    LayoutCard.maxh = 0;  // reset for each card. (maybe not needed, NP2a is full height)
+    const loader = AliasLoader.loader;
+    const fnames = LayoutCard.fnames, pix = LayoutCard.pix;
+    const flabel = LayoutCard.flabel;
+    const anames = pix[n].map(ndx => fnames[ndx]);
+    const title = LayoutCard.titles[n];
+    // const aname0 = fnames[pix[n][0]]; //
+    // const aname1 = fnames[pix[n][1]]; //
+    super(`${Aname}_${n}`, size, title);
+    const dx = size*.34, dy = -.01 * size;
+
+    const txt = flabel[n]
+    txt.forEach((txt, i)=> {
+      const bmi = loader.getBitmap(anames[i], size * .6)
+      if (!bmi.image) return;  // standalone does not include the LayoutCard images
+      this.addImage(bmi, dx*[-1, 1][i], dy);
+      const elt = new CenterText(txt, F.fontSpec(fs)); elt.textBaseline = 'top';
+      const ty = bmi.y + LayoutCard.maxh/2 + .3 * fs; elt.lineHeight;
+      this.addImage(elt, dx*[-1, 1][i], ty, false); // dy from maxh?
+    })
+
+    // const img0 = loader.getBitmap(aname0, size * .6)
+    // this.addImage(img0, -dx, -dy);
+    // const img1 = loader.getBitmap(aname1, size * .6)
+    // this.addImage(img1, +dx, -dy);
+    this.rotation = rot;
+    this.paint(C.WHITE, true);
+  }
+
+  makeTitle(fs: number, top: number, text = 'Cursus Honorum') {
+    const title = new CenterText(text, fs + 1);
+    title.y = top + fs/2;
+    return title;
+  }
+
+  addImage(dObj: DisplayObject, x0 = 0, y0 = 0, asImage = true) {
+    this.addChild(dObj);
+    const scale = dObj.scaleX;
+    const { x, y, width, height } = dObj.getBounds()
+    const widths = width * scale;
+    const heights = height * scale;
+    let heightm = heights;
+    if (asImage) {
+      heightm = Math.max(LayoutCard.maxh, heightm);
+      LayoutCard.maxh = heightm;
+      dObj.scaleX = dObj.scaleY *= heightm/heights;
+    }
+    // move [center?] to x0, y0
+    dObj.x = x0;
+    dObj.y = y0;
+  }
+}
 
 export class Decorator {
   /**

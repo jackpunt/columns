@@ -203,7 +203,7 @@ export class HexMap2 extends HexMap<ColHex2> {
     const rml = nr - 1 - nru;               // row with max length; most (nc) columns == (nr-1) - 2
     const mcl = brl + nru;                  // max col length;
     const trl = [[0, 0, 4, 4, 4, 3, 4, 5, 6],
-                 [0, 0, 4, 3, 4, 3, 4, 5, 6]][fb ? 0 : 1][np]
+                 [0, 0, 4, 3, 3, 3, 4, 5, 6]][fb ? 0 : 1][np]
     const tro = [[0, 0, 1, 1, 1, 2, 2, 2, 2],
                  [0, 0, 1, 2, 2, 2, 2, 2, 2]][fb ? 0 : 1][np];
     return { nru, rml, mcl, trl, tro }
@@ -214,7 +214,7 @@ export class HexMap2 extends HexMap<ColHex2> {
   override makeAllHexes(nr = TP.nHexes, nc = TP.mHexes, rc0: RC) {
     const col = 1, district = 0, hexAry = [] as ColHex2[];
     const np = TP.numPlayers;
-    let cardsInPlay = 0;
+    let hexesInPlay = 0;
     if (TP.usePyrTopo) {
       // see GameSetup.setRowsCols()
       //  6, 5, 4,5,3,2,1, 0
@@ -228,20 +228,27 @@ export class HexMap2 extends HexMap<ColHex2> {
         const c0 =  (row == 0) ? tro : Math.floor(topoEW.xywh(1, row - 1, ncc / 2).x);
         // console.log(stime(this, `.mAH:`), { row, dnrl, ncr, kx })
         this.addLineOfHex(ncr, row, c0, district, hexAry, 1)
-        if (row !== 0 && row != (nr-1)) cardsInPlay += ncr; // will need ColCards for these hexes
+        if (row !== 0 && row != (nr-1)) hexesInPlay += ncr; // will need ColCards for these hexes
       }
     } else {
       // nh: rows, mh: cols
       for (let row = 0; row < nr; row++) {
         this.addLineOfHex(nc, row, col, district, hexAry, 1)
-        if (row !== 0 && row != (nr-1)) cardsInPlay += nc; // will need ColCards for these hexes
+        if (row !== 0 && row != (nr-1)) hexesInPlay += nc; // will need ColCards for these hexes
       }
     }
-    TP.cardsInPlay = cardsInPlay;
+    TP.cardsInPlay = hexesInPlay;
     this.setDistrictAndPaint(hexAry)
     return hexAry;
     // return this.makeRect(nh, mh, false, false); // ignore return value hexary: Hex[]
   }
+
+  /** number of hexes, not counting row0 or rank0 */
+  get hexesInPlay() {
+    const [nr] = this.nRowCol, rank0 = nr-1;
+    return this.filterEachHex(h => (h.row !== 0 && h.row !== rank0)).length;// count hexes with playable ColCards
+  }
+
   // working with GameSetup to color the 'HexShape' with a district per row:
   override paintDistrict(hex2Ary: IHex2[], district = 0, cColor?: string) {
     hex2Ary.forEach((hex, n) => {

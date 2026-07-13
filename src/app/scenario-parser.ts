@@ -89,6 +89,7 @@ export class ScenarioParser extends SPLib {
     this.gamePlay.table.stage.update();
   }
 
+  /** make enough cards to populate hexMap */
   makeAllCards(nr = 1, nc = 1) {
     ColCard.nextRadius = CardShape.onScreenRadius; // reset to on-screen size
     Tile.gamePlay = this.gamePlay
@@ -117,18 +118,17 @@ export class ScenarioParser extends SPLib {
     const rank0 = nr - 1;
     if (layout) {
       layout.forEach((rowElt, row) => {
-        const cards0 = (row == 0) ? black0 : whiteN;
         const hexRow = gamePlay.hexMap[row];
         const c0 = hexRow.findIndex(hex => !!hex);
         rowElt.forEach(({ fac }, ndx) => {
           const col = c0 + ndx;
           const hex = hexRow[col]; // TODO: match on card.Aname!
-          const cards = (row == 0 || row == rank0) ? cards0
+          const cards = (row == 0) ? black0 : (row == rank0) ? whiteN
               : (midBlank && row == 1 && col == midCol) ? [new BlackCard(`Fill:${col}`)]
               : (fac.length == 2) ? dCards : pCards;
           const card = ((fac.length == 2)
             ? cards.find(card => card.factions[0] == fac[0] && card.factions[1] == fac[1])
-            : (fac[0] == 5) ? (cards.unshift(new SpecialDead(`${row}:${col}`)), cards[0])
+            : (fac[0] == 5) ? new SpecialDead(`${row}:${col}`)
             : cards.find(card => card.factions[0] == fac[0])) as ColCard;
           if (!card) debugger; // ASSERT: cards.includes(card)
           removeEltFromArray(card, cards);
@@ -136,14 +136,10 @@ export class ScenarioParser extends SPLib {
         })
       })
     } else {
-      const nr = gamePlay.nRows
-      let nCards = 0;
-      gamePlay.hexMap.forEachHex(h => {
-        if (h.row !== 0 && h.row !== nr-1) nCards++; // count ColCard hexes
-      });
       // new/random layout:
       permute(pCards)
       permute(dCards)
+      const nCards = gamePlay.hexMap.hexesInPlay
       const nDual = Math.round(nCards * TP.rDuals), nPlain = nCards - nDual;
       const duals = dCards.slice(0, nDual)
       const plain = pCards.slice(0, nPlain)
@@ -153,7 +149,7 @@ export class ScenarioParser extends SPLib {
       gamePlay.hexMap.forEachHex(hex => {
         const { row, col } = hex;
         const card =  (midBlank && row == 1 && col == midCol) ? new BlackCard('midCol')
-          : (row == 0 ? black0 : row == rank0 ? whiteN : cards).shift() as ColCard;
+          : (row == 0 ? black0 : row == rank0 ? whiteN : cards).shift()!;
         this.placeCardOnHex(card, hex);
         return;
       })

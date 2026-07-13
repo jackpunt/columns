@@ -10,6 +10,7 @@ import { ScenarioParser, type SetupElt } from './scenario-parser';
 import { TP } from './table-params';
 import { type TileExporter } from './tile-exporter';
 import { TileExporter2 } from './tile-exporter2';
+import { LayoutCard } from './col-card';
 
 type Params = Record<string, any>; // until hexlib supplies
 export interface Scenario extends Scenario0 {
@@ -43,7 +44,7 @@ class ColGameSetup extends GameSetupLib {
 
   override loadImagesThenStartup() {
     const loader = AliasLoader.loader;
-    loader.fnames = ['meeple-shape'];
+    loader.fnames = ['meeple-shape', ...LayoutCard.fnames];
     loader.imageArgs.inline = this.qParams['inline'];
     // ignore super.loadImagesThenStartup():
     loader.loadImages((imap) => this.startup(this.qParams, imap));
@@ -161,6 +162,7 @@ class ColGameSetup extends GameSetupLib {
   }
 
   override startScenario(scenario: Scenario0) {
+    window.scrollTo(0, 0);    // reset viewport:
     const gp = super.startScenario(scenario)
     return gp
   }

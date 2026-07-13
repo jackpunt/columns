@@ -11,7 +11,7 @@ export class TP extends TPLib {
     tp.maxPlayers = 8;       // playerPanel for 6,7,8 overlap
     tp.numPlayers = 2;
     tp.cacheTiles = 2.5;
-    tp.bgColor = 'white'; // rgba(200, 120, 40, 0.8)';
+    tp.bgColor = 'rgba(200, 120, 40, 0.8)';
     PaintableShape.defaultRadius = tp.hexRad;
   }
   static override setParams(qParams?: Params, force?: boolean, target?: Params) {
@@ -35,7 +35,7 @@ export class TP extends TPLib {
   static nElts = 5;
   /** identify the TrackSegments in use */
   static trackSegs?: string[]; // anames of each TrackSegment in use; nElts = trackSegs.length
-  /** when numPlayers < 5: [true -> ABCD] [false -> use AB_DE] */
+  /** reduce to 4 columns when numPlayers <= 4: [true -> ABCD] [false -> use AB_DE] */
   static fourBase = true;
   /** include ladderScore */
   static aiLadderScore = true;
@@ -61,14 +61,14 @@ export class TP extends TPLib {
   /** setAutoPlay unless startManual includes player index */
   static startManual = [0];
   /** enable/disable auto bots */
-  static autoStart = false;
+  static autoStart = true;
   /** for non-auto Players */
   static autoScore = false;
   /** meeple-drop --> click doneButton (doneButton: "advance & bump your highlighted meeple") */
   static autoDrop = true;
   /** true to use PryTopo and layout */
   static usePyrTopo = true;
-  /** total ColCards to shuffle & display */
+  /** total ColCards to shuffle & display, hexMap.hexesInPlay */
   static cardsInPlay = 31;
   /** include Faction icons for color blind */
   static factionIcons = true;

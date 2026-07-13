@@ -1,7 +1,7 @@
 import { arrayN } from "@thegraid/common-lib";
 import { ImageGrid, PageSpec, TileExporter as TileExporterLib, type CountClaz, type GridSpec } from "@thegraid/easeljs-lib";
 import { ColButtonBack, ColSelButton, PrintBidValue, PrintColSelect } from "./card-button";
-import { BlackCard, ColCard, CoverCard, CursusBack, DetailCard, EoGCard, PrintCol, PrintDual, PrintSpecial, SummaryCard, WhiteCard } from "./col-card";
+import { BlackCard, ColCard, CoverCard, CursusBack, DetailCard, EoGCard, LayoutCard, PrintCol, PrintDual, PrintSpecial, RulesCard, SummaryCard, TextCard, WhiteCard } from "./col-card";
 import { TrackLabel, TrackSegment } from "./col-table";
 import { Player } from "./player";
 import { Statics } from "./statics";
@@ -35,16 +35,19 @@ export class TileExporter extends TileExporterLib {
     // 2D + 1S + 12 Detail + 3 Detail
     const cardSingle_3_5_track = [
       // FRONTS:
+      ...[[1, LayoutCard, 'Layout', track_grid.cardh, 0]],
+      ...RulesCard.countClaz(3, 'Rules', track_grid.cardh),
+      ...SummaryCard.countClaz(4, 'Summary', track_grid.cardh),
+
       ...CoverCard.countClaz(2, 'Cover', track_grid.cardh),
-
-      ...SummaryCard.countClaz(1, 'Summary', track_grid.cardh),
-      ...SummaryCard.countClaz(3, 'Summary', track_grid.cardh),
       ...TrackSegment.countClaz(12, track_grid),
+      ...[[2, TextCard, 'XX', track_grid.cardh]],
       // BACKS:
-      ...DetailCard.countClaz(2, 'Detail', track_grid.cardh),
+      ...[[1, LayoutCard, 'Layout', track_grid.cardh, 1, 180]],
+      ...DetailCard.countClaz(3, 'Detail', track_grid.cardh),
+      ...EoGCard.countClaz(4, 'EoG', track_grid.cardh),
 
-      ...EoGCard.countClaz(1, 'EoG', track_grid.cardh),
-      ...EoGCard.countClaz(3, 'EoG', track_grid.cardh),
+      ...DetailCard.countClaz(2, 'Detail', track_grid.cardh),
       ...DetailCard.countClaz(12, 'Detail', track_grid.cardh),
     ] as CountClaz[];
 
@@ -108,9 +111,9 @@ export class TileExporter extends TileExporterLib {
     // ColCard.gridSpec set the aspect ratio (ColCard.getWH) for all the ColCard derivatives:
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, track_grid, pageSpecs)
-    // this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = TrackSegment.gridSpec = track_grid, pageSpecs, false, 'Track');
-    this.clazToTemplate(cardSingle_1_75_hand_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
-    this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
+    this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = TrackSegment.gridSpec = track_grid, pageSpecs, false, 'Track');
+    // this.clazToTemplate(cardSingle_1_75_hand_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
+    // this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
     // this.clazToTemplate(cardSingle_1_75_hand, ColCard.gridSpec = card_grid, pageSpecs, false, 'Front');
     // this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = card_grid, pageSpecs, false, 'Front');
     return pageSpecs;
