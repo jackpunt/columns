@@ -43,9 +43,9 @@ export class Player extends PlayerLib implements ColPlayer {
       pink: '#fd40ff',  // #FF33CC *
       white: '#ceeef8', // #ceeef8 * (ultra-light-blue -> white meeples)
       grey: '#8a8a8a',  // #8a8a8a *
-      purple: '#7b04b6',// #ff0505 *
       blue: '#3fbbe4',  // #2d8be3 *
       brown: '#4f2e00', // #643a00 * (could use brown or black meeps/cubes)
+      purple: '#bd2d1c',// #ff0505 *
       tan: '#ffd722',   // #bb8672  (tan, natural wood)
       yellow: '#ede438',// #ede438  (not used on screen!)
   }
