@@ -832,10 +832,11 @@ export class DetailCard extends TextCard {
    → Score for Rank (2 per player)
 4. Repeat until end of game`
 
-  constructor(Aname = 'Detail', size = 750, text = DetailCard.text, fs = size/14) {
+  constructor(Aname = 'Detail', size = 750, text = DetailCard.text, fs = size/14, num0?: number) {
     const n = DetailCard.clazCounter.nextSeqN();
     super(`${Aname}_${n}`, size);
-    const elt = new Text(text, F.fontSpec(fs));
+    const id = num0 == undefined ? '' : `                         ${n - num0}`;
+    const elt = new Text(text+id, F.fontSpec(fs));
     elt.textAlign = 'left';
     // elt.lineHeight = elt.getMeasuredLineHeight() *1.1; // extra leading
     this.addToCenter(elt);
