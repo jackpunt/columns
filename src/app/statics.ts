@@ -29,12 +29,13 @@ export class Statics {
     x0: 1146/2, y0: 844/2, delx: 1146, dely: 844, bleed: 36, double: false, land: true,
   };
 
-  // "2.45 x 3.95": (804 x 1251)px -72 = (732 x 1179)px =  (2.44 x 3.93)"
+  // land: "2.45 x 3.94": (804 x 1251)px -72 = (732 x 1179)px =  (2.44 x 3.93)" (62 x 100)mm (732 x 1181)
   static cardSingle_trump_px: GridSpec = {
     width: 1300*4, height: 880*6, nrow: 6, ncol: 4, cardw: 1179, cardh: 732, // (inch_w*dpi + 2*bleed)
     x0: 650, y0: 440, delx: 1300, dely: 880, bleed: 36, double: false, land: true,
   };
 
+  // vertical:
   static cardSingle_trump_pxv: GridSpec = {
     width: 880*4, height: 1300*6, nrow: 6, ncol: 4, cardw: 1179, cardh: 732, // (inch_w*dpi + 2*bleed)
     x0: 440, y0: 650, dely: 1300, delx: 880, bleed: 36, double: false, land: false,
