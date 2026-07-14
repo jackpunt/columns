@@ -18,7 +18,7 @@ export class CardShape extends RectShape {
 
   static getWH(r: number, gs: GridSpec, vert = false) {
     const a = gs.cardw! / gs.cardh!;  // aspect ration is independent of dpi
-    const ra = (r * a);     // ASSERT: diminsion is integral
+    const ra = (r * a);     // ASSERT: dimension is integral
     return (a < 1)
       ? (vert ? { w: ra, h: r } : { w: r, h: ra })
       : (vert ? { w: r, h: ra } : { w: ra, h: r })
