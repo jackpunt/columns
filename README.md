@@ -1,4 +1,4 @@
-# Columns
+# Columns - Cursus Honorum
 
 Implementation and bot players for "[Cursus Honorum](https://docs.google.com/document/d/109RBOLeDE0yhKDTgoVcWnJsUCzC3blE6XaKuF_LLsb4/)"
 
