@@ -40,7 +40,7 @@ export class TileExporter extends TileExporterLib {
       ...SummaryCard.countClaz(4, 'CSummary', track_grid.cardh),
 
       ...CoverCard.countClaz(2, 'DCover', track_grid.cardh),
-      ...TrackSegment.countClaz(12, track_grid),
+      ...TrackSegment.countClaz(12, track_grid),  // 'T...'
       ...[[2, TextCard, 'UU', track_grid.cardh]],
       // BACKS:
       ...[[1, LayoutCard, 'VLayout', track_grid.cardh, 1, 180]],
@@ -48,7 +48,7 @@ export class TileExporter extends TileExporterLib {
       ...EoGCard.countClaz(4, 'XEoG', track_grid.cardh),
 
       ...DetailCard.countClaz(2, 'YDetail', track_grid.cardh),
-      ...DetailCard.countClaz(12, 'ZDetail', track_grid.cardh),
+      ...DetailCard.countClaz(12, 'ZDetail', track_grid.cardh, undefined, undefined, 5),
     ] as CountClaz[];
 
     // 16(D) 48(C) 18(B, W, SD) = 82;
@@ -112,10 +112,10 @@ export class TileExporter extends TileExporterLib {
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, track_grid, pageSpecs)
     // this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = TrackSegment.gridSpec = track_grid, pageSpecs, false, 'Track');
-    this.clazToTemplate(cardSingle_1_75_hand, CardButton.gridSpec = card_grid, pageSpecs, false, 'Front');
-    this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = card_grid, pageSpecs, false, 'Front');
-    // this.clazToTemplate(cardSingle_1_75_hand_back, CardButton.gridSpec = card_grid, pageSpecs, false, 'Backs');
-    // this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
+    // this.clazToTemplate(cardSingle_1_75_hand, CardButton.gridSpec = card_grid, pageSpecs, false, 'Front');
+    // this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = card_grid, pageSpecs, false, 'Front');
+    this.clazToTemplate(cardSingle_1_75_hand_back, CardButton.gridSpec = card_grid, pageSpecs, false, 'Backs');
+    this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
     return pageSpecs;
   }
 
