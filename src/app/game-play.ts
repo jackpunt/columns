@@ -1,7 +1,7 @@
 import { arrayN, json, stime } from "@thegraid/common-lib";
 import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario, TP as TPLib, type SetupElt } from "@thegraid/hexlib";
-import type { BlackCard, ColCard, DualCard } from "./col-card";
+import type { BlackCard, ColCard, DualCard, WhiteCard } from "./col-card";
 import { type ColMeeple } from "./col-meeple";
 import type { ColTable } from "./col-table";
 import type { GameSetup } from "./game-setup";
@@ -56,7 +56,7 @@ export class GamePlay extends GamePlayLib {
   /** row0 at the top */
   black0: ColCard[] = [];
   /** rowN = rank0 at the bottom */
-  whiteN: BlackCard[] = [];
+  whiteN: WhiteCard[] = [];
   allCols: ColCard[] = [];
   allDuals: DualCard[] = [];
   allBlack: BlackCard[] = [];

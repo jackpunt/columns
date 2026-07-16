@@ -189,7 +189,7 @@ export class GameState extends GameStateLib {
         // col index colNames, so 1..nc; whiteN is indexed [0..nc-1]
         const whiteN = this.gamePlay.whiteN, bCard = whiteN[col - 1], colId = bCard?.colId;
         if (col > whiteN.length) { return this.phase('EndTurn') }
-        if (bCard.maxCells == 0) { return this.phase('ResolveWinner', col + 1) } // skip BlackNull column
+        if (bCard.maxCells == 0) { return this.phase('ResolveWinner', col + 1) } // skip WhiteNull column
         // calls player.advanceOneMeeple(meepsInCol, cb_advanceMeeple)
         this.gamePlay.resolveWinnerAndAdvance(colId, (step?: Step<AdvDir>) => {
           setTimeout(() => this.state.done!(col, step), TP.flipDwell)

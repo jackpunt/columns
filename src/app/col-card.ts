@@ -1,5 +1,5 @@
 import { arrayN, C, F, type XY } from "@thegraid/common-lib";
-import { AliasLoader, CenterText, CircleShape, NamedContainer, type Claz, type CountClaz, type GridSpec, type Paintable, type PaintableShape } from "@thegraid/easeljs-lib";
+import { AliasLoader, CenterText, CircleShape, NamedContainer, type Claz, type CountClaz, type GridSpec, type Paintable } from "@thegraid/easeljs-lib";
 import type { DisplayObject } from "@thegraid/easeljs-module";
 import { Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { Tile, TileSource, type DragContext, type Hex1, type IHex2 } from "@thegraid/hexlib";
@@ -51,6 +51,7 @@ export class ColCard extends Tile {
 
   factions: Faction[] = [0];
   maxCells: number;
+  hasNext = true;  // indicates Card supplies nextCard() vs BlackCard which does not
 
   constructor(aname: string, ...factions: Faction[]) {
     super(aname);
@@ -410,12 +411,6 @@ class XtensaCard extends ColCard {
   _colId: ColId;
   get colId() { return this._colId; }
 
-  override nextCard(dir: BumpDir): ColCard | undefined {
-    // Advance: only bottom have 'N'; bump: never a collision on Black
-    if (!this.colId) return this;  // BlackFill (override 'N') --> no way out;
-    return super.nextCard(dir) ?? this; // back to itself
-  }
-
   override get meepStr() {
     return this.meepAtNdx.slice(0, 3)
       .map(meep => meep ? `${meep.player.index}` : `-`)
@@ -456,7 +451,13 @@ export class BlackCard extends XtensaCard {
   static countClaz(n = 0, size = 525, aname='Black'): CountClaz[] {   //             name, size, colNum, fs
     return arrayN(n, i => i+1).map(colNum => [1, PrintWhite, `${aname}_${colNum}`, size, 0, .5])
   }
-}
+  // signal to meepsInCol
+  override hasNext = false;
+
+  /** indicates a BlackCard with not chance to Advance (or be bumped) */
+  override nextCard(dir: BumpDir): ColCard | undefined {
+    return undefined;  // no escape...
+  }}
 
 export class WhiteCard extends XtensaCard {
   static countClaz(n = 0, size = 525, rot = 0): CountClaz[] {
@@ -484,7 +485,7 @@ export class WhiteNull extends WhiteCard {
   }
 
   override nextCard(dir: BumpDir): ColCard | undefined {
-    return undefined;  // no escape...
+    return undefined;  // no escape... but nobody ever comes here
   }
 }
 
@@ -753,9 +754,9 @@ Bump:
   Bump DOWN is by 1 or 2; use either side of Dual.
 Cascade: arriving meeple chooses meeple to bump.
 Score for color: If meeple lands on color of bid,
-  score 1 for your Presence in that color.
-  Presence: bids plus offices & score cells w/meeple.
-Score for rank: Each player advances twice,
+  Score 1 for your Influence in that color.
+  Influence: bids plus offices & score cells w/meeple.
+Score for rank: Each player Scores twice,
   by rank of 2 meeples; top to bottom; A, B, ...`;
 
 constructor(Aname: string, size: 737, n0?: number, rot = 0) {

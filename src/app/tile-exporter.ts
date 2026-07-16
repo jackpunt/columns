@@ -111,11 +111,11 @@ export class TileExporter extends TileExporterLib {
     // ColCard.gridSpec set the aspect ratio (ColCard.getWH) for all the ColCard derivatives:
     const pageSpecs: PageSpec[] = [];
     // this.clazToTemplate(labelCols, track_grid, pageSpecs)
-    // this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = TrackSegment.gridSpec = track_grid, pageSpecs, false, 'Track');
+    this.clazToTemplate(cardSingle_3_5_track, ColCard.gridSpec = TrackSegment.gridSpec = track_grid, pageSpecs, false, 'Track');
     // this.clazToTemplate(cardSingle_1_75_hand, CardButton.gridSpec = card_grid, pageSpecs, false, 'Front');
     // this.clazToTemplate(cardSingle_1_75_base, ColCard.gridSpec = card_grid, pageSpecs, false, 'Front');
-    this.clazToTemplate(cardSingle_1_75_hand_back, CardButton.gridSpec = card_grid, pageSpecs, false, 'Backs');
-    this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
+    // this.clazToTemplate(cardSingle_1_75_hand_back, CardButton.gridSpec = card_grid, pageSpecs, false, 'Backs');
+    // this.clazToTemplate(cardSingle_1_75_base_back, ColCard.gridSpec = card_grid, pageSpecs, false, 'Backs');
     return pageSpecs;
   }
 

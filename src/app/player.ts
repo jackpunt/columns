@@ -74,7 +74,8 @@ export class Player extends PlayerLib implements ColPlayer {
    * @returns meeples of Player in column, candidates for winner.meep
    */
   meepsInCol(colId: ColId) {
-    return this.meeples.filter(meep => meep.card.isInCol[colId]);
+    // exclude BlackCards, which cannot Advance.
+    return this.meeples.filter(meep => meep.card.isInCol[colId] && meep.card.hasNext);
   }
 
   // 2 score counters (advancing on track)
