@@ -23,7 +23,7 @@ gulp.task('asset-tags', () => {
   const imgTags = [];
 
   // 1. Match all images in assets and its subfolders using a glob pattern; ignore dev-time "NP*.png"
-  return gulp.src(['./src/assets/**/*.{png,jpg,jpeg,ico}', '!./src/assets/**/*.png'])
+  return gulp.src(['./src/assets/**/*.{png,jpg,jpeg,ico}', '!./src/assets/**/NP*.png'])
     .on('data', (file) => {
       // Extract the path relative to the 'src/' directory (e.g., "assets/images/fileName.png")
       const relativePath = file.relative;
@@ -31,7 +31,7 @@ gulp.task('asset-tags', () => {
       // Generate a clean ID by swapping path slashes with dashes and dropping the extension
       // (e.g., "assets/images/hero.png" becomes "asset-assets-images-hero")
       const imageId = 'assets_' + relativePath.replace(/[\/\.]/g, '_');
-
+      console.log(`imageId=${imageId}`);
       imgTags.push(`<img id="${imageId}" src="assets/${relativePath}" style="display:none;" loading="lazy" inline />`);
     })
     .on('end', () => {
@@ -39,9 +39,9 @@ gulp.task('asset-tags', () => {
       const searchRegex = /<div id="assets-image-registry"[\s\S]*?<\/div>/;
 
       // 2. Inject the gathered tags back into your target template
-      return gulp.src('./src/app/index.html')
+      return gulp.src('./src/index.html')
         .pipe(replace(searchRegex, updatedRegistryBlock))
-        .pipe(gulp.dest('./src/app/'));
+        .pipe(gulp.dest('./src/'));
     })
   });
 

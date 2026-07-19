@@ -29,17 +29,20 @@ export class MeepleShape extends NamedContainer implements Paintable {
     }
     return this.cgfGraphics;
   }
+  cs = 2;
 
   constructor(color: string, size: XY = { x: PaintableShape.defaultRadius, y: PaintableShape.defaultRadius }) {
     super('MeepleShape');
     const msBitmap = AliasLoader.loader.getBitmap('meeple-shape', size);
-    const backside = this.backside = new StencilImage(msBitmap, C.WHITE);
-    this.scaleX = 1.3; this.scaleY = 1.20;
-    backside.scaleX = 1.1 * this.scaleX; backside.scaleY = 1.1 * this.scaleY;
+    const moBitmap = AliasLoader.loader.getBitmap('meeple-outline', size);
+    const backside = this.backside = new StencilImage(msBitmap, C.WHITE, 1);
+    this.scaleX = 1.3; this.scaleY = 1.2;         // reshape the meeple's aspect ratio
+    backside.scaleX = 1.3; backside.scaleY = 1.2; // enlarge the highlight
     this.addChild(backside)
-    const meepleImage = this.meepleImage = new StencilImage(msBitmap, color);
+    const meepleImage = this.meepleImage = new StencilImage(msBitmap, color, this.cs);
     this.addChild(meepleImage);
-    this.setCacheID()
+    this.addChild(moBitmap);
+    this.setCacheID(this.cs)
     this.highlight(false);
     return;
   }
@@ -48,7 +51,7 @@ export class MeepleShape extends NamedContainer implements Paintable {
   setCacheID(scale = 1) { // required for Paintable!
     if (!this.cacheID) {
       const { x, y, width, height } = this.getBounds()
-      this.cache(x, y, width, height, scale)
+      this.cache(x, y, width*scale, height*scale, scale)
     }
   }
 

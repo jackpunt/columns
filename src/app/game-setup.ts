@@ -46,7 +46,7 @@ class ColGameSetup extends GameSetupLib {
     const loader = AliasLoader.loader;
     const inline = this.qParams['inline'];
     loader.imageArgs.inline = inline;
-    loader.fnames = ['meeple-shape', ...(inline ? [] : LayoutCard.fnames)];
+    loader.fnames = ['meeple-shape', 'meeple-outline', ...(inline ? [] : LayoutCard.fnames)];
     // ignore super.loadImagesThenStartup():
     loader.loadImages((imap) => this.startup(this.qParams, imap));
   }
