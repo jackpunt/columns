@@ -516,6 +516,11 @@ export class SpecialDead extends ColCard {
     this.addChildAt(facShape, 1)
     this.paint(C.grey128)
   }
+
+  override meepleLoc(ndx = this.openCells[0]): XY {
+    return { x: 0, y: this.radius * .18 }
+  }
+
   override get bleedColor(): string {
     return C.black;
   }
