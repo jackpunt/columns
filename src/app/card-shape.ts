@@ -1,4 +1,4 @@
-import { C } from "@thegraid/common-lib";
+import { C, type XY } from "@thegraid/common-lib";
 import { RectShape, type CGF, type GridSpec } from "@thegraid/easeljs-lib";
 import { Graphics } from "@thegraid/easeljs-module";
 import { H, TP } from "@thegraid/hexlib";
@@ -43,18 +43,22 @@ export class CardShape extends RectShape {
     this.radius = rad;
     // this.cache(-w/2-s, -h/2-s, w+s+s, h+s+s, 4);
   }
+
+  /** fraction of width to inset corner of 'triangle' (now a trapazoid) */
+  dxm = .2;
+
   /**
    * Fill a triangle inside a CardShape
    * @param ndx 0: ll, 1: ur
    * @param color fillc
-   * @param k shrink from size of CardShape._rect WH
+   * @param k shrink from size of CardShape._rect WH (1 px, to account for ss)
    * @param g Graphics
    */
   triangle(ndx: 0|1, color: string, k = 1, strokec = '', g = new Graphics()) {
-    const { w: w0, h: h0 } = this._rect, r = this._cRad, s = h0 * .04;
-    const w = (w0 + s) / 2, h = (h0 + s) / 2;
-    const dx = w * .2;
-    const cx0 = [k-w, w-k, ][ndx], cx = [(cx0+dx), (cx0-dx), ][ndx], cy = [k-h, h-k, ][ndx];
+    const { w, h } = this._rect, s = h * .04;
+    const w2 = (w + s) / 2, dx = w2 * this.dxm;
+    const h2 = (h + s) / 2;
+    const cx0 = [k-w2, w2-k, ][ndx], cx = [(cx0+dx), (cx0-dx), ][ndx], cy = [k-h2, h2-k, ][ndx];
     g.s('').f(color)
     g.mt(-cx, -cy).lt(cx, cy).lt(cx0, cy).lt(cx0, -cy).cp();
     if (strokec) {
@@ -62,6 +66,25 @@ export class CardShape extends RectShape {
       g.mt(-cx, -cy).lt(cx, cy).cp(); // NW -> SE
     }
     return g;
+  }
+
+  /** returns 1 if target is above line of {-cx, -cy } -- { cx, cy }; or -1 if below, 0 if on the line. */
+  targetToLine(target: XY): number {
+    const { w, h } = this._rect, s = h * .04;
+    const w2 = (w + s) / 2, dx = w2 * this.dxm;
+    const cx = dx - w/2, cy = 0 - h/2; // bounds + [dx, 0]
+    // Evaluates cross-multiplied vectors and strictly returns 1 (above), -1 (below), or 0 (on the line)
+    return Math.sign((cx * target.y) - (cy * target.x));
+  }
+
+  /**
+   *
+   * @param xy point on CardShape in local coordinates
+   * @returns 0: left (lower) triangle, 1: right (upper) triangle
+   */
+  triangleNdx(xy: XY) {
+    const det = this.targetToLine(xy); // -1, 0, 1
+    return (det == 1) ? 1 : 0;
   }
 
   radius!: number;

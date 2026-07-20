@@ -197,9 +197,19 @@ export class ColCard extends Tile {
     return 0;
   }
   cellNdxOfGlobalXY(gxy: XY) {
-    const xy = this.baseShape.parent.globalToLocal(gxy.x, gxy.y);
+    const xy = this.globalToLocal(gxy.x, gxy.y); // this.baseShape.parent == this [ColCard]
     return this.cellNdxOfXY(xy);
   }
+
+  /**
+   *
+   * @param gxy global XY of meeple
+   * @returns true; unless DualCard overrides
+   */
+  canAdvanceToCell(gxy: XY) {
+    return true;
+  }
+
   get marks(): DisplayObject[] | undefined { return undefined; }
 
   atBumpLoc() {
@@ -237,7 +247,7 @@ export class ColCard extends Tile {
     return undefined;  //'Cards are not moveable'; // moveable, but markLegalHexes() --> 0
   }
 
-
+  // allow drag ColCard if lastShift:
   override isLegalTarget(toHex: Hex2, ctx: DragContext): boolean {
     return (toHex === ctx.tile?.fromHex) && (ctx.lastShift ?? false);
   }
@@ -338,18 +348,15 @@ export class DualCard extends ColCard {
     }
   }
 
-  /** returns 1 if target is above line of {-cx, -cy } -- { cx, cy }; or -1 if below, 0 if on the line. */
-  targetToLine(cx: number, cy: number, target: XY): number {
-    // Evaluates cross-multiplied vectors and strictly returns 1 (above), -1 (below), or 0 (on the line)
-    return Math.sign((target.y * cx) - (cy * target.x));
+  override cellNdxOfXY(xy: XY) {
+    return this.baseShape.triangleNdx(xy)
   }
 
-  override cellNdxOfXY(xy: XY) {
-    const { x, y } = this.getBounds();
-    const det = this.targetToLine(x, y, xy);
-    const ndx = [0, 0, 1][det + 1];
-    return ndx;
+  // can not advance to closed cell if there is an open cell
+  override canAdvanceToCell(gxy: XY) {
+    return (this.openCells.length != 1) || this.openCells.includes(this.cellNdxOfGlobalXY(gxy));
   }
+
   override get marks() { return DualCard.cardMarks; }
 
   // makeMeeple: always an openCell; cellNdx: number

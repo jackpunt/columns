@@ -561,7 +561,9 @@ export class Player extends PlayerLib implements ColPlayer {
     return step
   }
 
-  /** for manual mode */
+  /** for manual mode
+   * @returns true: cb_moveMeeps() has placed the meeple; false: card.addMeep()
+   */
   adviseMeepleDropFunc(meep: ColMeeple, targetHex: ColHex2, ctx: DragContext, xy: XY) {
     const gamePlay = this.gamePlay;
     if (gamePlay.curPlayer.useRobo ) return false;

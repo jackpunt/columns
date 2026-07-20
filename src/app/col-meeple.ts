@@ -100,6 +100,19 @@ export class ColMeeple extends Meeple {
     return false;
   }
 
+  // Disallow Advance to occupied cell of DualCard if another is empty
+  override dragFunc0(hex: IHex2 | undefined, ctx: DragContext): void {
+    // TODO: for DualCard, hex.isLegal unless cellNdxOf(xy) is occupied and other cell is not.
+    const cellIsLegal = (hex: IHex2) => {
+      const card = (hex as ColHex2).card, { x, y } = this;
+      const gxy = this.parent.localToGlobal(x, y);
+      return !this.gamePlay.isPhase('ResolveWinner') || card.canAdvanceToCell(gxy);
+    }
+    const target = ctx.targetHex = (hex?.isLegal && cellIsLegal(hex)) ? hex : this.fromHex;
+    this.showTargetMark(target, ctx);      // move mark to target = this.fromHex
+    // this.dragFunc(hex, ctx);
+  }
+
   // hex.card.addMeep(this)
   override dropFunc(targetHex: IHex2, ctx: DragContext): void {
     if (targetHex == this.fromHex) {
