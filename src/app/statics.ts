@@ -47,6 +47,7 @@ export class Statics {
     width: 1300*4, height: 880*6, nrow: 6, ncol: 4, cardw: 1179, cardh: 732, // (inch_w*dpi + 2*bleed)
     x0: 650, y0: 440, delx: 1300, dely: 880, bleed: 36, double: false, land: true,
   };
+  // see also: thegamecrafter.com "Card Crafting Deck" (2.66 x 4.7)" (67 x 119)mm
 
   // vertical:
   static cardSingle_trump_pxv: GridSpec = {
