@@ -8,7 +8,7 @@
     "circles": "npx madge --circular --extensions ts --ts-config ./tsconfig.json ./src",
     "build": "ng build",
     "builds": "ng build --configuration standalone",
-    "buildsd": "ng build --configuration standalone --optimization=false --source-map=true",
+    "buildsd": "ng build --configuration standalone --optimization=true --source-map=true",
     "buildin": "gulp insert-inline-attrs && npx inline-source-cli --root ./dist/columns/ ./dist/columns/index.html ./dist-standalone/cursus.html",
     "buildx": "npm run builds && npx gulp set-build-date && npm run buildin",
     "buildxd": "npm run buildsd && npx gulp set-build-date && npm run buildin",
